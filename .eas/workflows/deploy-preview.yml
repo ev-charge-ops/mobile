@@ -1,5 +1,5 @@
-# Every push to main ships to the "preview" channel:
-# - native changes (new fingerprint) -> new Android APK build
+# Every push to main ships to the "preview" channel, per platform:
+# - native changes (new fingerprint) -> new build (Android APK / iOS to TestFlight)
 # - JS-only changes -> over-the-air EAS Update on the existing build
 name: Deploy preview
 
@@ -13,6 +13,7 @@ jobs:
     type: fingerprint
     environment: preview
 
+  # Android
   get_android_build:
     name: Check for existing Android build
     needs: [fingerprint]
@@ -38,3 +39,37 @@ jobs:
     params:
       branch: preview
       platform: android
+
+  # iOS
+  get_ios_build:
+    name: Check for existing iOS build
+    needs: [fingerprint]
+    type: get-build
+    params:
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      profile: preview
+
+  build_ios:
+    name: Build iOS
+    needs: [get_ios_build]
+    if: ${{ !needs.get_ios_build.outputs.build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: preview
+
+  submit_ios:
+    name: Submit iOS build to TestFlight
+    needs: [build_ios]
+    type: submit
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+
+  publish_ios_update:
+    name: Publish iOS update
+    needs: [get_ios_build]
+    if: ${{ needs.get_ios_build.outputs.build_id }}
+    type: update
+    params:
+      branch: preview
+      platform: ios
