@@ -43,15 +43,15 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "044276aa-8a92-40f1-8fa8-cd3d6f66809b"
+        "projectId": "bb5e32df-a17d-45f0-92b4-bea9a0ab76cb"
       }
     },
-    "owner": "rodrigogmdias",
+    "owner": "ev-charge-ops",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/044276aa-8a92-40f1-8fa8-cd3d6f66809b"
+      "url": "https://u.expo.dev/bb5e32df-a17d-45f0-92b4-bea9a0ab76cb"
     }
   }
 }
