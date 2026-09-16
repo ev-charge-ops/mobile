@@ -64,3 +64,5 @@ export function setAuthTokenHandlers(handlers: AuthTokenHandlers | null) {
 export const apiClient = createClient<paths>({ baseUrl: env.apiUrl });
 
 apiClient.use(createAuthMiddleware(() => authHandlers));
+
+export const publicApiClient = createClient<paths>({ baseUrl: env.apiUrl });

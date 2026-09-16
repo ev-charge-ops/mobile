@@ -5,14 +5,28 @@ import { useEffect } from 'react';
 
 import { navigationTheme } from '@/constants/navigation-theme';
 import { colors } from '@/constants/theme';
+import { useSession } from '@/features/auth/session/session-context';
 import { useAppFonts } from '@/hooks/use-app-fonts';
 import { AppProviders } from '@/providers/app-providers';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  return (
+    <AppProviders>
+      <ThemeProvider value={navigationTheme}>
+        <StatusBar style="light" />
+        <RootNavigator />
+      </ThemeProvider>
+    </AppProviders>
+  );
+}
+
+function RootNavigator() {
   const [fontsLoaded, fontError] = useAppFonts();
-  const isReady = fontsLoaded || fontError != null;
+  const { status } = useSession();
+  const isReady = (fontsLoaded || fontError != null) && status !== 'loading';
+  const isAuthenticated = status === 'authenticated';
 
   useEffect(() => {
     if (isReady) SplashScreen.hideAsync();
@@ -21,11 +35,13 @@ export default function RootLayout() {
   if (!isReady) return null;
 
   return (
-    <AppProviders>
-      <ThemeProvider value={navigationTheme}>
-        <StatusBar style="light" />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bgBase } }} />
-      </ThemeProvider>
-    </AppProviders>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bgBase } }}>
+      <Stack.Protected guard={isAuthenticated}>
+        <Stack.Screen name="(app)" />
+      </Stack.Protected>
+      <Stack.Protected guard={!isAuthenticated}>
+        <Stack.Screen name="(auth)" />
+      </Stack.Protected>
+    </Stack>
   );
 }
