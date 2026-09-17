@@ -6,6 +6,7 @@ export type AuthSession = components['schemas']['AuthResponseDto'];
 export type LoginInput = components['schemas']['LoginDto'];
 export type RegisterInput = components['schemas']['RegisterDto'];
 export type ResetPasswordInput = components['schemas']['ResetPasswordDto'];
+export type AppleLoginInput = components['schemas']['AppleLoginDto'];
 export type VerifyEmailLoginInput = { email: string; code: string } | { token: string };
 
 export class AuthApiError extends Error {
@@ -95,4 +96,12 @@ export function requestEmailLogin(email: string) {
 
 export function verifyEmailLogin(body: VerifyEmailLoginInput) {
   return unwrap(publicApiClient.POST('/auth/email-login/verify', { body }));
+}
+
+export function loginWithGoogle(idToken: string) {
+  return unwrap(publicApiClient.POST('/auth/oauth/google', { body: { idToken } }));
+}
+
+export function loginWithApple(body: AppleLoginInput) {
+  return unwrap(publicApiClient.POST('/auth/oauth/apple', { body }));
 }
