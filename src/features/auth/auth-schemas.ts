@@ -20,7 +20,11 @@ export const registerSchema = z
     path: ['confirmPassword'],
   });
 
-export const forgotPasswordSchema = z.object({ email });
+export const emailSchema = z.object({ email });
+
+export const emailCodeSchema = z.object({
+  code: z.string().regex(/^\d{6}$/, 'Informe o código de 6 dígitos'),
+});
 
 export const resetPasswordSchema = z
   .object({
@@ -34,5 +38,6 @@ export const resetPasswordSchema = z
 
 export type LoginValues = z.infer<typeof loginSchema>;
 export type RegisterValues = z.infer<typeof registerSchema>;
-export type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
+export type EmailValues = z.infer<typeof emailSchema>;
+export type EmailCodeValues = z.infer<typeof emailCodeSchema>;
 export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
