@@ -57,3 +57,20 @@ export function getResendVerificationErrorMessage(error: unknown) {
   if (statusOf(error) === 401) return 'Sua sessão expirou. Entre novamente.';
   return getCommonErrorMessage(error);
 }
+
+export function getEmailLoginRequestErrorMessage(error: unknown) {
+  if (statusOf(error) === 400) return 'Informe um e-mail válido';
+  return getCommonErrorMessage(error);
+}
+
+export function getEmailLoginCodeErrorMessage(error: unknown) {
+  const status = statusOf(error);
+  if (status === 400 || status === 401) return 'Código inválido ou expirado';
+  return getCommonErrorMessage(error);
+}
+
+export function getEmailLoginLinkErrorMessage(error: unknown) {
+  const status = statusOf(error);
+  if (status === 400 || status === 401) return 'Este link de acesso é inválido ou expirou. Solicite um novo código.';
+  return getCommonErrorMessage(error);
+}
