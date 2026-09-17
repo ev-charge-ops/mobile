@@ -56,6 +56,17 @@ describe('<OAuthButtons />', () => {
     expect(api.loginWithGoogle.mock.calls[0][0]).toBe('google-id-token');
   });
 
+  it('notifies the signed-in session', async () => {
+    google.signInWithGoogle.mockResolvedValue({ type: 'success', idToken: 'google-id-token' });
+    api.loginWithGoogle.mockResolvedValue(authSession);
+    const onSignedIn = jest.fn();
+
+    await renderWithProviders(<OAuthButtons onSignedIn={onSignedIn} />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Continuar com o Google' }));
+
+    await waitFor(() => expect(onSignedIn).toHaveBeenCalledWith(authSession));
+  });
+
   it('ignores a cancelled google sign-in', async () => {
     google.signInWithGoogle.mockResolvedValue({ type: 'cancelled' });
     const session = createSessionValue();

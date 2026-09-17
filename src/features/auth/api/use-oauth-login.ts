@@ -1,11 +1,15 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { loginWithApple, loginWithGoogle } from '@/features/auth/api/auth-api';
+import { loginWithApple, loginWithGoogle, type AuthSession } from '@/features/auth/api/auth-api';
 import { signInWithApple } from '@/features/auth/oauth/apple-sign-in';
 import { signInWithGoogle } from '@/features/auth/oauth/google-sign-in';
 import { useSession } from '@/features/auth/session/session-context';
 
-export function useGoogleLogin() {
+export type OAuthLoginOptions = {
+  onSignedIn?: (session: AuthSession) => void;
+};
+
+export function useGoogleLogin({ onSignedIn }: OAuthLoginOptions = {}) {
   const { startSession } = useSession();
 
   return useMutation({
@@ -15,12 +19,14 @@ export function useGoogleLogin() {
       return loginWithGoogle(result.idToken);
     },
     onSuccess: async (session) => {
-      if (session) await startSession(session);
+      if (!session) return;
+      await startSession(session);
+      onSignedIn?.(session);
     },
   });
 }
 
-export function useAppleLogin() {
+export function useAppleLogin({ onSignedIn }: OAuthLoginOptions = {}) {
   const { startSession } = useSession();
 
   return useMutation({
@@ -30,7 +36,9 @@ export function useAppleLogin() {
       return loginWithApple({ identityToken: result.identityToken, fullName: result.fullName });
     },
     onSuccess: async (session) => {
-      if (session) await startSession(session);
+      if (!session) return;
+      await startSession(session);
+      onSignedIn?.(session);
     },
   });
 }
