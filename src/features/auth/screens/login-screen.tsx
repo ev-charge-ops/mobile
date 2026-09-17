@@ -7,6 +7,7 @@ import { getLoginErrorMessage } from '@/features/auth/auth-errors';
 import { AuthLayout } from '@/features/auth/components/auth-layout';
 import { AuthLink } from '@/features/auth/components/auth-link';
 import { LoginForm } from '@/features/auth/components/login-form';
+import { OAuthButtons } from '@/features/auth/components/oauth-buttons';
 
 export function LoginScreen() {
   const loginMutation = useLogin();
@@ -24,6 +25,7 @@ export function LoginScreen() {
         isSubmitting={loginMutation.isPending}
         errorMessage={loginMutation.isError ? getLoginErrorMessage(loginMutation.error) : null}
       />
+      <OAuthButtons />
       <Button
         label="Entrar com código por e-mail"
         icon={Mail}
