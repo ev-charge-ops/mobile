@@ -74,3 +74,19 @@ export function getEmailLoginLinkErrorMessage(error: unknown) {
   if (status === 400 || status === 401) return 'Este link de acesso é inválido ou expirou. Solicite um novo código.';
   return getCommonErrorMessage(error);
 }
+
+export type OAuthProvider = 'google' | 'apple';
+
+const oauthProviderNames: Record<OAuthProvider, { name: string; withArticle: string }> = {
+  google: { name: 'Google', withArticle: 'o Google' },
+  apple: { name: 'Apple', withArticle: 'a Apple' },
+};
+
+export function getOAuthLoginErrorMessage(provider: OAuthProvider, error: unknown) {
+  const { name, withArticle } = oauthProviderNames[provider];
+  if (!(error instanceof AuthApiError)) return `Não foi possível entrar com ${withArticle}. Tente novamente.`;
+  if (error.status === 400 || error.status === 401) {
+    return `Não foi possível validar sua conta ${name}. Tente outro método de acesso.`;
+  }
+  return getCommonErrorMessage(error);
+}
