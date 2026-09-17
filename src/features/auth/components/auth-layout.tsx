@@ -10,9 +10,9 @@ import { colors, fonts, radii, spacing, typography } from '@/constants/theme';
 export type AuthLayoutProps = PropsWithChildren<{
   title: string;
   subtitle: string;
-  footerText: string;
-  footerLinkLabel: string;
-  footerHref: Href;
+  footerText?: string;
+  footerLinkLabel?: string;
+  footerHref?: Href;
 }>;
 
 export function AuthLayout({ title, subtitle, footerText, footerLinkLabel, footerHref, children }: AuthLayoutProps) {
@@ -31,12 +31,14 @@ export function AuthLayout({ title, subtitle, footerText, footerLinkLabel, foote
             <Text style={styles.subtitle}>{subtitle}</Text>
           </View>
           {children}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>{footerText}</Text>
-            <Link href={footerHref} replace style={styles.footerLink}>
-              {footerLinkLabel}
-            </Link>
-          </View>
+          {footerHref && footerLinkLabel ? (
+            <View style={styles.footer}>
+              {footerText ? <Text style={styles.footerText}>{footerText}</Text> : null}
+              <Link href={footerHref} replace style={styles.footerLink}>
+                {footerLinkLabel}
+              </Link>
+            </View>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

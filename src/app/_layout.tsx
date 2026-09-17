@@ -42,6 +42,8 @@ function RootNavigator() {
       <Stack.Protected guard={!isAuthenticated}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
+      <Stack.Screen name="reset-password" />
+      <Stack.Screen name="verify-email" />
     </Stack>
   );
 }
