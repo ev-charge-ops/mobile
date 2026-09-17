@@ -19,8 +19,16 @@ import { EmailCodeForm } from '@/features/auth/components/email-code-form';
 import { EmailForm } from '@/features/auth/components/email-form';
 import { FormError } from '@/features/auth/components/form-error';
 import { useCooldown } from '@/features/auth/hooks/use-cooldown';
+import { hasReturnTarget } from '@/features/auth/session/return-target';
 
 export const RESEND_COOLDOWN_SECONDS = 30;
+
+function goHomeUnlessReturning() {
+  const isReturning = hasReturnTarget();
+  return () => {
+    if (!isReturning) router.replace('/');
+  };
+}
 
 export function EmailLoginScreen() {
   const { token } = useLocalSearchParams<{ token?: string }>();
@@ -77,7 +85,7 @@ function EmailCodeLogin() {
     verifyMutation.mutate(
       { email, code },
       {
-        onSuccess: () => router.replace('/'),
+        onSuccess: goHomeUnlessReturning(),
         onError: applyRateLimit,
       },
     );
@@ -133,7 +141,7 @@ function EmailLinkLogin({ token, onUseCode }: { token: string; onUseCode: () => 
   useEffect(() => {
     if (requestedTokenRef.current === token) return;
     requestedTokenRef.current = token;
-    mutate({ token }, { onSuccess: () => router.replace('/') });
+    mutate({ token }, { onSuccess: goHomeUnlessReturning() });
   }, [token, mutate]);
 
   if (isError) {
