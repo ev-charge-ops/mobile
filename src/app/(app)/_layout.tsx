@@ -1,6 +1,11 @@
-import { Stack } from 'expo-router';
+import { Stack, type ErrorBoundaryProps } from 'expo-router';
 
 import { colors } from '@/constants/theme';
+import { SignedInErrorScreen } from '@/features/auth/screens/signed-in-error-screen';
+
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return <SignedInErrorScreen details={__DEV__ ? error.message : null} onRetry={retry} />;
+}
 
 export default function AppLayout() {
   return (
