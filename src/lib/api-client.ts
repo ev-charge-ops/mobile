@@ -11,6 +11,15 @@ export type AuthTokenHandlers = {
   onUnauthorized?: () => void;
 };
 
+async function toGlobalResponse(response: Response) {
+  const body = await response.text();
+  return new Response(body === '' ? null : body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+}
+
 export function createAuthMiddleware(getHandlers: () => AuthTokenHandlers | null): Middleware {
   const pendingRetries = new Map<string, Request>();
   let refreshInFlight: Promise<string | null> | null = null;
@@ -38,16 +47,16 @@ export function createAuthMiddleware(getHandlers: () => AuthTokenHandlers | null
       pendingRetries.delete(id);
 
       const handlers = getHandlers();
-      if (response.status !== 401 || !handlers || !retryRequest) return response;
+      if (response.status !== 401 || !handlers || !retryRequest) return undefined;
 
       const newToken = await refreshOnce(handlers).catch(() => null);
       if (!newToken) {
         handlers.onUnauthorized?.();
-        return response;
+        return undefined;
       }
 
       retryRequest.headers.set('Authorization', `Bearer ${newToken}`);
-      return options.fetch(retryRequest);
+      return toGlobalResponse(await options.fetch(retryRequest));
     },
     onError({ id }) {
       pendingRetries.delete(id);
