@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react-native';
+import type { ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
@@ -14,6 +15,7 @@ export type ButtonProps = {
   variant?: ButtonVariant;
   size?: ButtonSize;
   icon?: LucideIcon;
+  leadingIcon?: ReactNode;
   block?: boolean;
   disabled?: boolean;
   loading?: boolean;
@@ -61,6 +63,7 @@ export function Button({
   variant = 'primary',
   size = 'md',
   icon,
+  leadingIcon,
   block = false,
   disabled = false,
   loading = false,
@@ -84,8 +87,10 @@ export function Button({
       <View style={[styles.content, { height: sizeStyle.height, paddingHorizontal: sizeStyle.paddingHorizontal }]}>
         {loading ? (
           <ActivityIndicator size="small" color={textColor} />
+        ) : icon ? (
+          <Icon icon={icon} size={sizeStyle.iconSize} color={textColor} />
         ) : (
-          icon && <Icon icon={icon} size={sizeStyle.iconSize} color={textColor} />
+          leadingIcon
         )}
         <Text style={[styles.label, { fontSize: sizeStyle.fontSize, color: textColor }]}>{label}</Text>
       </View>
