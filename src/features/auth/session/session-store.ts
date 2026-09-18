@@ -18,6 +18,17 @@ function isRejectedToken(error: unknown) {
   return error instanceof authApi.AuthApiError && (error.status === 400 || error.status === 401);
 }
 
+async function revokeStoredRefreshToken() {
+  const refreshToken = await getSecureItem(REFRESH_TOKEN_KEY);
+  if (refreshToken) await authApi.logout(refreshToken).catch(() => undefined);
+}
+
+export async function discardStoredSession() {
+  await revokeStoredRefreshToken().catch(() => undefined);
+  queryClient.clear();
+  await deleteSecureItem(REFRESH_TOKEN_KEY);
+}
+
 export function createSessionStore() {
   let snapshot: SessionSnapshot = { status: 'loading', user: null };
   let accessToken: string | null = null;
@@ -67,8 +78,7 @@ export function createSessionStore() {
   };
 
   const endSession = async () => {
-    const refreshToken = await getSecureItem(REFRESH_TOKEN_KEY);
-    if (refreshToken) await authApi.logout(refreshToken).catch(() => undefined);
+    await revokeStoredRefreshToken();
     await clearSession();
   };
 

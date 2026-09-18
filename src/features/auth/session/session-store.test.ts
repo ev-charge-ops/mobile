@@ -1,5 +1,5 @@
 import * as authApi from '@/features/auth/api/auth-api';
-import { createSessionStore, REFRESH_TOKEN_KEY } from '@/features/auth/session/session-store';
+import { createSessionStore, discardStoredSession, REFRESH_TOKEN_KEY } from '@/features/auth/session/session-store';
 import * as secureStorage from '@/lib/secure-storage';
 
 jest.mock('@/features/auth/api/auth-api', () => {
@@ -146,5 +146,26 @@ describe('createSessionStore', () => {
     await store.endSession();
 
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('discardStoredSession', () => {
+  it('logs out the stored refresh token and removes it', async () => {
+    storage.set(REFRESH_TOKEN_KEY, 'refresh-1');
+    api.logout.mockResolvedValue();
+
+    await discardStoredSession();
+
+    expect(api.logout).toHaveBeenCalledWith('refresh-1');
+    expect(storage.has(REFRESH_TOKEN_KEY)).toBe(false);
+  });
+
+  it('removes the stored refresh token even when the logout request fails', async () => {
+    storage.set(REFRESH_TOKEN_KEY, 'refresh-1');
+    api.logout.mockRejectedValue(new authApi.AuthApiError(null));
+
+    await discardStoredSession();
+
+    expect(storage.has(REFRESH_TOKEN_KEY)).toBe(false);
   });
 });
