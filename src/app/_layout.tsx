@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { navigationTheme } from '@/constants/navigation-theme';
 import { colors } from '@/constants/theme';
 import { useSession } from '@/features/auth/session/session-context';
+import { useReturnAfterSignIn } from '@/features/auth/session/use-return-after-sign-in';
 import { useAppFonts } from '@/hooks/use-app-fonts';
 import { AppProviders } from '@/providers/app-providers';
 
@@ -28,6 +29,8 @@ function RootNavigator() {
   const isReady = (fontsLoaded || fontError != null) && status !== 'loading';
   const isAuthenticated = status === 'authenticated';
 
+  useReturnAfterSignIn(status);
+
   useEffect(() => {
     if (isReady) SplashScreen.hideAsync();
   }, [isReady]);
@@ -45,6 +48,7 @@ function RootNavigator() {
       <Stack.Screen name="reset-password" />
       <Stack.Screen name="verify-email" />
       <Stack.Screen name="login/email" />
+      <Stack.Screen name="invite" />
     </Stack>
   );
 }
