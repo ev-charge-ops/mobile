@@ -7,6 +7,11 @@ export type ChargePointStatus = components['schemas']['ChargePointStatus'];
 export type ChargePointType = components['schemas']['ChargePointType'];
 export type DemandLevel = components['schemas']['DemandLevel'];
 export type DemandFactorSource = components['schemas']['DemandFactorSource'];
+export type ChargingSession = components['schemas']['SessionResponseDto'];
+export type ChargingSessionDetail = components['schemas']['SessionDetailResponseDto'];
+export type ChargingSessionStatus = components['schemas']['ChargingSessionStatus'];
+export type StartSessionInput = components['schemas']['StartSessionRequestDto'];
+export type ChargingLimitInput = components['schemas']['ChargingLimitRequestDto'];
 
 export class ChargingApiError extends Error {
   constructor(
@@ -44,4 +49,21 @@ export function listChargePoints() {
 
 export function getChargePoint(chargePointId: string) {
   return unwrap(apiClient.GET('/charge-points/{chargePointId}', { params: { path: { chargePointId } } }));
+}
+
+export function startSession(body: StartSessionInput) {
+  return unwrap(apiClient.POST('/sessions', { body }));
+}
+
+export async function getActiveSession() {
+  const { session } = await unwrap(apiClient.GET('/sessions/active'));
+  return session;
+}
+
+export function getSession(sessionId: string) {
+  return unwrap(apiClient.GET('/sessions/{sessionId}', { params: { path: { sessionId } } }));
+}
+
+export function stopSession(sessionId: string) {
+  return unwrap(apiClient.POST('/sessions/{sessionId}/stop', { params: { path: { sessionId } } }));
 }

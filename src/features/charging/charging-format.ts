@@ -2,11 +2,13 @@ import type { Status } from '@/components/ui/status-pill';
 import type {
   ChargePointStatus,
   ChargePointType,
+  ChargingSession,
   DemandFactorSource,
   DemandLevel,
 } from '@/features/charging/api/charging-api';
 import type { components } from '@/lib/api-schema';
 import { formatCurrency } from '@/utils/format-currency';
+import { formatEnergy } from '@/utils/format-energy';
 
 type ConnectorType = components['schemas']['ConnectorType'];
 
@@ -78,3 +80,24 @@ export const connectorLabels: Record<ConnectorType, string> = {
   TYPE_2: 'Tipo 2',
   CCS_2: 'CCS 2',
 };
+
+const timeFormatter = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+const dateFormatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+export function formatTime(iso: string) {
+  return timeFormatter.format(new Date(iso));
+}
+
+export function formatDate(iso: string) {
+  return dateFormatter.format(new Date(iso));
+}
+
+export function formatSessionCode(sessionId: string) {
+  return `#${sessionId.slice(0, 8).toUpperCase()}`;
+}
+
+export function formatLimit(limit: ChargingSession['limit']) {
+  if (limit.type === 'ENERGY' && limit.energyKwh !== null) return formatEnergy(limit.energyKwh, { fractionDigits: 1 });
+  if (limit.type === 'AMOUNT' && limit.amountCents !== null) return `Até ${formatCents(limit.amountCents)}`;
+  return 'Até completar';
+}
