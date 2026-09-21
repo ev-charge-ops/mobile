@@ -103,6 +103,7 @@ export function formatLimit(limit: ChargingSession['limit']) {
 }
 
 export const sessionStatusLabels: Record<ChargingSession['status'], string> = {
+  AWAITING_PAYMENT: 'Pagamento pendente',
   PENDING: 'Iniciando',
   ACTIVE: 'Carregando',
   GRACE: 'Tolerância',
@@ -112,6 +113,7 @@ export const sessionStatusLabels: Record<ChargingSession['status'], string> = {
 };
 
 export const sessionStatusPill: Record<ChargingSession['status'], Status> = {
+  AWAITING_PAYMENT: 'info',
   PENDING: 'info',
   ACTIVE: 'charging',
   GRACE: 'idle',
