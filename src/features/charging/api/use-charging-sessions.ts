@@ -1,6 +1,8 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  confirmSessionPayment,
+  createSessionPaymentSheet,
   getActiveSession,
   getSession,
   listMySessions,
@@ -8,9 +10,11 @@ import {
   stopSession,
   type ChargingSession,
   type ChargingSessionDetail,
+  type PaymentSheetParams,
   type StartSessionInput,
 } from '@/features/charging/api/charging-api';
 import { chargePointsQueryKey, shouldRetryChargingRequest } from '@/features/charging/api/use-charge-points';
+import { presentCardPayment } from '@/features/charging/payments/card-payment';
 import { isSessionOpen } from '@/features/charging/session-timing';
 
 export const activeSessionQueryKey = ['sessions', 'active'] as const;
@@ -83,5 +87,27 @@ export function useSessionHistory() {
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.page * lastPage.pageSize < lastPage.total ? lastPage.page + 1 : undefined,
+  });
+}
+
+export type PayForSessionInput = { sessionId: string; sheet?: PaymentSheetParams | null };
+
+export function usePayForSession() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ sessionId, sheet }: PayForSessionInput) => {
+      const params = sheet ?? (await createSessionPaymentSheet(sessionId));
+      const result = await presentCardPayment(params);
+      if (result === 'canceled') return null;
+      return confirmSessionPayment(sessionId);
+    },
+    onSuccess: (session) => {
+      if (!session) return;
+      queryClient.setQueryData<ChargingSessionDetail>(chargingSessionQueryKey(session.id), (previous) =>
+        mergeIntoDetail(session, previous),
+      );
+      queryClient.setQueryData(activeSessionQueryKey, isSessionOpen(session.status) ? session : null);
+    },
   });
 }

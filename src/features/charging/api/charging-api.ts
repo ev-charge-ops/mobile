@@ -12,6 +12,9 @@ export type ChargingSessionDetail = components['schemas']['SessionDetailResponse
 export type ChargingSessionStatus = components['schemas']['ChargingSessionStatus'];
 export type StartSessionInput = components['schemas']['StartSessionRequestDto'];
 export type ChargingLimitInput = components['schemas']['ChargingLimitRequestDto'];
+export type StartedSession = components['schemas']['StartSessionResponseDto'];
+export type PaymentSheetParams = components['schemas']['PaymentSheetDto'];
+export type SessionPayment = components['schemas']['SessionPaymentDto'];
 
 export class ChargingApiError extends Error {
   constructor(
@@ -70,4 +73,12 @@ export function stopSession(sessionId: string) {
 
 export function listMySessions(page: number, pageSize: number) {
   return unwrap(apiClient.GET('/sessions', { params: { query: { page, pageSize } } }));
+}
+
+export function createSessionPaymentSheet(sessionId: string) {
+  return unwrap(apiClient.POST('/sessions/{sessionId}/payment/sheet', { params: { path: { sessionId } } }));
+}
+
+export function confirmSessionPayment(sessionId: string) {
+  return unwrap(apiClient.POST('/sessions/{sessionId}/payment/confirm', { params: { path: { sessionId } } }));
 }

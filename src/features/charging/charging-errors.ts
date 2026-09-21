@@ -1,4 +1,5 @@
 import { ChargingApiError } from '@/features/charging/api/charging-api';
+import { CardPaymentError } from '@/features/charging/payments/card-payment';
 
 const NETWORK_ERROR = 'Não foi possível conectar ao servidor. Tente novamente.';
 const UNEXPECTED_ERROR = 'Algo deu errado. Tente novamente.';
@@ -11,6 +12,8 @@ const startSessionMessages: Record<string, string> = {
   BUILDING_CAPACITY_EXCEEDED: 'O prédio atingiu a potência contratada agora. Tente novamente em alguns minutos.',
   CHARGER_UNAVAILABLE: 'O carregador não respondeu ao comando de início. Tente novamente.',
   INVALID_LIMIT: 'O limite escolhido não é válido.',
+  PAYMENTS_UNAVAILABLE: 'O pagamento com cartão está indisponível no momento.',
+  PAYMENT_PROVIDER_ERROR: 'Não foi possível falar com o provedor de pagamento. Tente novamente.',
 };
 
 export function getStartSessionErrorMessage(error: unknown) {
@@ -30,4 +33,13 @@ export function getStopSessionErrorMessage(error: unknown) {
 
 export function isActiveSessionConflict(error: unknown) {
   return error instanceof ChargingApiError && error.code === 'ACTIVE_SESSION_EXISTS';
+}
+
+export function getCardPaymentErrorMessage(error: unknown) {
+  if (error instanceof CardPaymentError) return error.message;
+  if (!(error instanceof ChargingApiError)) return UNEXPECTED_ERROR;
+  if (error.status === null) return NETWORK_ERROR;
+  if (error.code === 'PAYMENT_PROVIDER_ERROR') return startSessionMessages.PAYMENT_PROVIDER_ERROR;
+  if (error.code === 'PAYMENT_NOT_PENDING') return 'Este pagamento não está mais pendente.';
+  return 'Não foi possível concluir o pagamento. Tente novamente.';
 }
