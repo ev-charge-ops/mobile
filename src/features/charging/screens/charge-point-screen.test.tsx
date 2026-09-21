@@ -68,7 +68,7 @@ describe('<ChargePointScreen />', () => {
 
   it('confirms the price and limit before starting the session', async () => {
     api.getChargePoint.mockResolvedValue(buildChargePoint());
-    api.startSession.mockResolvedValue(buildSession({ id: 'session-9' }));
+    api.startSession.mockResolvedValue({ ...buildSession({ id: 'session-9' }), paymentSheet: null });
 
     await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
     await fireEvent.press(await screen.findByRole('button', { name: 'Iniciar recarga' }));
@@ -121,5 +121,14 @@ describe('<ChargePointScreen />', () => {
     await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
 
     expect(await screen.findByRole('button', { name: 'Ponto em uso' })).toBeDisabled();
+  });
+
+  it('does not start commercial sessions without card payments', async () => {
+    api.getChargePoint.mockResolvedValue(buildCommercialChargePoint());
+
+    await renderWithProviders(<ChargePointScreen chargePointId="cp-3" />);
+
+    expect(await screen.findByRole('button', { name: 'Iniciar recarga' })).toBeDisabled();
+    expect(screen.getByText('O pagamento com cartão chega na próxima versão do app')).toBeOnTheScreen();
   });
 });

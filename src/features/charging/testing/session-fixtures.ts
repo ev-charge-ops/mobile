@@ -32,6 +32,7 @@ export function buildSession(overrides: Partial<ChargingSessionDetail> = {}): Ch
     anomalyScore: null,
     isAnomaly: null,
     simulationSpeed: 60,
+    payment: null,
     readings: [],
     ...overrides,
   };

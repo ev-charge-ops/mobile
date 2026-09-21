@@ -95,16 +95,17 @@ export function ChargePointScreen({ chargePointId }: ChargePointScreenProps) {
 }
 
 function StartFooter({ chargePoint, onStart }: { chargePoint: ChargePoint; onStart: () => void }) {
-  const canStart = chargePoint.status === 'AVAILABLE' && chargePoint.pricing !== null;
+  const needsCardPayment = chargePoint.type === 'COMMERCIAL';
+  const canStart = chargePoint.status === 'AVAILABLE' && chargePoint.pricing !== null && !needsCardPayment;
   const label = chargePoint.pricing ? unavailableLabels[chargePoint.status] : 'Tarifa não configurada';
 
   return (
     <View style={styles.footer}>
       <Button label={label} icon={Zap} size="lg" block disabled={!canStart} onPress={onStart} />
       <Text style={styles.footnote}>
-        {chargePoint.type === 'PRIVATE'
-          ? 'Sem cartão · o consumo entra no rateio da sua unidade'
-          : 'Preço travado no início · cobrança ao encerrar a recarga'}
+        {needsCardPayment
+          ? 'O pagamento com cartão chega na próxima versão do app'
+          : 'Sem cartão · o consumo entra no rateio da sua unidade'}
       </Text>
     </View>
   );

@@ -448,7 +448,7 @@ export interface paths {
         /** List the sessions of the user, newest first */
         get: operations["listMySessions"];
         put?: never;
-        /** Start charging at a point, locking the price per kWh and the demand factor */
+        /** Start a session at a point, locking the price per kWh and the demand factor. Private points start charging right away; commercial points hold the estimated maximum on the card first (AWAITING_PAYMENT with the PaymentSheet parameters) and start charging once the hold is authorized */
         post: operations["startSession"];
         delete?: never;
         options?: never;
@@ -499,8 +499,59 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** End the session: stops charging early with the partial energy, or unplugs during grace/idle freezing the idle fee */
+        /** End the session: stops charging early with the partial energy, or unplugs during grace/idle freezing the idle fee. Card payments are captured with the final amount, or released when nothing is due or the session is canceled before charging */
         post: operations["stopSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{sessionId}/payment/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check the card hold with Stripe after the PaymentSheet completes: an authorized hold starts charging, a canceled one interrupts the session. Idempotent and safe to call again (the Stripe webhook does the same) */
+        post: operations["confirmSessionPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{sessionId}/payment/sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issue fresh PaymentSheet parameters (new ephemeral key) for a session still AWAITING_PAYMENT, e.g. after the app was reopened */
+        post: operations["createSessionPaymentSheet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/stripe/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stripe webhook (payment_intent.amount_capturable_updated, canceled, payment_failed, succeeded). Verifies the signature over the raw body and reconciles the session with the PaymentIntent; duplicates are ignored */
+        post: operations["handleStripeWebhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -901,10 +952,10 @@ export interface components {
             limit?: components["schemas"]["ChargingLimitRequestDto"];
         };
         /**
-         * @description ACTIVE while charging, GRACE after the battery is full (no fee), IDLE once the grace period ends (idle fee per minute up to the cap)
+         * @description AWAITING_PAYMENT until the card hold is authorized (commercial points only), PENDING while the charger starts, ACTIVE while charging, GRACE after the battery is full (no fee), IDLE once the grace period ends (idle fee per minute up to the cap), CLOSED when ended by the driver, INTERRUPTED when it never charged (payment canceled or expired, charger failure)
          * @enum {string}
          */
-        ChargingSessionStatus: "PENDING" | "ACTIVE" | "GRACE" | "IDLE" | "CLOSED" | "INTERRUPTED";
+        ChargingSessionStatus: "AWAITING_PAYMENT" | "PENDING" | "ACTIVE" | "GRACE" | "IDLE" | "CLOSED" | "INTERRUPTED";
         SessionChargePointDto: {
             /** Format: uuid */
             id: string;
@@ -920,10 +971,68 @@ export interface components {
             /** @example 2000 */
             amountCents: number | null;
         };
-        SessionResponseDto: {
+        /**
+         * @description PENDING_AUTHORIZATION until the card is confirmed, AUTHORIZED while the hold is active, CAPTURED with the final amount, CANCELED when the hold is released, FAILED when the card was declined (the driver may retry)
+         * @enum {string}
+         */
+        PaymentStatus: "PENDING_AUTHORIZATION" | "AUTHORIZED" | "CAPTURED" | "CANCELED" | "FAILED";
+        SessionPaymentDto: {
+            /** @example pi_3Q0abc123 */
+            paymentIntentId: string;
+            /** @description PENDING_AUTHORIZATION until the card is confirmed, AUTHORIZED while the hold is active, CAPTURED with the final amount, CANCELED when the hold is released, FAILED when the card was declined (the driver may retry) */
+            status: components["schemas"]["PaymentStatus"];
+            /** @example BRL */
+            currency: string;
+            /**
+             * @description Amount held on the card (pre-authorization)
+             * @example 20040
+             */
+            authorizedCents: number;
+            /**
+             * @description Final amount charged, set once captured
+             * @example 1041
+             */
+            capturedCents: number | null;
+            /**
+             * @description Decline code of the last failed attempt
+             * @example card_declined
+             */
+            failureCode: string | null;
+            /** Format: date-time */
+            authorizedAt: string | null;
+            /** Format: date-time */
+            capturedAt: string | null;
+            /** Format: date-time */
+            canceledAt: string | null;
+        };
+        PaymentSheetDto: {
+            /**
+             * @description initPaymentSheet paymentIntentClientSecret
+             * @example pi_3Q0abc123_secret_xyz
+             */
+            paymentIntentClientSecret: string;
+            /**
+             * @description initPaymentSheet customerId
+             * @example cus_Q0abc123
+             */
+            customerId: string;
+            /**
+             * @description initPaymentSheet customerEphemeralKeySecret
+             * @example ek_test_abc123
+             */
+            customerEphemeralKeySecret: string;
+            /**
+             * @description Stripe publishable key for initStripe, or null to use the key bundled with the app
+             * @example pk_test_abc123
+             */
+            publishableKey: string | null;
+            /** @example EV ChargeOps */
+            merchantDisplayName: string;
+        };
+        StartSessionResponseDto: {
             /** Format: uuid */
             id: string;
-            /** @description ACTIVE while charging, GRACE after the battery is full (no fee), IDLE once the grace period ends (idle fee per minute up to the cap) */
+            /** @description AWAITING_PAYMENT until the card hold is authorized (commercial points only), PENDING while the charger starts, ACTIVE while charging, GRACE after the battery is full (no fee), IDLE once the grace period ends (idle fee per minute up to the cap), CLOSED when ended by the driver, INTERRUPTED when it never charged (payment canceled or expired, charger failure) */
             status: components["schemas"]["ChargingSessionStatus"];
             chargePoint: components["schemas"]["SessionChargePointDto"];
             /** Format: uuid */
@@ -982,6 +1091,75 @@ export interface components {
              * @example 60
              */
             simulationSpeed: number;
+            /** @description Card payment of commercial sessions (Stripe), null for private sessions billed through the monthly cost sharing */
+            payment: components["schemas"]["SessionPaymentDto"] | null;
+            /** @description Parameters for the Stripe PaymentSheet when the session is AWAITING_PAYMENT (commercial points), null otherwise */
+            paymentSheet: components["schemas"]["PaymentSheetDto"] | null;
+        };
+        SessionResponseDto: {
+            /** Format: uuid */
+            id: string;
+            /** @description AWAITING_PAYMENT until the card hold is authorized (commercial points only), PENDING while the charger starts, ACTIVE while charging, GRACE after the battery is full (no fee), IDLE once the grace period ends (idle fee per minute up to the cap), CLOSED when ended by the driver, INTERRUPTED when it never charged (payment canceled or expired, charger failure) */
+            status: components["schemas"]["ChargingSessionStatus"];
+            chargePoint: components["schemas"]["SessionChargePointDto"];
+            /** Format: uuid */
+            organizationId: string;
+            /** @example B · 42 */
+            unitLabel: string | null;
+            regime: components["schemas"]["ChargePointType"];
+            limit: components["schemas"]["SessionLimitDto"];
+            /** @example 29 */
+            targetEnergyKwh: number | null;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            chargingEndedAt: string | null;
+            /** Format: date-time */
+            graceEndsAt: string | null;
+            /** Format: date-time */
+            endedAt: string | null;
+            /** @example 11.76 */
+            energyKwh: number;
+            /** @example 7 */
+            powerKw: number;
+            /** @example 7 */
+            allocatedPowerKw: number;
+            /** @example 66 */
+            socPercent: number | null;
+            /**
+             * @description Price per kWh locked at start
+             * @example 89
+             */
+            lockedRateCents: number;
+            /** @example 1 */
+            demandFactor: number;
+            demandFactorSource: components["schemas"]["DemandFactorSource"];
+            /** @description Version of the ML model that produced the demand factor */
+            demandModelVersion: string | null;
+            /** @example 1047 */
+            energyCostCents: number;
+            /** @example 10 */
+            gracePeriodMinutes: number;
+            /** @example 25 */
+            idleFeeCentsPerMinute: number;
+            /** @example 3000 */
+            idleFeeCapCents: number;
+            /** @example 0 */
+            idleMinutes: number;
+            /** @example 0 */
+            idleFeeCents: number;
+            /** @example 1047 */
+            totalCents: number;
+            /** @description Anomaly score from the ML service, set when the session closes */
+            anomalyScore: number | null;
+            isAnomaly: boolean | null;
+            /**
+             * @description Simulated seconds per real second for this session (1 with real chargers)
+             * @example 60
+             */
+            simulationSpeed: number;
+            /** @description Card payment of commercial sessions (Stripe), null for private sessions billed through the monthly cost sharing */
+            payment: components["schemas"]["SessionPaymentDto"] | null;
         };
         ActiveSessionResponseDto: {
             /** @description The open session of the user, or null */
@@ -1009,7 +1187,7 @@ export interface components {
         SessionDetailResponseDto: {
             /** Format: uuid */
             id: string;
-            /** @description ACTIVE while charging, GRACE after the battery is full (no fee), IDLE once the grace period ends (idle fee per minute up to the cap) */
+            /** @description AWAITING_PAYMENT until the card hold is authorized (commercial points only), PENDING while the charger starts, ACTIVE while charging, GRACE after the battery is full (no fee), IDLE once the grace period ends (idle fee per minute up to the cap), CLOSED when ended by the driver, INTERRUPTED when it never charged (payment canceled or expired, charger failure) */
             status: components["schemas"]["ChargingSessionStatus"];
             chargePoint: components["schemas"]["SessionChargePointDto"];
             /** Format: uuid */
@@ -1068,8 +1246,19 @@ export interface components {
              * @example 60
              */
             simulationSpeed: number;
+            /** @description Card payment of commercial sessions (Stripe), null for private sessions billed through the monthly cost sharing */
+            payment: components["schemas"]["SessionPaymentDto"] | null;
             /** @description Meter readings recorded so far, oldest first */
             readings: components["schemas"]["MeterReadingDto"][];
+        };
+        WebhookReceiptDto: {
+            /** @example true */
+            received: boolean;
+            /**
+             * @description False when the event type is ignored or was already processed
+             * @example true
+             */
+            processed: boolean;
         };
         StatementLineDto: {
             /** @example 2 */
@@ -2432,7 +2621,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionResponseDto"];
+                    "application/json": components["schemas"]["StartSessionResponseDto"];
                 };
             };
             /** @description Invalid payload or limit */
@@ -2463,7 +2652,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description CHARGER_UNAVAILABLE: the charger did not start */
+            /** @description PAYMENT_PROVIDER_ERROR: Stripe did not create the hold */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description CHARGER_UNAVAILABLE: the charger did not start; PAYMENTS_UNAVAILABLE: card payments are not configured (commercial points) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -2568,6 +2764,139 @@ export interface operations {
             };
             /** @description SESSION_ALREADY_ENDED */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    confirmSessionPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SESSION_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PAYMENT_NOT_REQUIRED: the session is not paid by card */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PAYMENT_PROVIDER_ERROR: Stripe could not be reached */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createSessionPaymentSheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentSheetDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SESSION_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PAYMENT_NOT_REQUIRED: the session is not paid by card; PAYMENT_NOT_PENDING: the hold is no longer awaiting confirmation */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PAYMENT_PROVIDER_ERROR: Stripe could not be reached */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    handleStripeWebhook: {
+        parameters: {
+            query?: never;
+            header: {
+                "stripe-signature": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookReceiptDto"];
+                };
+            };
+            /** @description INVALID_WEBHOOK_SIGNATURE */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PAYMENTS_UNAVAILABLE: the webhook secret is not configured */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

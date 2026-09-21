@@ -3,6 +3,7 @@ import { useLogout } from '@/features/auth/api/use-logout';
 import { useMe } from '@/features/auth/api/use-me';
 import { EmailVerificationBanner } from '@/features/auth/components/email-verification-banner';
 import { SignedInErrorScreen } from '@/features/auth/screens/signed-in-error-screen';
+import { ActiveSessionCard } from '@/features/charging/components/active-session-card';
 import { HomeScreen } from '@/features/home/screens/home-screen';
 
 export default function HomeRoute() {
@@ -17,6 +18,7 @@ export default function HomeRoute() {
         onSignOut={() => logoutMutation.mutate()}
         isSigningOut={logoutMutation.isPending}
         banner={user.emailVerified ? null : <EmailVerificationBanner email={user.email} />}
+        activeSession={<ActiveSessionCard />}
       />
     );
   }
