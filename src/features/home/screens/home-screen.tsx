@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { LogOut, Palette, ShieldCheck, Zap } from 'lucide-react-native';
+import { LogOut, MapPin, Palette, ShieldCheck, Zap } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -44,8 +44,14 @@ export function HomeScreen({ user, onSignOut, isSigningOut = false, banner }: Ho
           <Text style={typography.body}>
             {isManager
               ? 'Em breve você poderá gerenciar estações, tarifas e acompanhar a operação por aqui.'
-              : 'Em breve você poderá encontrar estações próximas e iniciar suas recargas por aqui.'}
+              : 'Encontre um ponto livre, confira o preço do kWh agora e inicie sua recarga pelo app.'}
           </Text>
+          <Button
+            label="Encontrar pontos de recarga"
+            icon={MapPin}
+            block
+            onPress={() => router.push('/charge-points')}
+          />
         </Card>
         <OrganizationsCard />
         <View style={styles.stack}>
