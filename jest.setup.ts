@@ -2,6 +2,8 @@ import { setUpTests } from 'react-native-reanimated';
 
 setUpTests();
 
+jest.mock('@stripe/stripe-react-native', () => jest.requireActual('@stripe/stripe-react-native/jest/mock.js'));
+
 jest.mock('expo-apple-authentication', () => {
   const { createElement } = jest.requireActual<typeof import('react')>('react');
   const { Pressable } = jest.requireActual<typeof import('react-native')>('react-native');
