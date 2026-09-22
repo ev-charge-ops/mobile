@@ -2,7 +2,7 @@
   "expo": {
     "name": "EV ChargeOps",
     "slug": "ev-charge-ops",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "evchargeops",
@@ -87,6 +87,24 @@
         "@stripe/stripe-react-native",
         {
           "enableGooglePay": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O EV ChargeOps usa sua localização para mostrar os pontos de recarga mais próximos.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "motionUsagePermission": false,
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#E8121F"
         }
       ]
     ],
