@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
-import { PressableScale } from '@/components/ui/pressable-scale';
+import { PressableScale, type HapticFeedback } from '@/components/ui/pressable-scale';
 import { colors, fonts, radii } from '@/constants/theme';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
@@ -19,6 +19,7 @@ export type ButtonProps = {
   block?: boolean;
   disabled?: boolean;
   loading?: boolean;
+  haptic?: boolean | HapticFeedback;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
@@ -67,6 +68,7 @@ export function Button({
   block = false,
   disabled = false,
   loading = false,
+  haptic,
   style,
   testID,
 }: ButtonProps) {
@@ -80,6 +82,7 @@ export function Button({
       accessibilityLabel={label}
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       onPress={onPress}
+      haptic={haptic}
       disabled={isDisabled}
       testID={testID}
       style={[styles.base, getContainerStyle(variant, isDisabled), block && styles.block, style]}
