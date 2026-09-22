@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
 import * as chargingApi from '@/features/charging/api/charging-api';
+import * as cardPaymentModule from '@/features/charging/payments/card-payment';
 import { ChargePointScreen } from '@/features/charging/screens/charge-point-screen';
 import { buildChargePoint, buildCommercialChargePoint } from '@/features/charging/testing/fixtures';
 import { buildSession } from '@/features/charging/testing/session-fixtures';
@@ -11,8 +12,42 @@ jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn(), re
 
 jest.mock('@/features/charging/api/charging-api', () => {
   const actual = jest.requireActual('@/features/charging/api/charging-api');
-  return { ...actual, getChargePoint: jest.fn(), startSession: jest.fn(), getActiveSession: jest.fn() };
+  return {
+    ...actual,
+    getChargePoint: jest.fn(),
+    startSession: jest.fn(),
+    getActiveSession: jest.fn(),
+    createSessionPaymentSheet: jest.fn(),
+    confirmSessionPayment: jest.fn(),
+  };
 });
+
+jest.mock('@/features/charging/payments/card-payment', () => {
+  const actual = jest.requireActual('@/features/charging/payments/card-payment');
+  return { ...actual, presentCardPayment: jest.fn() };
+});
+
+const cardPayment = jest.mocked(cardPaymentModule);
+
+const sheetFixture = {
+  paymentIntentClientSecret: 'pi_1_secret',
+  customerId: 'cus_1',
+  customerEphemeralKeySecret: 'ek_test_1',
+  publishableKey: null,
+  merchantDisplayName: 'EV ChargeOps',
+};
+
+const paymentFixture = {
+  paymentIntentId: 'pi_1',
+  status: 'PENDING_AUTHORIZATION' as const,
+  currency: 'BRL',
+  authorizedCents: 20040,
+  capturedCents: null,
+  failureCode: null,
+  authorizedAt: null,
+  capturedAt: null,
+  canceledAt: null,
+};
 
 const api = jest.mocked(chargingApi);
 
@@ -123,12 +158,42 @@ describe('<ChargePointScreen />', () => {
     expect(await screen.findByRole('button', { name: 'Ponto em uso' })).toBeDisabled();
   });
 
-  it('does not start commercial sessions without card payments', async () => {
+  it('takes the card pre-authorization before charging at a commercial point', async () => {
     api.getChargePoint.mockResolvedValue(buildCommercialChargePoint());
+    api.startSession.mockResolvedValue({
+      ...buildSession({ id: 'session-5', status: 'AWAITING_PAYMENT', regime: 'COMMERCIAL', payment: paymentFixture }),
+      paymentSheet: sheetFixture,
+    });
+    cardPayment.presentCardPayment.mockResolvedValue('completed');
+    api.confirmSessionPayment.mockResolvedValue(buildSession({ id: 'session-5', status: 'PENDING' }));
 
     await renderWithProviders(<ChargePointScreen chargePointId="cp-3" />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Iniciar recarga' }));
+    expect(screen.getByText('Pré-autorização')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Continuar para pagamento' }));
 
-    expect(await screen.findByRole('button', { name: 'Iniciar recarga' })).toBeDisabled();
-    expect(screen.getByText('O pagamento com cartão chega na próxima versão do app')).toBeOnTheScreen();
+    await waitFor(() => expect(api.confirmSessionPayment).toHaveBeenCalledWith('session-5'));
+    expect(cardPayment.presentCardPayment).toHaveBeenCalledWith(sheetFixture);
+    expect(api.createSessionPaymentSheet).not.toHaveBeenCalled();
+    expect(router.replace).toHaveBeenCalledWith({
+      pathname: '/sessions/[sessionId]',
+      params: { sessionId: 'session-5' },
+    });
+  });
+
+  it('keeps the session awaiting payment when the driver closes the payment sheet', async () => {
+    api.getChargePoint.mockResolvedValue(buildCommercialChargePoint());
+    api.startSession.mockResolvedValue({
+      ...buildSession({ id: 'session-5', status: 'AWAITING_PAYMENT', regime: 'COMMERCIAL', payment: paymentFixture }),
+      paymentSheet: sheetFixture,
+    });
+    cardPayment.presentCardPayment.mockResolvedValue('canceled');
+
+    await renderWithProviders(<ChargePointScreen chargePointId="cp-3" />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Iniciar recarga' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Continuar para pagamento' }));
+
+    await waitFor(() => expect(cardPayment.presentCardPayment).toHaveBeenCalled());
+    expect(api.confirmSessionPayment).not.toHaveBeenCalled();
   });
 });
