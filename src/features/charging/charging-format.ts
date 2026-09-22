@@ -5,6 +5,7 @@ import type {
   ChargingSession,
   DemandFactorSource,
   DemandLevel,
+  SessionPayment,
 } from '@/features/charging/api/charging-api';
 import type { components } from '@/lib/api-schema';
 import { formatCurrency } from '@/utils/format-currency';
@@ -120,4 +121,12 @@ export const sessionStatusPill: Record<ChargingSession['status'], Status> = {
   IDLE: 'fault',
   CLOSED: 'available',
   INTERRUPTED: 'offline',
+};
+
+export const paymentStatusLabels: Record<SessionPayment['status'], string> = {
+  PENDING_AUTHORIZATION: 'Aguardando autorização',
+  AUTHORIZED: 'Pré-autorizado',
+  CAPTURED: 'Cobrado',
+  CANCELED: 'Liberado',
+  FAILED: 'Recusado',
 };
