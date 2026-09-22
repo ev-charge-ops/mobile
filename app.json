@@ -88,6 +88,23 @@
         {
           "enableGooglePay": false
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O EV ChargeOps usa sua localização para mostrar os pontos de recarga mais próximos.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#E8121F"
+        }
       ]
     ],
     "experiments": {
