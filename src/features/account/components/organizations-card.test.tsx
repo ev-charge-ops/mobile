@@ -2,10 +2,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { PropsWithChildren } from 'react';
 
-import * as organizationsApi from '@/features/home/api/organizations-api';
-import { OrganizationsCard } from '@/features/home/components/organizations-card';
+import * as organizationsApi from '@/features/account/api/organizations-api';
+import { OrganizationsCard } from '@/features/account/components/organizations-card';
 
-jest.mock('@/features/home/api/organizations-api', () => ({ listMyOrganizations: jest.fn() }));
+jest.mock('@/features/account/api/organizations-api', () => ({ listMyOrganizations: jest.fn() }));
 
 const api = jest.mocked(organizationsApi);
 

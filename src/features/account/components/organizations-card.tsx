@@ -6,8 +6,8 @@ import { Card, Divider, SectionTitle } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { StatusPill } from '@/components/ui/status-pill';
 import { colors, spacing, typography } from '@/constants/theme';
-import type { MyOrganization } from '@/features/home/api/organizations-api';
-import { useMyOrganizations } from '@/features/home/api/use-my-organizations';
+import type { MyOrganization } from '@/features/account/api/organizations-api';
+import { useMyOrganizations } from '@/features/account/api/use-my-organizations';
 
 const membershipRoleLabels: Record<MyOrganization['role'], string> = {
   MANAGER: 'Gestor',

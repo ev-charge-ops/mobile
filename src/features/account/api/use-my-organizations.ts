@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { listMyOrganizations } from '@/features/home/api/organizations-api';
+import { listMyOrganizations } from '@/features/account/api/organizations-api';
 
 export const myOrganizationsQueryKey = ['me', 'organizations'] as const;
 

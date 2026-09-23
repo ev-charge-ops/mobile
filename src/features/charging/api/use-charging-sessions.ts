@@ -32,6 +32,15 @@ export function useActiveSession() {
   });
 }
 
+export function hasOpenSession(session: ChargingSession | null | undefined) {
+  return session != null && isSessionOpen(session.status);
+}
+
+export function useHasActiveSession() {
+  const { data } = useActiveSession();
+  return hasOpenSession(data);
+}
+
 export function useChargingSession(sessionId: string) {
   return useQuery({
     queryKey: chargingSessionQueryKey(sessionId),

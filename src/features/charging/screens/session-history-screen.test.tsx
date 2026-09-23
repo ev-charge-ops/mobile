@@ -6,7 +6,7 @@ import { SessionHistoryScreen } from '@/features/charging/screens/session-histor
 import { renderWithProviders } from '@/features/charging/testing/render-with-providers';
 import { buildClosedSession, buildSession } from '@/features/charging/testing/session-fixtures';
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() } }));
+jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn(), navigate: jest.fn() } }));
 
 jest.mock('@/features/charging/api/charging-api', () => {
   const actual = jest.requireActual('@/features/charging/api/charging-api');
@@ -74,7 +74,7 @@ describe('<SessionHistoryScreen />', () => {
     await fireEvent.press(await screen.findByRole('button', { name: 'Encontrar pontos de recarga' }));
 
     expect(screen.getByText('Nenhuma recarga ainda')).toBeOnTheScreen();
-    expect(router.push).toHaveBeenCalledWith('/charge-points');
+    expect(router.navigate).toHaveBeenCalledWith('/');
   });
 
   it('retries after a failure', async () => {
