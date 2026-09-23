@@ -23,12 +23,12 @@ jest.mock('@/lib/secure-storage', () => {
 
 const mockHomeScreenFailure = { enabled: false };
 
-jest.mock('@/features/home/screens/home-screen', () => {
-  const actual = jest.requireActual('@/features/home/screens/home-screen');
+jest.mock('@/features/charging/screens/charge-points-screen', () => {
+  const actual = jest.requireActual('@/features/charging/screens/charge-points-screen');
   return {
-    HomeScreen: (props: object) => {
+    ChargePointsScreen: (props: object) => {
       if (mockHomeScreenFailure.enabled) throw new Error('Home failed to render');
-      return actual.HomeScreen(props);
+      return actual.ChargePointsScreen(props);
     },
   };
 });
@@ -120,6 +120,8 @@ beforeEach(() => {
   setRoute('POST /auth/logout', 204);
   setRoute('GET /auth/me', 200, user);
   setRoute('GET /me/organizations', 200, organizations);
+  setRoute('GET /charge-points', 200, []);
+  setRoute('GET /sessions/active', 200, { session: null });
 });
 
 afterEach(() => {
@@ -128,15 +130,36 @@ afterEach(() => {
 });
 
 describe('signing in', () => {
-  it('shows home when native fetch responses are not global Response instances', async () => {
+  it('shows the search tab when native fetch responses are not global Response instances', async () => {
     await renderApp();
 
     await signIn();
 
-    expect(await screen.findByText('Olá, Ana')).toBeOnTheScreen();
-    expect(await screen.findByText('Residencial Aclimação')).toBeOnTheScreen();
+    expect(await screen.findByText('Buscar pontos')).toBeOnTheScreen();
+    expect(screen.getByRole('tab', { name: 'Buscar' })).toBeSelected();
+    expect(screen.getByRole('tab', { name: 'Recarga' })).toBeOnTheScreen();
     await flush(50);
-    expect(screen.getByText('Olá, Ana')).toBeOnTheScreen();
+    expect(screen.getByText('Buscar pontos')).toBeOnTheScreen();
+  });
+
+  it('opens the account screen from the search tab', async () => {
+    await renderApp();
+    await signIn();
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Conta' }));
+
+    expect(await screen.findByText('Ana')).toBeOnTheScreen();
+    expect(await screen.findByText('Residencial Aclimação')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Sair' })).toBeOnTheScreen();
+  });
+
+  it('switches to the charging tab', async () => {
+    await renderApp();
+    await signIn();
+
+    await fireEvent.press(await screen.findByRole('tab', { name: 'Recarga' }));
+
+    expect(await screen.findByText('Nenhuma recarga ativa')).toBeOnTheScreen();
   });
 
   it('shows an error with retry when the profile cannot be loaded', async () => {
@@ -151,7 +174,7 @@ describe('signing in', () => {
     setRoute('GET /auth/me', 200, user);
     await fireEvent.press(screen.getByRole('button', { name: 'Tentar novamente' }));
 
-    expect(await screen.findByText('Olá, Ana')).toBeOnTheScreen();
+    expect(await screen.findByText('Buscar pontos')).toBeOnTheScreen();
   });
 
   it('shows the error boundary instead of a blank screen when home fails to render', async () => {
@@ -164,6 +187,25 @@ describe('signing in', () => {
     expect(await screen.findByText('Algo deu errado')).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByRole('button', { name: 'Sair' }));
+
+    expect(await screen.findByRole('button', { name: 'Entrar' })).toBeOnTheScreen();
+  });
+});
+
+describe('deep links', () => {
+  it.each(['/reset-password', '/verify-email', '/login/email', '/invite'])('keeps %s reachable when signed out', async (path) => {
+    const view = renderRouter('./src/app', { initialUrl: `${path}?token=abc` });
+    await view;
+    jest.useRealTimers();
+    await flush();
+
+    expect(view.getPathname()).toBe(path);
+  });
+
+  it('sends a signed out visitor of the tabs to the login', async () => {
+    await renderRouter('./src/app', { initialUrl: '/charging' });
+    jest.useRealTimers();
+    await flush();
 
     expect(await screen.findByRole('button', { name: 'Entrar' })).toBeOnTheScreen();
   });

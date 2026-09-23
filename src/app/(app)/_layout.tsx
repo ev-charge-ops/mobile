@@ -10,7 +10,10 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 export default function AppLayout() {
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bgBase } }}>
-      <Stack.Screen name="index" />
+      <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+      <Stack.Screen name="charge-points/[chargePointId]" />
+      <Stack.Screen name="sessions/[sessionId]" />
+      <Stack.Screen name="account" />
       <Stack.Screen name="showcase" />
     </Stack>
   );

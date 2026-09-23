@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { RotateCw } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,6 +8,7 @@ import { AppBar } from '@/components/ui/app-bar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
+import { useTabBarHeight } from '@/components/ui/tab-bar';
 import { colors, spacing, typography } from '@/constants/theme';
 import type { ChargePoint } from '@/features/charging/api/charging-api';
 import { useChargePoints } from '@/features/charging/api/use-charge-points';
@@ -28,16 +29,22 @@ function matchesFilter(chargePoint: ChargePoint, filter: Filter) {
   return chargePoint.type === filter;
 }
 
-export function ChargePointsScreen() {
+export type ChargePointsScreenProps = {
+  subtitle?: string;
+  accountAction?: ReactNode;
+};
+
+export function ChargePointsScreen({ subtitle, accountAction }: ChargePointsScreenProps) {
+  const tabBarHeight = useTabBarHeight();
   const { data: chargePoints, isPending, isError, refetch, isRefetching } = useChargePoints();
   const [filter, setFilter] = useState<Filter>('ALL');
   const visible = chargePoints?.filter((chargePoint) => matchesFilter(chargePoint, filter)) ?? [];
 
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
-      <AppBar title="Pontos de recarga" onBack={() => router.back()} />
+      <AppBar variant="large" title="Buscar pontos" subtitle={subtitle} actions={accountAction} />
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + spacing.xxl }]}
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={colors.accent} />
         }
@@ -98,7 +105,6 @@ const styles = StyleSheet.create({
   content: {
     gap: spacing.md,
     paddingHorizontal: spacing.gutter,
-    paddingBottom: spacing.massive,
   },
   filters: {
     gap: spacing.sm,
