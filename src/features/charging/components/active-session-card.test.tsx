@@ -1,53 +1,49 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
-import * as chargingApi from '@/features/charging/api/charging-api';
 import { ActiveSessionCard } from '@/features/charging/components/active-session-card';
 import { renderWithProviders } from '@/features/charging/testing/render-with-providers';
-import { buildSession } from '@/features/charging/testing/session-fixtures';
+import { buildClosedSession, buildSession } from '@/features/charging/testing/session-fixtures';
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
-
-jest.mock('@/features/charging/api/charging-api', () => {
-  const actual = jest.requireActual('@/features/charging/api/charging-api');
-  return { ...actual, getActiveSession: jest.fn() };
-});
-
-const api = jest.mocked(chargingApi);
 
 beforeEach(() => {
   jest.clearAllMocks();
 });
 
 describe('<ActiveSessionCard />', () => {
-  it('shows the open session and opens it', async () => {
-    api.getActiveSession.mockResolvedValue(buildSession({ id: 'session-7' }));
+  it('shows the open session with the battery level and opens it', async () => {
+    await renderWithProviders(<ActiveSessionCard session={buildSession({ id: 'session-7', socPercent: 66.4 })} />);
 
-    await renderWithProviders(<ActiveSessionCard />);
-
-    expect(await screen.findByText('Carregando')).toBeOnTheScreen();
+    expect(screen.getByText('Carregando')).toBeOnTheScreen();
     expect(screen.getByText('Garagem L1 · Vaga 12')).toBeOnTheScreen();
     expect(screen.getByText('1,48')).toBeOnTheScreen();
+    expect(screen.getByText('66')).toBeOnTheScreen();
+    expect(screen.getByText('66%')).toBeOnTheScreen();
 
-    await fireEvent.press(screen.getByRole('button', { name: /Acompanhar recarga/ }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Acompanhar sessão' }));
     expect(router.push).toHaveBeenCalledWith({ pathname: '/sessions/[sessionId]', params: { sessionId: 'session-7' } });
   });
 
   it('highlights the idle fee', async () => {
-    api.getActiveSession.mockResolvedValue(buildSession({ status: 'IDLE', idleFeeCents: 250, totalCents: 428 }));
+    await renderWithProviders(
+      <ActiveSessionCard session={buildSession({ status: 'IDLE', idleFeeCents: 250, totalCents: 428 })} />,
+    );
 
-    await renderWithProviders(<ActiveSessionCard />);
-
-    expect(await screen.findByText('Taxa de ocupação em curso')).toBeOnTheScreen();
+    expect(screen.getByText('Taxa de ocupação em curso')).toBeOnTheScreen();
     expect(screen.getByText('4,28')).toBeOnTheScreen();
   });
 
-  it('renders nothing without an open session', async () => {
-    api.getActiveSession.mockResolvedValue(null);
+  it('shows a dash when the battery level is unknown', async () => {
+    await renderWithProviders(<ActiveSessionCard session={buildSession({ socPercent: null })} />);
 
-    await renderWithProviders(<ActiveSessionCard />);
+    expect(screen.getByText('—')).toBeOnTheScreen();
+    expect(screen.queryByText('Estado de carga')).not.toBeOnTheScreen();
+  });
 
-    await waitFor(() => expect(api.getActiveSession).toHaveBeenCalled());
+  it('renders nothing for a closed session', async () => {
+    await renderWithProviders(<ActiveSessionCard session={buildClosedSession()} />);
+
     expect(screen.queryByRole('button')).not.toBeOnTheScreen();
   });
 });
