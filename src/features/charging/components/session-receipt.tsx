@@ -1,11 +1,13 @@
 import { CircleAlert, CircleCheck } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
+import Animated, { ZoomIn } from 'react-native-reanimated';
 
 import { Card, SectionTitle } from '@/components/ui/card';
+import { FadeInItem } from '@/components/ui/fade-in-item';
 import { Icon } from '@/components/ui/icon';
 import { InfoBanner } from '@/components/ui/info-banner';
 import { ListRow } from '@/components/ui/list-row';
-import { colors, fonts, radii, spacing } from '@/constants/theme';
+import { colors, fonts, motion, radii, spacing } from '@/constants/theme';
 import type { ChargingSession } from '@/features/charging/api/charging-api';
 import {
   formatCents,
@@ -37,57 +39,65 @@ export function SessionReceipt({ session }: SessionReceiptProps) {
   return (
     <>
       <View style={styles.header}>
-        <View style={[styles.badge, isInterrupted && styles.badgeWarning]}>
+        <Animated.View
+          entering={ZoomIn.duration(motion.duration.slow).easing(motion.easing.sheet)}
+          testID="receipt-badge"
+          style={[styles.badge, isInterrupted && styles.badgeWarning]}
+        >
           <Icon
             icon={isInterrupted ? CircleAlert : CircleCheck}
             size={30}
             color={isInterrupted ? colors.statusIdle : colors.statusCharging}
           />
-        </View>
-        <Text style={styles.totalLabel}>
-          {isInterrupted
-            ? 'Recarga interrompida'
-            : isPrivate
-              ? 'Vai para o rateio da unidade'
-              : session.payment?.status === 'CAPTURED'
-                ? 'Cobrado no cartão'
-                : 'Total da recarga'}
-        </Text>
-        <Text accessibilityLabel={`Total ${formatCents(session.totalCents)}`} style={styles.total}>
-          {formatCents(session.totalCents)}
-        </Text>
-        <Text style={styles.code}>{formatSessionCode(session.id)}</Text>
+        </Animated.View>
+        <FadeInItem style={styles.totalBlock}>
+          <Text style={styles.totalLabel}>
+            {isInterrupted
+              ? 'Recarga interrompida'
+              : isPrivate
+                ? 'Vai para o rateio da unidade'
+                : session.payment?.status === 'CAPTURED'
+                  ? 'Cobrado no cartão'
+                  : 'Total da recarga'}
+          </Text>
+          <Text accessibilityLabel={`Total ${formatCents(session.totalCents)}`} style={styles.total}>
+            {formatCents(session.totalCents)}
+          </Text>
+          <Text style={styles.code}>{formatSessionCode(session.id)}</Text>
+        </FadeInItem>
       </View>
 
-      <Card padding={0}>
-        <ListRow
-          label="Energia medida"
-          value={`${formatEnergy(session.energyKwh)} · ${formatCents(session.energyCostCents)}`}
-          hint={`${formatPricePerKwh(session.lockedRateCents)} · tarifa travada no início`}
-        />
-        <ListRow
-          label="Fator de demanda"
-          value={formatDemandFactor(session.demandFactor)}
-          hint={`${formatDemandSource(session.demandFactorSource, session.demandModelVersion)} · ${
-            isPrivate ? 'informativo no condomínio' : 'aplicado sobre a tarifa base'
-          }`}
-        />
-        <ListRow
-          label="Taxa de ocupação"
-          value={session.idleFeeCents > 0 ? formatCents(session.idleFeeCents) : '—'}
-          hint={
-            session.idleFeeCents > 0
-              ? `${session.idleMinutes} min × ${formatCents(session.idleFeeCentsPerMinute)}${
-                  session.idleFeeCents >= session.idleFeeCapCents ? ' · teto atingido' : ''
-                }`
-              : 'Veículo retirado dentro da tolerância'
-          }
-        />
-        <ListRow label="Total" value={formatCents(session.totalCents)} divider={false} />
-      </Card>
+      <FadeInItem index={1}>
+        <Card padding={0}>
+          <ListRow
+            label="Energia medida"
+            value={`${formatEnergy(session.energyKwh)} · ${formatCents(session.energyCostCents)}`}
+            hint={`${formatPricePerKwh(session.lockedRateCents)} · tarifa travada no início`}
+          />
+          <ListRow
+            label="Fator de demanda"
+            value={formatDemandFactor(session.demandFactor)}
+            hint={`${formatDemandSource(session.demandFactorSource, session.demandModelVersion)} · ${
+              isPrivate ? 'informativo no condomínio' : 'aplicado sobre a tarifa base'
+            }`}
+          />
+          <ListRow
+            label="Taxa de ocupação"
+            value={session.idleFeeCents > 0 ? formatCents(session.idleFeeCents) : '—'}
+            hint={
+              session.idleFeeCents > 0
+                ? `${session.idleMinutes} min × ${formatCents(session.idleFeeCentsPerMinute)}${
+                    session.idleFeeCents >= session.idleFeeCapCents ? ' · teto atingido' : ''
+                  }`
+                : 'Veículo retirado dentro da tolerância'
+            }
+          />
+          <ListRow label="Total" value={formatCents(session.totalCents)} divider={false} />
+        </Card>
+      </FadeInItem>
 
       {session.payment ? (
-        <View style={styles.section}>
+        <FadeInItem index={2} style={styles.section}>
           <SectionTitle>Pagamento no cartão</SectionTitle>
           <Card padding={0}>
             <ListRow
@@ -112,22 +122,24 @@ export function SessionReceipt({ session }: SessionReceiptProps) {
               divider={false}
             />
           </Card>
-        </View>
+        </FadeInItem>
       ) : null}
 
-      {isInterrupted ? (
-        <InfoBanner tone="warning" title="Sessão interrompida">
-          A recarga foi interrompida antes do fim. A cobrança considera apenas a energia medida até a desconexão.
-        </InfoBanner>
-      ) : (
-        <InfoBanner tone={isPrivate ? 'success' : 'info'} title={isPrivate ? 'Condomínio' : 'Rede comercial'}>
-          {isPrivate
-            ? 'Energia a custo, sem margem. O consumo e a taxa de ocupação entram no rateio da sua unidade.'
-            : 'Tarifa dinâmica aplicada e travada no início da sessão. Só a energia consumida e a taxa de ocupação são cobradas no cartão.'}
-        </InfoBanner>
-      )}
+      <FadeInItem index={3}>
+        {isInterrupted ? (
+          <InfoBanner tone="warning" title="Sessão interrompida">
+            A recarga foi interrompida antes do fim. A cobrança considera apenas a energia medida até a desconexão.
+          </InfoBanner>
+        ) : (
+          <InfoBanner tone={isPrivate ? 'success' : 'info'} title={isPrivate ? 'Condomínio' : 'Rede comercial'}>
+            {isPrivate
+              ? 'Energia a custo, sem margem. O consumo e a taxa de ocupação entram no rateio da sua unidade.'
+              : 'Tarifa dinâmica aplicada e travada no início da sessão. Só a energia consumida e a taxa de ocupação são cobradas no cartão.'}
+          </InfoBanner>
+        )}
+      </FadeInItem>
 
-      <View style={styles.section}>
+      <FadeInItem index={4} style={styles.section}>
         <SectionTitle>Detalhes</SectionTitle>
         <Card padding={0}>
           <ListRow label="Ponto" value={session.chargePoint.name} hint={session.chargePoint.code} />
@@ -151,7 +163,7 @@ export function SessionReceipt({ session }: SessionReceiptProps) {
             divider={false}
           />
         </Card>
-      </View>
+      </FadeInItem>
     </>
   );
 }
@@ -173,6 +185,10 @@ const styles = StyleSheet.create({
   },
   badgeWarning: {
     backgroundColor: colors.statusIdleBg,
+  },
+  totalBlock: {
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   totalLabel: {
     fontSize: 14,
