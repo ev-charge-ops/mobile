@@ -70,6 +70,7 @@ describe('<ChargePointScreen />', () => {
     expect(screen.getByText('Fora de pico · ×0,80')).toBeOnTheScreen();
     expect(screen.getByText(`R$${NBSP}0,25/min`)).toBeOnTheScreen();
     expect(screen.getByText('GoodWe HCA G2')).toBeOnTheScreen();
+    expect(screen.getByTestId('charge-point-hero-glow')).toBeOnTheScreen();
   });
 
   it('explains the dynamic price of a commercial point', async () => {
