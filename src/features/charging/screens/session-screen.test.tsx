@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { Share } from 'react-native';
 
 import * as chargingApi from '@/features/charging/api/charging-api';
 import * as cardPaymentModule from '@/features/charging/payments/card-payment';
@@ -182,6 +183,28 @@ describe('<SessionScreen />', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'Voltar ao início' }));
     expect(router.dismissTo).toHaveBeenCalledWith('/');
+  });
+
+  it('shares a pt-BR summary of the receipt', async () => {
+    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
+    api.getSession.mockResolvedValue(buildClosedSession());
+
+    await renderWithProviders(<SessionScreen sessionId="session-1" />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Compartilhar recibo' }));
+
+    expect(share).toHaveBeenCalledWith({
+      title: 'Recibo da recarga',
+      message: expect.stringContaining(`Total: R$${NBSP}12,78`),
+    });
+  });
+
+  it('does not offer sharing while the session is open', async () => {
+    api.getSession.mockResolvedValue(buildSession({ startedAt: secondsAgo(17) }));
+
+    await renderWithProviders(<SessionScreen sessionId="session-1" />);
+
+    expect(await screen.findByText('Recarga em andamento')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Compartilhar recibo' })).not.toBeOnTheScreen();
   });
 
   it('shows a not found message', async () => {
