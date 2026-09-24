@@ -110,8 +110,11 @@ describe('<ChargePointScreen />', () => {
 
     expect(screen.getByText('Confirmar recarga')).toBeOnTheScreen();
     expect(screen.getByText('Travado quando a recarga começa')).toBeOnTheScreen();
+    expect(screen.getByText('Até encher')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Definir um limite' }));
+    await fireEvent.press(screen.getByRole('tab', { name: 'Por energia' }));
     await fireEvent.press(screen.getByRole('button', { name: '10 kWh' }));
-    expect(screen.getByText(`Custo estimado de R$${NBSP}8,90`)).toBeOnTheScreen();
+    expect(screen.getByText(`≈ R$${NBSP}8,90`)).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Confirmar e iniciar' }));
 
     expect(api.startSession).toHaveBeenCalledWith({ chargePointId: 'cp-1', limit: { type: 'ENERGY', value: 10 } });
