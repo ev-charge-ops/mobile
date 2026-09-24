@@ -1,4 +1,89 @@
 export interface paths {
+    "/me/push-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register the Expo push token of this device for the user; a token registered by another account moves to this one */
+        post: operations["registerPushToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/push-tokens/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Stop sending pushes to this device (call on logout); the token goes URL encoded and unknown tokens are ignored */
+        delete: operations["removePushToken"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the notifications of the user, newest first, with the unread count */
+        get: operations["listMyNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark every unread notification of the user as read */
+        post: operations["markAllNotificationsRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications/{notificationId}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a notification as read; repeated calls keep the first readAt */
+        post: operations["markNotificationRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/register": {
         parameters: {
             query?: never;
@@ -393,7 +478,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List the charge points of the organizations of the user and the public commercial ones, with the current price */
+        /** List the charge points of the organizations of the user and the public commercial ones, with the current price, optionally from a single organization */
         get: operations["listChargePoints"];
         put?: never;
         post?: never;
@@ -412,6 +497,41 @@ export interface paths {
         };
         /** Get a charge point visible to the user */
         get: operations["getChargePoint"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/charge-points/{chargePointId}/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Join the queue of a busy charge point; when it frees up, the head of the queue gets a 10 minute reservation and a QUEUE_TURN notification */
+        post: operations["joinChargePointQueue"];
+        /** Leave the queue of the charge point, giving up a reservation if you hold one */
+        delete: operations["leaveChargePointQueue"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/charge-points/{chargePointId}/queue/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Your latest entry in the queue of the charge point with the position, status and reservation */
+        get: operations["getMyQueueEntry"];
         put?: never;
         post?: never;
         delete?: never;
@@ -445,7 +565,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List the sessions of the user, newest first */
+        /** List the sessions of the user, newest first, optionally limited to the sessions started in a month */
         get: operations["listMySessions"];
         put?: never;
         /** Start a session at a point, locking the price per kWh and the demand factor. Private points start charging right away; commercial points hold the estimated maximum on the card first (AWAITING_PAYMENT with the PaymentSheet parameters) and start charging once the hold is authorized */
@@ -599,7 +719,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List the sessions of the organization (managers only), filtered by month, unit and status */
+        /** List the sessions of the organization (managers only), filtered by month, unit, status, charge point and anomaly flag */
         get: operations["listOrganizationSessions"];
         put?: never;
         post?: never;
@@ -616,10 +736,62 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Monthly indicators of the organization (managers only): energy, sessions, cost-sharing total and electrical capacity */
+        /** Monthly indicators of the organization (managers only): energy, sessions, cost-sharing total, electrical capacity, recent anomalies and current price per point */
         get: operations["getOrganizationOverview"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/consents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current LGPD consent per purpose, the current terms version and whether the user must accept the terms again */
+        get: operations["getMyConsents"];
+        /** Accept the current terms and record the consent choices; every change is appended to the history */
+        put: operations["updateMyConsents"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/data-export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** LGPD data portability: JSON with the profile, memberships, sessions, consent history and deletion requests of the user */
+        get: operations["exportMyData"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/deletion-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a request to delete the account and its data; repeated calls return the pending request */
+        post: operations["requestAccountDeletion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -630,6 +802,73 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @enum {string} */
+        PushPlatform: "IOS" | "ANDROID";
+        RegisterPushTokenRequestDto: {
+            /** @example ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx] */
+            token: string;
+            platform: components["schemas"]["PushPlatform"];
+        };
+        PushTokenResponseDto: {
+            /** @example ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx] */
+            token: string;
+            platform: components["schemas"]["PushPlatform"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @enum {string} */
+        NotificationType: "SESSION_ACTIVE" | "CHARGING_COMPLETE" | "IDLE_FEE_STARTED" | "PAYMENT_CAPTURED" | "PAYMENT_FAILED" | "SESSION_INTERRUPTED" | "ORGANIZATION_INVITE" | "QUEUE_TURN";
+        NotificationResponseDto: {
+            /** Format: uuid */
+            id: string;
+            type: components["schemas"]["NotificationType"];
+            /** @example Recarga concluída */
+            title: string;
+            /** @example Seu veículo no ponto Vaga L1-01 terminou de carregar. Você tem 10 minutos de tolerância para liberar a vaga. */
+            body: string;
+            /**
+             * @description Payload for navigation; session notifications carry sessionId, chargePointId and chargePointName
+             * @example {
+             *       "sessionId": "6f1c0f7e-2c1a-4a43-9b8e-2a4d1c0e9f10",
+             *       "chargePointId": "0c5d8a2e-77b1-4c39-8f0e-9d6f1b2a3c4d",
+             *       "chargePointName": "Vaga L1-01",
+             *       "graceEndsAt": "2026-10-07T22:40:00.000Z",
+             *       "gracePeriodMinutes": 10
+             *     }
+             */
+            data: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            readAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        NotificationPageResponseDto: {
+            items: components["schemas"]["NotificationResponseDto"][];
+            /** @example 42 */
+            total: number;
+            /** @example 1 */
+            page: number;
+            /** @example 20 */
+            pageSize: number;
+            /**
+             * @description Unread notifications of the user
+             * @example 3
+             */
+            unreadCount: number;
+        };
+        ReadAllNotificationsResponseDto: {
+            /**
+             * @description Notifications marked as read now
+             * @example 3
+             */
+            markedCount: number;
+            /** @example 0 */
+            unreadCount: number;
+        };
         RegisterDto: {
             /** @example Ana Souza */
             name: string;
@@ -867,6 +1106,40 @@ export interface components {
             /** @example 10 */
             gracePeriodMinutes: number;
         };
+        /**
+         * @description WAITING in line, NOTIFIED when it is your turn and the point is reserved until reservedUntil, EXPIRED when the reservation ran out, LEFT when you left, FULFILLED when you started a session
+         * @enum {string}
+         */
+        QueueEntryStatus: "WAITING" | "NOTIFIED" | "EXPIRED" | "LEFT" | "FULFILLED";
+        QueueEntryResponseDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            chargePointId: string;
+            /** @description WAITING in line, NOTIFIED when it is your turn and the point is reserved until reservedUntil, EXPIRED when the reservation ran out, LEFT when you left, FULFILLED when you started a session */
+            status: components["schemas"]["QueueEntryStatus"];
+            /**
+             * @description Position in line starting at 1, null once the entry ended
+             * @example 2
+             */
+            position: number | null;
+            /**
+             * @description People in line at this point
+             * @example 3
+             */
+            queueLength: number;
+            /**
+             * Format: date-time
+             * @description End of your reservation while NOTIFIED
+             */
+            reservedUntil: string | null;
+            /** Format: date-time */
+            notifiedAt: string | null;
+            /** Format: date-time */
+            endedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
         ChargePointResponseDto: {
             /** Format: uuid */
             id: string;
@@ -891,6 +1164,18 @@ export interface components {
             charger: components["schemas"]["ChargerResponseDto"] | null;
             /** @description Null when no tariff is configured */
             pricing: components["schemas"]["ChargePointPricingDto"] | null;
+            /**
+             * @description People waiting or holding a reservation at this point
+             * @example 2
+             */
+            queueLength: number;
+            /**
+             * Format: date-time
+             * @description Set while the point is free but reserved for the head of the queue; only that user can start a session until then
+             */
+            reservedUntil: string | null;
+            /** @description Your active entry in the queue of this point */
+            myQueueEntry: components["schemas"]["QueueEntryResponseDto"] | null;
         };
         TariffResponseDto: {
             /** Format: uuid */
@@ -1047,8 +1332,21 @@ export interface components {
             startedAt: string;
             /** Format: date-time */
             chargingEndedAt: string | null;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description Real time when the free grace period ends, set once charging ends; schedule the reminder to unplug for this instant
+             */
             graceEndsAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when the idle fee starts to accrue (same instant as graceEndsAt)
+             */
+            idleStartsAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when the idle fee reaches its cap, null without an idle fee
+             */
+            idleFeeCapReachedAt: string | null;
             /** Format: date-time */
             endedAt: string | null;
             /** @example 11.76 */
@@ -1114,8 +1412,21 @@ export interface components {
             startedAt: string;
             /** Format: date-time */
             chargingEndedAt: string | null;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description Real time when the free grace period ends, set once charging ends; schedule the reminder to unplug for this instant
+             */
             graceEndsAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when the idle fee starts to accrue (same instant as graceEndsAt)
+             */
+            idleStartsAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when the idle fee reaches its cap, null without an idle fee
+             */
+            idleFeeCapReachedAt: string | null;
             /** Format: date-time */
             endedAt: string | null;
             /** @example 11.76 */
@@ -1202,8 +1513,21 @@ export interface components {
             startedAt: string;
             /** Format: date-time */
             chargingEndedAt: string | null;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description Real time when the free grace period ends, set once charging ends; schedule the reminder to unplug for this instant
+             */
             graceEndsAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when the idle fee starts to accrue (same instant as graceEndsAt)
+             */
+            idleStartsAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when the idle fee reaches its cap, null without an idle fee
+             */
+            idleFeeCapReachedAt: string | null;
             /** Format: date-time */
             endedAt: string | null;
             /** @example 11.76 */
@@ -1411,6 +1735,44 @@ export interface components {
             /** @example 218.4 */
             energyKwh: number;
         };
+        RecentAnomalyDto: {
+            /** Format: uuid */
+            sessionId: string;
+            status: components["schemas"]["ChargingSessionStatus"];
+            regime: components["schemas"]["ChargePointType"];
+            chargePoint: components["schemas"]["OrganizationSessionPointDto"];
+            driver: components["schemas"]["OrganizationSessionDriverDto"];
+            /** @example B · 42 */
+            unitLabel: string | null;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            endedAt: string | null;
+            /** @example 41 */
+            energyKwh: number;
+            /** @example 0 */
+            idleMinutes: number;
+            /** @example 3649 */
+            totalCents: number;
+            /** @example 0.565 */
+            anomalyScore: number | null;
+            /** @example v1 */
+            anomalyModelVersion: string | null;
+        };
+        OverviewChargePointDto: {
+            /** Format: uuid */
+            id: string;
+            /** @example L1-01 */
+            code: string;
+            /** @example Garagem L1 · Vaga 12 */
+            name: string;
+            type: components["schemas"]["ChargePointType"];
+            /** @example 7 */
+            maxPowerKw: number;
+            status: components["schemas"]["ChargePointStatus"];
+            /** @description Current price of the point; null when no tariff is configured */
+            pricing: components["schemas"]["ChargePointPricingDto"] | null;
+        };
         OrganizationOverviewResponseDto: {
             /** @example 2026-08 */
             month: string;
@@ -1439,6 +1801,171 @@ export interface components {
             unitsWithConsumption: number;
             capacity: components["schemas"]["SiteCapacityDto"];
             energyByWeek: components["schemas"]["WeeklyEnergyDto"][];
+            /**
+             * @description Sessions of the month flagged as anomalous
+             * @example 3
+             */
+            anomaliesCount: number;
+            /** @description Latest sessions flagged as anomalous that started before the end of the month, newest first (up to 5) */
+            recentAnomalies: components["schemas"]["RecentAnomalyDto"][];
+            /** @description Charge points of the organization with their current price */
+            chargePoints: components["schemas"]["OverviewChargePointDto"][];
+        };
+        /** @enum {string} */
+        ConsentPurpose: "ESSENTIAL_SERVICE" | "BILLING_SHARING" | "USAGE_ANALYTICS" | "MARKETING_COMMUNICATIONS";
+        ConsentPurposeStateDto: {
+            purpose: components["schemas"]["ConsentPurpose"];
+            /** @description Required purposes are granted on acceptance and cannot be revoked */
+            required: boolean;
+            /** @example Rateio com o condomínio */
+            title: string;
+            /** @example Compartilhar com a gestão do seu condomínio a energia, o horário e o valor de cada recarga para o rateio na taxa condominial. */
+            description: string;
+            /** @description Latest choice; false when never recorded */
+            granted: boolean;
+            /**
+             * @description Terms version of the latest choice
+             * @example 2026-10-07
+             */
+            termsVersion: string | null;
+            /** Format: date-time */
+            recordedAt: string | null;
+        };
+        MyConsentsResponseDto: {
+            /**
+             * @description Current terms version
+             * @example 2026-10-07
+             */
+            termsVersion: string;
+            /**
+             * @description Terms version under which the required purposes were last granted
+             * @example 2026-10-07
+             */
+            acceptedTermsVersion: string | null;
+            /** @description True when the user has not accepted the current terms version and must accept them again */
+            mustAccept: boolean;
+            purposes: components["schemas"]["ConsentPurposeStateDto"][];
+        };
+        ConsentChoiceDto: {
+            purpose: components["schemas"]["ConsentPurpose"];
+            granted: boolean;
+        };
+        UpdateMyConsentsRequestDto: {
+            /**
+             * @description Terms version shown to the user; must be the current one returned by getMyConsents
+             * @example 2026-10-07
+             */
+            termsVersion: string;
+            /** @description Choices to record; required purposes are always granted and omitted optional purposes keep their latest choice */
+            consents: components["schemas"]["ConsentChoiceDto"][];
+        };
+        /** @enum {string} */
+        IdentityProvider: "GOOGLE" | "APPLE";
+        ExportedIdentityDto: {
+            provider: components["schemas"]["IdentityProvider"];
+            email: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ExportedProfileDto: {
+            /** Format: uuid */
+            id: string;
+            /** @example Ana Souza */
+            name: string;
+            /** Format: email */
+            email: string;
+            role: components["schemas"]["Role"];
+            /** Format: date-time */
+            emailVerifiedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            identities: components["schemas"]["ExportedIdentityDto"][];
+        };
+        ExportedOrganizationDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            type: components["schemas"]["OrganizationType"];
+        };
+        ExportedMembershipDto: {
+            organization: components["schemas"]["ExportedOrganizationDto"];
+            role: components["schemas"]["MembershipRole"];
+            unitLabel: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ExportedChargePointDto: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name: string;
+        };
+        ExportedPaymentDto: {
+            status: components["schemas"]["PaymentStatus"];
+            authorizedCents: number;
+            capturedCents: number | null;
+            /** @example BRL */
+            currency: string;
+        };
+        ExportedSessionDto: {
+            /** Format: uuid */
+            id: string;
+            chargePoint: components["schemas"]["ExportedChargePointDto"];
+            /** Format: uuid */
+            organizationId: string;
+            unitLabel: string | null;
+            regime: components["schemas"]["ChargePointType"];
+            status: components["schemas"]["ChargingSessionStatus"];
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            chargingEndedAt: string | null;
+            /** Format: date-time */
+            endedAt: string | null;
+            energyKwh: number;
+            lockedRateCents: number;
+            energyCostCents: number;
+            idleMinutes: number;
+            idleFeeCents: number;
+            totalCents: number;
+            payment: components["schemas"]["ExportedPaymentDto"] | null;
+        };
+        ExportedConsentDto: {
+            purpose: components["schemas"]["ConsentPurpose"];
+            granted: boolean;
+            /** @example 2026-10-07 */
+            termsVersion: string;
+            /** Format: date-time */
+            recordedAt: string;
+        };
+        /** @enum {string} */
+        DeletionRequestStatus: "PENDING" | "COMPLETED";
+        DeletionRequestResponseDto: {
+            /** Format: uuid */
+            id: string;
+            status: components["schemas"]["DeletionRequestStatus"];
+            reason: string | null;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            processedAt: string | null;
+        };
+        MyDataExportResponseDto: {
+            /** Format: date-time */
+            exportedAt: string;
+            profile: components["schemas"]["ExportedProfileDto"];
+            memberships: components["schemas"]["ExportedMembershipDto"][];
+            /** @description Newest first */
+            sessions: components["schemas"]["ExportedSessionDto"][];
+            /** @description Full consent history, oldest first */
+            consents: components["schemas"]["ExportedConsentDto"][];
+            deletionRequests: components["schemas"]["DeletionRequestResponseDto"][];
+        };
+        RequestAccountDeletionRequestDto: {
+            /** @example Mudei de condomínio */
+            reason?: string;
         };
     };
     responses: never;
@@ -1449,6 +1976,160 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    registerPushToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterPushTokenRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushTokenResponseDto"];
+                };
+            };
+            /** @description Invalid token or platform */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    removePushToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Token removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listMyNotifications: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPageResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    markAllNotificationsRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadAllNotificationsResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    markNotificationRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notificationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Notification not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     register: {
         parameters: {
             query?: never;
@@ -2416,7 +3097,10 @@ export interface operations {
     };
     listChargePoints: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Only the points of this organization that the user can see: all of them for members, the commercial ones otherwise */
+                organizationId?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2430,6 +3114,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ChargePointResponseDto"][];
                 };
+            };
+            /** @description Invalid filters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Missing or invalid access token */
             401: {
@@ -2467,6 +3158,117 @@ export interface operations {
                 content?: never;
             };
             /** @description Charge point not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    joinChargePointQueue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chargePointId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueEntryResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Charge point not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description CHARGE_POINT_AVAILABLE, CHARGE_POINT_OFFLINE, QUEUE_OWN_SESSION, ALREADY_IN_QUEUE or ACTIVE_QUEUE_EXISTS (one queue per user) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    leaveChargePointQueue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chargePointId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Left the queue */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description QUEUE_ENTRY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getMyQueueEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chargePointId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueEntryResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Charge point not found or QUEUE_ENTRY_NOT_FOUND */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2579,6 +3381,8 @@ export interface operations {
             query?: {
                 page?: number;
                 pageSize?: number;
+                /** @description Keeps only the sessions started in this calendar month in America/Sao_Paulo */
+                month?: string;
             };
             header?: never;
             path?: never;
@@ -2645,7 +3449,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description CHARGE_POINT_BUSY, ACTIVE_SESSION_EXISTS, CHARGE_POINT_OFFLINE, TARIFF_NOT_CONFIGURED or BUILDING_CAPACITY_EXCEEDED */
+            /** @description CHARGE_POINT_BUSY, CHARGE_POINT_RESERVED (free but reserved for the head of the queue), ACTIVE_SESSION_EXISTS, CHARGE_POINT_OFFLINE, TARIFF_NOT_CONFIGURED or BUILDING_CAPACITY_EXCEEDED */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3016,6 +3820,9 @@ export interface operations {
                 month?: string;
                 unit?: string;
                 status?: components["schemas"]["ChargingSessionStatus"];
+                chargePointId?: string;
+                /** @description true keeps only the sessions flagged as anomalous; false keeps the ones not flagged (including the unscored) */
+                anomaly?: boolean;
             };
             header?: never;
             path: {
@@ -3108,6 +3915,139 @@ export interface operations {
             };
             /** @description Organization not found or user is not a member */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getMyConsents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyConsentsResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateMyConsents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMyConsentsRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyConsentsResponseDto"];
+                };
+            };
+            /** @description Invalid payload or REQUIRED_CONSENT: a required purpose was sent as not granted */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description TERMS_VERSION_OUTDATED: the terms version is not the current one */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exportMyData: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyDataExportResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestAccountDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestAccountDeletionRequestDto"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequestResponseDto"];
+                };
+            };
+            /** @description Invalid payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid access token */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
