@@ -3,7 +3,7 @@ import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { Bell, MapPin, Zap } from 'lucide-react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { TabBar, type TabBarItem } from '@/components/ui/tab-bar';
+import { formatBadgeCount, TabBar, type TabBarItem } from '@/components/ui/tab-bar';
 import { haptics } from '@/lib/haptics';
 
 jest.mock('@/lib/haptics', () => ({ haptics: { selection: jest.fn() } }));
@@ -19,7 +19,7 @@ const routes = [
   { key: 'notifications-key', name: 'notifications' },
 ];
 
-async function renderTabBar({ index = 0, badge = false, defaultPrevented = false } = {}) {
+async function renderTabBar({ index = 0, badge = false, defaultPrevented = false, unread = 0 } = {}) {
   const navigation = {
     emit: jest.fn(() => ({ defaultPrevented })),
     navigate: jest.fn(),
@@ -27,7 +27,13 @@ async function renderTabBar({ index = 0, badge = false, defaultPrevented = false
   const items: TabBarItem[] = [
     { name: 'index', label: 'Buscar', icon: MapPin },
     { name: 'charging', label: 'Recarga', icon: Zap, badge, badgeLabel: 'sessão em andamento' },
-    { name: 'notifications', label: 'Avisos', icon: Bell },
+    {
+      name: 'notifications',
+      label: 'Avisos',
+      icon: Bell,
+      badgeCount: unread,
+      badgeCountLabel: (count) => `${count} avisos não lidos`,
+    },
   ];
   const props = {
     state: { index, routes, key: 'tabs', routeNames: routes.map((route) => route.name), type: 'tab', stale: false },
@@ -79,6 +85,20 @@ describe('<TabBar />', () => {
     );
 
     expect(screen.queryByTestId('tab-badge-charging')).not.toBeOnTheScreen();
+  });
+
+  it('shows the unread count on the notices tab', async () => {
+    await renderTabBar({ unread: 3 });
+
+    expect(screen.getByTestId('tab-count-notifications')).toHaveTextContent('3');
+    expect(screen.getByRole('tab', { name: 'Avisos, 3 avisos não lidos' })).toBeOnTheScreen();
+  });
+
+  it('caps the unread count and hides it when zero', async () => {
+    expect(formatBadgeCount(120)).toBe('99+');
+    await renderTabBar({ unread: 0 });
+
+    expect(screen.queryByTestId('tab-count-notifications')).toBeNull();
   });
 
   it('navigates to another tab with haptic feedback', async () => {
