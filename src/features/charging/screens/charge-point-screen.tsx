@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { PlugZap, RotateCw, Zap } from 'lucide-react-native';
+import { Clock, LogOut, PlugZap, RotateCw, Zap } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,9 +13,18 @@ import { InfoBanner } from '@/components/ui/info-banner';
 import { ListRow } from '@/components/ui/list-row';
 import { MetricTile } from '@/components/ui/metric-tile';
 import { StatusPill } from '@/components/ui/status-pill';
+import { useToast } from '@/components/ui/toast';
 import { colors, fonts, radii, spacing, typography } from '@/constants/theme';
 import { ChargingApiError, type ChargePoint, type ChargePointPricing } from '@/features/charging/api/charging-api';
-import { useChargePoint } from '@/features/charging/api/use-charge-points';
+import { useChargePoint, useLeaveQueue } from '@/features/charging/api/use-charge-points';
+import {
+  formatPosition,
+  formatQueueLength,
+  getLeaveQueueErrorMessage,
+  getQueueState,
+  getRemainingSeconds,
+  type QueueState,
+} from '@/features/charging/charge-point-queue';
 import {
   chargePointStatusLabels,
   chargePointStatusPill,
@@ -29,7 +38,10 @@ import {
   regimeLabels,
 } from '@/features/charging/charging-format';
 import { DemandBadge } from '@/features/charging/components/demand-badge';
+import { JoinQueueSheet } from '@/features/charging/components/join-queue-sheet';
 import { StartChargingSheet } from '@/features/charging/components/start-charging-sheet';
+import { formatClock } from '@/features/charging/session-timing';
+import { useNow } from '@/hooks/use-now';
 
 const ESTIMATE_ENERGY_KWH = 20;
 
@@ -49,6 +61,10 @@ const unavailableLabels: Record<ChargePoint['status'], string> = {
 export function ChargePointScreen({ chargePointId }: ChargePointScreenProps) {
   const { data: chargePoint, isPending, isError, error, refetch, isRefetching } = useChargePoint(chargePointId);
   const [isConfirming, setConfirming] = useState(false);
+  const [isJoiningQueue, setJoiningQueue] = useState(false);
+  const hasReservationClock = Boolean(chargePoint?.reservedUntil || chargePoint?.myQueueEntry?.reservedUntil);
+  const now = useNow(1000, hasReservationClock);
+  const queueState = chargePoint ? getQueueState(chargePoint, now) : null;
 
   return (
     <View style={styles.screen}>
@@ -57,9 +73,15 @@ export function ChargePointScreen({ chargePointId }: ChargePointScreenProps) {
         {chargePoint ? (
           <>
             <ScrollView contentContainerStyle={styles.content}>
-              <ChargePointDetails chargePoint={chargePoint} />
+              <ChargePointDetails chargePoint={chargePoint} queueState={queueState} now={now} />
             </ScrollView>
-            <StartFooter chargePoint={chargePoint} onStart={() => setConfirming(true)} />
+            <StartFooter
+              chargePoint={chargePoint}
+              queueState={queueState}
+              now={now}
+              onStart={() => setConfirming(true)}
+              onJoinQueue={() => setJoiningQueue(true)}
+            />
           </>
         ) : isPending ? (
           <View style={styles.centered}>
@@ -85,6 +107,9 @@ export function ChargePointScreen({ chargePointId }: ChargePointScreenProps) {
           </View>
         )}
       </SafeAreaView>
+      {chargePoint ? (
+        <JoinQueueSheet chargePoint={chargePoint} visible={isJoiningQueue} onClose={() => setJoiningQueue(false)} />
+      ) : null}
       {chargePoint?.pricing ? (
         <StartChargingSheet
           chargePoint={chargePoint}
@@ -97,24 +122,93 @@ export function ChargePointScreen({ chargePointId }: ChargePointScreenProps) {
   );
 }
 
-function StartFooter({ chargePoint, onStart }: { chargePoint: ChargePoint; onStart: () => void }) {
+type StartFooterProps = {
+  chargePoint: ChargePoint;
+  queueState: QueueState | null;
+  now: number;
+  onStart: () => void;
+  onJoinQueue: () => void;
+};
+
+function StartFooter({ chargePoint, queueState, now, onStart, onJoinQueue }: StartFooterProps) {
   const needsCardPayment = chargePoint.type === 'COMMERCIAL';
+  const paymentNote = needsCardPayment
+    ? 'Pré-autorização no cartão · só o consumido é cobrado ao encerrar'
+    : 'Sem cartão · o consumo entra no rateio da sua unidade';
+
+  if (queueState?.kind === 'can-join') {
+    return (
+      <View style={styles.footer}>
+        <Button label="Entrar na fila" icon={Clock} variant="secondary" size="lg" block haptic onPress={onJoinQueue} />
+        <Text style={styles.footnote}>
+          {queueState.queueLength > 0
+            ? `${formatQueueLength(queueState.queueLength)} agora · reserva de 10 min quando liberar`
+            : 'Ninguém na fila agora · reserva de 10 min quando liberar'}
+        </Text>
+      </View>
+    );
+  }
+
+  if (queueState?.kind === 'waiting') {
+    return <LeaveQueueFooter chargePointId={chargePoint.id} position={queueState.position} />;
+  }
+
+  if (queueState?.kind === 'reserved-for-other') {
+    return (
+      <View style={styles.footer}>
+        <Button label="Reservado para a fila" icon={Clock} size="lg" block disabled />
+        <Text style={styles.footnote}>
+          Livre para o próximo da fila por mais {formatClock(getRemainingSeconds(queueState.reservedUntil, now))}
+        </Text>
+      </View>
+    );
+  }
+
   const canStart = chargePoint.status === 'AVAILABLE' && chargePoint.pricing !== null;
   const label = chargePoint.pricing ? unavailableLabels[chargePoint.status] : 'Tarifa não configurada';
 
   return (
     <View style={styles.footer}>
-      <Button label={label} icon={Zap} size="lg" block disabled={!canStart} onPress={onStart} />
-      <Text style={styles.footnote}>
-        {needsCardPayment
-          ? 'Pré-autorização no cartão · só o consumido é cobrado ao encerrar'
-          : 'Sem cartão · o consumo entra no rateio da sua unidade'}
-      </Text>
+      <Button label={label} icon={Zap} size="lg" block haptic={canStart} disabled={!canStart} onPress={onStart} />
+      <Text style={styles.footnote}>{paymentNote}</Text>
     </View>
   );
 }
 
-function ChargePointDetails({ chargePoint }: { chargePoint: ChargePoint }) {
+function LeaveQueueFooter({ chargePointId, position }: { chargePointId: string; position: number }) {
+  const toast = useToast();
+  const leaveQueue = useLeaveQueue(chargePointId);
+
+  const leave = () => {
+    leaveQueue.mutate(undefined, {
+      onSuccess: () => toast.show('Você saiu da fila deste ponto.', { tone: 'info' }),
+      onError: (error) => toast.show(getLeaveQueueErrorMessage(error), { tone: 'error' }),
+    });
+  };
+
+  return (
+    <View style={styles.footer}>
+      <Button
+        label="Sair da fila"
+        icon={LogOut}
+        variant="outline"
+        size="lg"
+        block
+        loading={leaveQueue.isPending}
+        onPress={leave}
+      />
+      <Text style={styles.footnote}>Você é o {formatPosition(position)} da fila · avisamos quando for sua vez</Text>
+    </View>
+  );
+}
+
+type ChargePointDetailsProps = {
+  chargePoint: ChargePoint;
+  queueState: QueueState | null;
+  now: number;
+};
+
+function ChargePointDetails({ chargePoint, queueState, now }: ChargePointDetailsProps) {
   const { pricing, charger } = chargePoint;
 
   return (
@@ -139,9 +233,24 @@ function ChargePointDetails({ chargePoint }: { chargePoint: ChargePoint }) {
             status={chargePointStatusPill[chargePoint.status]}
             label={chargePointStatusLabels[chargePoint.status]}
           />
-          <Text style={styles.heroMetaText}>{regimeLabels[chargePoint.type]}</Text>
+          <Text style={styles.heroMetaText}>
+            {chargePoint.queueLength > 0
+              ? `${regimeLabels[chargePoint.type]} · ${formatQueueLength(chargePoint.queueLength)}`
+              : regimeLabels[chargePoint.type]}
+          </Text>
         </View>
       </View>
+
+      {queueState?.kind === 'reserved-for-me' ? (
+        <InfoBanner tone="success" title="Reservado para você">
+          {`É a sua vez! O ponto fica reservado por mais ${formatClock(getRemainingSeconds(queueState.reservedUntil, now))}. Inicie a recarga antes que a vez passe para o próximo.`}
+        </InfoBanner>
+      ) : null}
+      {queueState?.kind === 'waiting' ? (
+        <InfoBanner tone="info" title={`Você é o ${formatPosition(queueState.position)} da fila`}>
+          {`${formatQueueLength(queueState.queueLength)} neste ponto. Quando ele liberar, avisamos e a vaga fica reservada por 10 minutos.`}
+        </InfoBanner>
+      ) : null}
 
       {pricing ? (
         <>
