@@ -27,6 +27,9 @@ export function buildChargePoint(overrides: Partial<ChargePoint> = {}): ChargePo
       idleFeeCapCents: 3000,
       gracePeriodMinutes: 10,
     },
+    queueLength: 0,
+    reservedUntil: null,
+    myQueueEntry: null,
     ...overrides,
   };
 }
