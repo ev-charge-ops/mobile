@@ -36,6 +36,31 @@ jest.mock('@/features/charging/screens/charge-points-screen', () => {
 const user = { id: 'u1', name: 'Ana', email: 'ana@example.com', role: 'DRIVER', emailVerified: true };
 const organizations = [{ id: 'o1', name: 'Residencial Aclimação', type: 'CONDOMINIUM', role: 'DRIVER', unitLabel: 'B · 42' }];
 
+const purposes = [
+  {
+    purpose: 'ESSENTIAL_SERVICE',
+    required: true,
+    title: 'Serviço de recarga',
+    description: 'Identidade e sessões',
+    granted: false,
+    termsVersion: null,
+    recordedAt: null,
+  },
+  {
+    purpose: 'MARKETING_COMMUNICATIONS',
+    required: false,
+    title: 'Novidades do produto',
+    description: 'Comunicados sobre novas funções',
+    granted: false,
+    termsVersion: null,
+    recordedAt: null,
+  },
+];
+
+function consents(mustAccept: boolean) {
+  return { termsVersion: '2026-10-07', acceptedTermsVersion: mustAccept ? null : '2026-10-07', mustAccept, purposes };
+}
+
 class NativeFetchResponse {
   readonly headers = new Headers({ 'Content-Type': 'application/json' });
   readonly statusText = '';
@@ -122,6 +147,8 @@ beforeEach(() => {
   setRoute('GET /me/organizations', 200, organizations);
   setRoute('GET /charge-points', 200, []);
   setRoute('GET /sessions/active', 200, { session: null });
+  setRoute('GET /me/consents', 200, consents(false));
+  setRoute('GET /me/notifications', 200, { items: [], total: 0, page: 1, pageSize: 20, unreadCount: 0 });
 });
 
 afterEach(() => {
@@ -140,6 +167,21 @@ describe('signing in', () => {
     expect(screen.getByRole('tab', { name: 'Recarga' })).toBeOnTheScreen();
     await flush(50);
     expect(screen.getByText('Buscar pontos')).toBeOnTheScreen();
+  });
+
+  it('asks for consent before showing the tabs when the terms must be accepted', async () => {
+    setRoute('GET /me/consents', 200, consents(true));
+    setRoute('PUT /me/consents', 200, consents(false));
+    await renderApp();
+
+    await signIn();
+
+    expect(await screen.findByText('O que coletamos e por quê')).toBeOnTheScreen();
+    expect(screen.queryByText('Buscar pontos')).toBeNull();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Aceitar e continuar' }));
+
+    expect(await screen.findByText('Buscar pontos')).toBeOnTheScreen();
   });
 
   it('opens the account screen from the search tab', async () => {
