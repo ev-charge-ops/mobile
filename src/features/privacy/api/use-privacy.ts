@@ -1,0 +1,37 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import {
+  exportMyData,
+  getMyConsents,
+  requestAccountDeletion,
+  updateMyConsents,
+  type UpdateConsentsInput,
+} from '@/features/privacy/api/privacy-api';
+
+export const myConsentsQueryKey = ['me', 'consents'] as const;
+
+export function useMyConsents() {
+  return useQuery({
+    queryKey: myConsentsQueryKey,
+    queryFn: getMyConsents,
+  });
+}
+
+export function useUpdateConsents() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: UpdateConsentsInput) => updateMyConsents(body),
+    onSuccess: (consents) => {
+      queryClient.setQueryData(myConsentsQueryKey, consents);
+    },
+  });
+}
+
+export function useExportMyData() {
+  return useMutation({ mutationFn: exportMyData });
+}
+
+export function useRequestAccountDeletion() {
+  return useMutation({ mutationFn: (reason?: string) => requestAccountDeletion(reason) });
+}
