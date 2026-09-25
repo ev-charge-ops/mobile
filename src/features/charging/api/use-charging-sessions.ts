@@ -85,14 +85,14 @@ export function useStopSession(sessionId: string) {
   });
 }
 
-const HISTORY_PAGE_SIZE = 20;
+const HISTORY_PAGE_SIZE = 100;
 
-export const sessionHistoryQueryKey = ['sessions', 'history'] as const;
+export const sessionHistoryQueryKey = (month: string) => ['sessions', 'history', month] as const;
 
-export function useSessionHistory() {
+export function useSessionHistory(month: string) {
   return useInfiniteQuery({
-    queryKey: sessionHistoryQueryKey,
-    queryFn: ({ pageParam }) => listMySessions(pageParam, HISTORY_PAGE_SIZE),
+    queryKey: sessionHistoryQueryKey(month),
+    queryFn: ({ pageParam }) => listMySessions(pageParam, HISTORY_PAGE_SIZE, month),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.page * lastPage.pageSize < lastPage.total ? lastPage.page + 1 : undefined,
