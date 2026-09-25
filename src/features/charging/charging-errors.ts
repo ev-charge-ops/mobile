@@ -6,6 +6,7 @@ const UNEXPECTED_ERROR = 'Algo deu errado. Tente novamente.';
 
 const startSessionMessages: Record<string, string> = {
   CHARGE_POINT_BUSY: 'Este ponto acabou de ser ocupado. Escolha outro ponto livre.',
+  CHARGE_POINT_RESERVED: 'Este ponto está reservado para o próximo da fila.',
   ACTIVE_SESSION_EXISTS: 'Você já tem uma recarga em andamento.',
   CHARGE_POINT_OFFLINE: 'O carregador está offline no momento.',
   TARIFF_NOT_CONFIGURED: 'A tarifa deste ponto ainda não foi configurada pelo gestor.',
