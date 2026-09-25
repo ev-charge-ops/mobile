@@ -1,4 +1,19 @@
-import type { ChargePoint } from '@/features/charging/api/charging-api';
+import type { ChargePoint, QueueEntry } from '@/features/charging/api/charging-api';
+
+export function buildQueueEntry(overrides: Partial<QueueEntry> = {}): QueueEntry {
+  return {
+    id: 'queue-1',
+    chargePointId: 'cp-1',
+    status: 'WAITING',
+    position: 1,
+    queueLength: 1,
+    reservedUntil: null,
+    notifiedAt: null,
+    endedAt: null,
+    createdAt: '2026-10-07T20:00:00.000Z',
+    ...overrides,
+  };
+}
 
 export function buildChargePoint(overrides: Partial<ChargePoint> = {}): ChargePoint {
   return {

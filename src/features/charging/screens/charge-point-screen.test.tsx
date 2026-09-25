@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import * as chargingApi from '@/features/charging/api/charging-api';
 import * as cardPaymentModule from '@/features/charging/payments/card-payment';
 import { ChargePointScreen } from '@/features/charging/screens/charge-point-screen';
-import { buildChargePoint, buildCommercialChargePoint } from '@/features/charging/testing/fixtures';
+import { buildChargePoint, buildCommercialChargePoint, buildQueueEntry } from '@/features/charging/testing/fixtures';
 import { buildSession } from '@/features/charging/testing/session-fixtures';
 import { renderWithProviders } from '@/features/charging/testing/render-with-providers';
 
@@ -19,6 +19,8 @@ jest.mock('@/features/charging/api/charging-api', () => {
     getActiveSession: jest.fn(),
     createSessionPaymentSheet: jest.fn(),
     confirmSessionPayment: jest.fn(),
+    joinQueue: jest.fn(),
+    leaveQueue: jest.fn(),
   };
 });
 
@@ -154,12 +156,101 @@ describe('<ChargePointScreen />', () => {
     );
   });
 
-  it('does not allow starting at a busy point', async () => {
-    api.getChargePoint.mockResolvedValue(buildChargePoint({ status: 'CHARGING' }));
+  it('offers the queue at a busy point', async () => {
+    api.getChargePoint.mockResolvedValue(buildChargePoint({ status: 'CHARGING', queueLength: 2 }));
 
     await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
 
-    expect(await screen.findByRole('button', { name: 'Ponto em uso' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Entrar na fila' })).toBeEnabled();
+    expect(screen.getByText('2 na fila agora · reserva de 10 min quando liberar')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Ponto em uso' })).toBeNull();
+  });
+
+  it('keeps an offline point disabled without a queue', async () => {
+    api.getChargePoint.mockResolvedValue(buildChargePoint({ status: 'OFFLINE' }));
+
+    await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
+
+    expect(await screen.findByRole('button', { name: 'Carregador offline' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Entrar na fila' })).toBeNull();
+  });
+
+  it('joins the queue from the confirmation sheet', async () => {
+    api.getChargePoint.mockResolvedValue(buildChargePoint({ status: 'IDLE', queueLength: 1 }));
+    api.joinQueue.mockResolvedValue(buildQueueEntry({ position: 2, queueLength: 2 }));
+
+    await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Entrar na fila' }));
+
+    expect(screen.getByText(/Você fica em 2º lugar/)).toBeOnTheScreen();
+    expect(screen.getByText('Reserva quando liberar')).toBeOnTheScreen();
+
+    api.getChargePoint.mockResolvedValue(
+      buildChargePoint({ status: 'IDLE', queueLength: 2, myQueueEntry: buildQueueEntry({ position: 2, queueLength: 2 }) }),
+    );
+    await fireEvent.press(screen.getByRole('button', { name: 'Confirmar lugar na fila' }));
+
+    await waitFor(() => expect(api.joinQueue).toHaveBeenCalledWith('cp-1'));
+    expect(await screen.findByText('Você está 2º na fila deste ponto.')).toBeOnTheScreen();
+    expect(await screen.findByRole('button', { name: 'Sair da fila' })).toBeOnTheScreen();
+  });
+
+  it('explains a queue conflict in portuguese', async () => {
+    api.getChargePoint.mockResolvedValue(buildChargePoint({ status: 'CHARGING' }));
+    api.joinQueue.mockRejectedValue(new chargingApi.ChargingApiError(409, 'ACTIVE_QUEUE_EXISTS'));
+
+    await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Entrar na fila' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Confirmar lugar na fila' }));
+
+    expect(
+      await screen.findByText('Você já está na fila de outro ponto. Saia dela para entrar nesta.'),
+    ).toBeOnTheScreen();
+  });
+
+  it('shows the position and leaves the queue', async () => {
+    api.getChargePoint.mockResolvedValue(
+      buildChargePoint({ status: 'CHARGING', queueLength: 3, myQueueEntry: buildQueueEntry({ position: 2, queueLength: 3 }) }),
+    );
+    api.leaveQueue.mockResolvedValue(undefined);
+
+    await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
+
+    expect(await screen.findByText('Você é o 2º da fila')).toBeOnTheScreen();
+    api.getChargePoint.mockResolvedValue(buildChargePoint({ status: 'CHARGING', queueLength: 2 }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Sair da fila' }));
+
+    await waitFor(() => expect(api.leaveQueue).toHaveBeenCalledWith('cp-1'));
+    expect(await screen.findByText('Você saiu da fila deste ponto.')).toBeOnTheScreen();
+    expect(await screen.findByRole('button', { name: 'Entrar na fila' })).toBeOnTheScreen();
+  });
+
+  it('shows the reservation countdown and lets the next in line start', async () => {
+    const reservedUntil = new Date(Date.now() + 9 * 60_000 + 30_000).toISOString();
+    api.getChargePoint.mockResolvedValue(
+      buildChargePoint({
+        status: 'AVAILABLE',
+        reservedUntil,
+        queueLength: 1,
+        myQueueEntry: buildQueueEntry({ status: 'NOTIFIED', position: 1, queueLength: 1, reservedUntil }),
+      }),
+    );
+
+    await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
+
+    expect(await screen.findByText('Reservado para você')).toBeOnTheScreen();
+    expect(screen.getByText(/reservado por mais 09:(30|29)/)).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Iniciar recarga' })).toBeEnabled();
+  });
+
+  it('blocks a point reserved for someone else', async () => {
+    api.getChargePoint.mockResolvedValue(
+      buildChargePoint({ status: 'AVAILABLE', queueLength: 1, reservedUntil: new Date(Date.now() + 60_000).toISOString() }),
+    );
+
+    await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
+
+    expect(await screen.findByRole('button', { name: 'Reservado para a fila' })).toBeDisabled();
   });
 
   it('takes the card pre-authorization before charging at a commercial point', async () => {
