@@ -71,8 +71,8 @@ export function stopSession(sessionId: string) {
   return unwrap(apiClient.POST('/sessions/{sessionId}/stop', { params: { path: { sessionId } } }));
 }
 
-export function listMySessions(page: number, pageSize: number) {
-  return unwrap(apiClient.GET('/sessions', { params: { query: { page, pageSize } } }));
+export function listMySessions(page: number, pageSize: number, month?: string) {
+  return unwrap(apiClient.GET('/sessions', { params: { query: { page, pageSize, month } } }));
 }
 
 export function createSessionPaymentSheet(sessionId: string) {
