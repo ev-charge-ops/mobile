@@ -1,17 +1,21 @@
 import { router } from 'expo-router';
 import { MapPin, RotateCw } from 'lucide-react-native';
+import { useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBar } from '@/components/ui/app-bar';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, Divider, SectionTitle } from '@/components/ui/card';
+import { FadeInItem } from '@/components/ui/fade-in-item';
+import { InfoBanner } from '@/components/ui/info-banner';
 import { MetricTile } from '@/components/ui/metric-tile';
 import { PressableScale } from '@/components/ui/pressable-scale';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { StatusPill } from '@/components/ui/status-pill';
 import { useTabBarHeight } from '@/components/ui/tab-bar';
 import { colors, fonts, radii, spacing, typography } from '@/constants/theme';
-import type { ChargingSession } from '@/features/charging/api/charging-api';
+import type { ChargePointType, ChargingSession } from '@/features/charging/api/charging-api';
 import { useSessionHistory } from '@/features/charging/api/use-charging-sessions';
 import {
   formatAmount,
@@ -21,10 +25,33 @@ import {
   sessionStatusLabels,
   sessionStatusPill,
 } from '@/features/charging/charging-format';
+import { WeeklyConsumptionChart } from '@/features/charging/components/weekly-consumption-chart';
+import {
+  getRecentMonths,
+  getRegimes,
+  getWeeklyConsumption,
+  summarizeSessions,
+} from '@/features/charging/history-month';
 import { formatEnergy } from '@/utils/format-energy';
 
+const HEADER_ITEMS = 4;
+const MAX_STAGGER_INDEX = 10;
+
+const regimeBanners: Record<ChargePointType, { title: string; body: string; tone: 'success' | 'info' }> = {
+  PRIVATE: {
+    title: 'Condomínio · energia a custo',
+    body: 'Energia repassada a custo, sem margem, e somada à taxa condominial da sua unidade.',
+    tone: 'success',
+  },
+  COMMERCIAL: {
+    title: 'Comercial · preço dinâmico',
+    body: 'O preço por kWh acompanha a demanda, fica travado no início da recarga e é cobrado no cartão.',
+    tone: 'info',
+  },
+};
+
 function formatSessionCount(total: number) {
-  if (total === 0) return undefined;
+  if (total === 0) return 'Nenhuma recarga';
   return total === 1 ? '1 recarga' : `${total} recargas`;
 }
 
@@ -33,96 +60,142 @@ function openSession(sessionId: string) {
 }
 
 export function SessionHistoryScreen() {
+  const [months] = useState(() => getRecentMonths(Date.now()));
+  const [month, setMonth] = useState(months[0].value);
   const { data, isPending, isError, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useSessionHistory();
+    useSessionHistory(month);
   const tabBarHeight = useTabBarHeight();
-  const contentStyle = [styles.content, { paddingBottom: tabBarHeight + spacing.xxl }];
   const sessions = data?.pages.flatMap((page) => page.items) ?? [];
   const total = data?.pages[0]?.total ?? 0;
+  const monthLabel = months.find((option) => option.value === month)?.label ?? '';
 
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
-      <AppBar variant="large" title="Histórico" subtitle={formatSessionCount(total)} />
-      {isPending ? (
-        <View style={styles.centered}>
-          <ActivityIndicator accessibilityLabel="Carregando histórico" color={colors.accent} size="large" />
-        </View>
-      ) : isError ? (
-        <View style={contentStyle}>
-          <Card style={styles.stack}>
-            <Text style={typography.body}>Não foi possível carregar o seu histórico.</Text>
-            <Button
-              label="Tentar novamente"
-              icon={RotateCw}
-              variant="secondary"
-              size="sm"
-              loading={isRefetching}
-              onPress={() => refetch()}
-            />
-          </Card>
-        </View>
-      ) : (
-        <FlatList
-          data={sessions}
-          keyExtractor={(session) => session.id}
-          contentContainerStyle={contentStyle}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={colors.accent} />
-          }
-          ListHeaderComponent={sessions.length > 0 ? <HistorySummary sessions={sessions} /> : null}
-          ListEmptyComponent={
-            <Card style={styles.stack}>
-              <Text style={typography.subtitle}>Nenhuma recarga ainda</Text>
-              <Text style={styles.hint}>Suas recargas aparecem aqui com energia, preço e taxas de cada sessão.</Text>
-              <Button
-                label="Encontrar pontos de recarga"
-                icon={MapPin}
-                size="sm"
-                onPress={() => router.navigate('/')}
-              />
-            </Card>
-          }
-          renderItem={({ item }) => <SessionRow session={item} onPress={() => openSession(item.id)} />}
-          onEndReachedThreshold={0.4}
-          onEndReached={() => {
-            if (hasNextPage && !isFetchingNextPage) fetchNextPage();
-          }}
-          ListFooterComponent={
-            isFetchingNextPage ? (
-              <ActivityIndicator accessibilityLabel="Carregando mais recargas" color={colors.accent} />
-            ) : null
-          }
-        />
-      )}
+      <AppBar variant="large" title="Histórico" subtitle={data ? formatSessionCount(total) : undefined} />
+      <FlatList
+        key={month}
+        data={isPending || isError ? [] : sessions}
+        keyExtractor={(session) => session.id}
+        contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + spacing.xxl }]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={colors.accent} />
+        }
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <FadeInItem index={0}>
+              <SegmentedControl<string> options={months} value={month} onChange={setMonth} testID="month-control" />
+            </FadeInItem>
+            {isPending ? (
+              <View style={styles.loading}>
+                <ActivityIndicator accessibilityLabel="Carregando histórico" color={colors.accent} size="large" />
+              </View>
+            ) : isError ? (
+              <Card style={styles.stack}>
+                <Text style={typography.body}>Não foi possível carregar o seu histórico.</Text>
+                <Button
+                  label="Tentar novamente"
+                  icon={RotateCw}
+                  variant="secondary"
+                  size="sm"
+                  loading={isRefetching}
+                  onPress={() => refetch()}
+                />
+              </Card>
+            ) : sessions.length === 0 ? (
+              <EmptyMonth monthLabel={monthLabel} />
+            ) : (
+              <MonthOverview sessions={sessions} total={total} month={month} />
+            )}
+          </View>
+        }
+        renderItem={({ item, index }) => (
+          <FadeInItem index={Math.min(index + HEADER_ITEMS, MAX_STAGGER_INDEX)}>
+            <SessionRow session={item} onPress={() => openSession(item.id)} />
+          </FadeInItem>
+        )}
+        onEndReachedThreshold={0.4}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+        }}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <ActivityIndicator accessibilityLabel="Carregando mais recargas" color={colors.accent} />
+          ) : sessions.length > 0 ? (
+            <Text style={styles.legal}>Sessão interrompida registra o kWh parcial medido até a desconexão.</Text>
+          ) : null
+        }
+      />
     </SafeAreaView>
   );
 }
 
-function HistorySummary({ sessions }: { sessions: ChargingSession[] }) {
-  const energyKwh = sessions.reduce((sum, session) => sum + session.energyKwh, 0);
-  const energyCents = sessions.reduce((sum, session) => sum + session.energyCostCents, 0);
-  const idleCents = sessions.reduce((sum, session) => sum + session.idleFeeCents, 0);
+type MonthOverviewProps = {
+  sessions: ChargingSession[];
+  total: number;
+  month: string;
+};
+
+function MonthOverview({ sessions, total, month }: MonthOverviewProps) {
+  const summary = summarizeSessions(sessions);
+  const weeks = getWeeklyConsumption(sessions, month);
+  const regimes = getRegimes(sessions);
+  const isPartial = sessions.length < total;
 
   return (
-    <Card style={styles.summary}>
-      <View style={styles.metrics}>
-        <MetricTile
-          value={formatEnergy(energyKwh, { withUnit: false, fractionDigits: 1 })}
-          unit="kWh"
-          label="Consumo"
-          style={styles.metric}
-        />
-        <MetricTile value={formatAmount(energyCents)} unit="R$" label="Energia" style={styles.metric} />
-        <MetricTile
-          value={formatAmount(idleCents)}
-          unit="R$"
-          label="Ocupação"
-          tone={idleCents > 0 ? 'fault' : 'default'}
-          style={styles.metric}
-        />
+    <>
+      <FadeInItem index={1}>
+        <Card>
+          <View style={styles.metrics}>
+            <MetricTile
+              value={formatEnergy(summary.energyKwh, { withUnit: false, fractionDigits: 1 })}
+              unit="kWh"
+              label="Consumo"
+              style={styles.metric}
+            />
+            <MetricTile value={formatAmount(summary.energyCents)} unit="R$" label="Energia" style={styles.metric} />
+            <MetricTile
+              value={formatAmount(summary.idleCents)}
+              unit="R$"
+              label="Ocupação"
+              tone={summary.idleCents > 0 ? 'fault' : 'default'}
+              style={styles.metric}
+            />
+          </View>
+          <Divider style={styles.divider} />
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>{isPartial ? 'Total das recargas carregadas' : 'Total no mês'}</Text>
+            <MetricTile value={formatAmount(summary.totalCents)} unit="R$" />
+          </View>
+        </Card>
+      </FadeInItem>
+      <FadeInItem index={2}>
+        <WeeklyConsumptionChart weeks={weeks} />
+      </FadeInItem>
+      <FadeInItem index={3} style={styles.stack}>
+        {regimes.map((regime) => (
+          <InfoBanner key={regime} tone={regimeBanners[regime].tone} title={regimeBanners[regime].title}>
+            {regimeBanners[regime].body}
+          </InfoBanner>
+        ))}
+      </FadeInItem>
+      <View style={styles.sessionsHead}>
+        <SectionTitle style={styles.sessionsTitle}>Sessões</SectionTitle>
+        <Text style={styles.sessionsCount}>{formatSessionCount(total)}</Text>
       </View>
-      <Text style={styles.caption}>Somatório das recargas carregadas abaixo</Text>
-    </Card>
+    </>
+  );
+}
+
+function EmptyMonth({ monthLabel }: { monthLabel: string }) {
+  return (
+    <FadeInItem index={1}>
+      <Card style={styles.stack}>
+        <Text style={typography.subtitle}>Nenhuma recarga em {monthLabel.toLowerCase()}</Text>
+        <Text style={styles.hint}>Suas recargas aparecem aqui com energia, preço e taxas de cada sessão.</Text>
+        <Button label="Encontrar pontos de recarga" icon={MapPin} size="sm" onPress={() => router.navigate('/')} />
+      </Card>
+    </FadeInItem>
   );
 }
 
@@ -157,14 +230,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bgBase,
   },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   content: {
     gap: spacing.md,
     paddingHorizontal: spacing.gutter,
+  },
+  header: {
+    gap: spacing.md,
+  },
+  loading: {
+    paddingVertical: spacing.massive,
+    alignItems: 'center',
   },
   stack: {
     gap: spacing.md,
@@ -173,10 +248,6 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textMuted,
   },
-  summary: {
-    gap: spacing.md,
-    marginBottom: spacing.xs,
-  },
   metrics: {
     flexDirection: 'row',
     gap: spacing.lg,
@@ -184,8 +255,41 @@ const styles = StyleSheet.create({
   metric: {
     flex: 1,
   },
-  caption: {
-    ...typography.caption,
+  divider: {
+    marginVertical: spacing.lg,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  totalLabel: {
+    fontSize: 14,
+    fontFamily: fonts.semibold,
+    color: colors.textMuted,
+  },
+  sessionsHead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingRight: spacing.xxs,
+  },
+  sessionsTitle: {
+    marginTop: 0,
+  },
+  sessionsCount: {
+    fontSize: 12,
+    fontFamily: fonts.semibold,
+    color: colors.textSubtle,
+  },
+  legal: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontFamily: fonts.medium,
+    color: colors.textDisabled,
+    textAlign: 'center',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
   },
   row: {
     flexDirection: 'row',
