@@ -58,7 +58,7 @@ mobile/
 ├── src/
 │   ├── app/                   rotas do Expo Router (só rotas e layouts)
 │   │   ├── (auth)/            login, cadastro e recuperação de senha
-│   │   ├── (app)/             área logada: início, pontos, sessões e catálogo de componentes
+│   │   ├── (app)/             área logada: início, pontos, sessões e conta
 │   │   ├── login/email.tsx    login por link de e-mail
 │   │   ├── invite.tsx, reset-password.tsx, verify-email.tsx   destinos dos deep links
 │   │   └── _layout.tsx        layout raiz e providers
@@ -66,7 +66,6 @@ mobile/
 │   │   ├── auth/              api/, components/, screens/, oauth/ e session/ (sessão do usuário e tokens)
 │   │   ├── charging/          api/, components/, screens/ e payments/ (PaymentSheet do Stripe)
 │   │   ├── home/              tela inicial e organizações
-│   │   └── showcase/          catálogo do design system
 │   ├── components/ui/         design system (botões, cartões, campos, sheet, toast...)
 │   ├── lib/                   cliente da API, tipos gerados, React Query e armazenamento seguro
 │   ├── providers/             providers do app

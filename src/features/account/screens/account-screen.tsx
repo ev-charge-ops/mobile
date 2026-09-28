@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { LockKeyhole, LogOut, Palette, ShieldCheck, Zap } from 'lucide-react-native';
+import { LockKeyhole, LogOut, ShieldCheck, Zap } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -66,16 +66,7 @@ export function AccountScreen({ user, onSignOut, isSigningOut = false, banner }:
             onPress={() => router.push('/privacy')}
           />
         </Card>
-        <View style={styles.stack}>
-          <Button
-            label="Ver design system"
-            variant="secondary"
-            icon={Palette}
-            block
-            onPress={() => router.push('/showcase')}
-          />
-          <Button label="Sair" variant="outline" icon={LogOut} block loading={isSigningOut} onPress={onSignOut} />
-        </View>
+        <Button label="Sair" variant="outline" icon={LogOut} block loading={isSigningOut} onPress={onSignOut} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -128,8 +119,5 @@ const styles = StyleSheet.create({
   role: {
     alignSelf: 'flex-start',
     marginTop: spacing.xs,
-  },
-  stack: {
-    gap: spacing.md,
   },
 });
