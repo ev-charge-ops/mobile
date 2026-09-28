@@ -1,9 +1,11 @@
 import { AuthApiError, parseRetryAfter } from '@/features/auth/api/auth-api';
 import {
   formatWaitTime,
+  getChangePasswordErrorMessage,
   getLoginErrorMessage,
   getRateLimitMessage,
   getResetPasswordErrorMessage,
+  getUpdateProfileErrorMessage,
   getVerifyEmailErrorMessage,
 } from '@/features/auth/auth-errors';
 
@@ -45,5 +47,17 @@ describe('auth error messages', () => {
     expect(getVerifyEmailErrorMessage(new AuthApiError(null))).toBe(
       'Não foi possível conectar ao servidor. Tente novamente.',
     );
+  });
+
+  it('maps account settings errors', () => {
+    expect(getChangePasswordErrorMessage(new AuthApiError(400, null, 'INVALID_CURRENT_PASSWORD'))).toBe(
+      'Senha atual incorreta',
+    );
+    expect(getChangePasswordErrorMessage(new AuthApiError(400))).toBe(
+      'Verifique os dados informados e tente novamente.',
+    );
+    expect(getChangePasswordErrorMessage(new AuthApiError(429, 30))).toBe('Muitas tentativas. Tente novamente em 30 s.');
+    expect(getUpdateProfileErrorMessage(new AuthApiError(400))).toBe('Verifique os dados informados e tente novamente.');
+    expect(getUpdateProfileErrorMessage(new AuthApiError(500))).toBe('Algo deu errado. Tente novamente.');
   });
 });

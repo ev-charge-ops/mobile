@@ -31,6 +31,31 @@ export const acceptInviteSchema = z
     path: ['confirmPassword'],
   });
 
+export const profileSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, 'O nome deve ter pelo menos 2 caracteres')
+    .max(100, 'O nome deve ter no máximo 100 caracteres'),
+});
+
+export function createChangePasswordSchema(requiresCurrentPassword: boolean) {
+  return z
+    .object({
+      currentPassword: z.string(),
+      password: newPassword,
+      confirmPassword: z.string().min(1, 'Confirme sua senha'),
+    })
+    .refine((values) => !requiresCurrentPassword || values.currentPassword.length > 0, {
+      message: 'Informe sua senha atual',
+      path: ['currentPassword'],
+    })
+    .refine((values) => values.password === values.confirmPassword, {
+      message: 'As senhas não coincidem',
+      path: ['confirmPassword'],
+    });
+}
+
 export const emailSchema = z.object({ email });
 
 export const emailCodeSchema = z.object({
@@ -53,3 +78,5 @@ export type AcceptInviteValues = z.infer<typeof acceptInviteSchema>;
 export type EmailValues = z.infer<typeof emailSchema>;
 export type EmailCodeValues = z.infer<typeof emailCodeSchema>;
 export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
+export type ProfileValues = z.infer<typeof profileSchema>;
+export type ChangePasswordValues = z.infer<ReturnType<typeof createChangePasswordSchema>>;
