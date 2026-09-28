@@ -20,6 +20,7 @@ import {
 import { NotificationCard } from '@/features/notifications/components/notification-card';
 import { getNotificationHref } from '@/features/notifications/notification-routing';
 import { useNow } from '@/hooks/use-now';
+import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 
 const MAX_STAGGER_INDEX = 8;
 
@@ -38,6 +39,7 @@ export function NotificationsScreen() {
   const notifications = data?.pages.flatMap((page) => page.items) ?? [];
   const unreadCount = data?.pages[0]?.unreadCount ?? 0;
   const contentStyle = [styles.content, { paddingBottom: tabBarHeight + spacing.xxl }];
+  const { refreshing, onRefresh } = usePullToRefresh(refetch);
 
   const openNotification = (notification: AppNotification) => {
     if (!notification.readAt) markRead.mutate(notification.id);
@@ -52,7 +54,7 @@ export function NotificationsScreen() {
         <View style={styles.centered}>
           <ActivityIndicator accessibilityLabel="Carregando avisos" color={colors.accent} size="large" />
         </View>
-      ) : isError ? (
+      ) : isError && !data ? (
         <View style={contentStyle}>
           <Card style={styles.stack}>
             <Text style={typography.body}>Não foi possível carregar seus avisos.</Text>
@@ -68,12 +70,13 @@ export function NotificationsScreen() {
         </View>
       ) : (
         <FlatList
+          testID="notifications-list"
           data={notifications}
           keyExtractor={(notification) => notification.id}
           contentContainerStyle={[contentStyle, notifications.length === 0 && styles.emptyContent]}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={colors.accent} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
           }
           ListHeaderComponent={
             unreadCount > 0 ? (

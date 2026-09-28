@@ -32,6 +32,7 @@ import {
   getWeeklyConsumption,
   summarizeSessions,
 } from '@/features/charging/history-month';
+import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 import { formatEnergy } from '@/utils/format-energy';
 
 const HEADER_ITEMS = 4;
@@ -68,18 +69,20 @@ export function SessionHistoryScreen() {
   const sessions = data?.pages.flatMap((page) => page.items) ?? [];
   const total = data?.pages[0]?.total ?? 0;
   const monthLabel = months.find((option) => option.value === month)?.label ?? '';
+  const { refreshing, onRefresh } = usePullToRefresh(refetch);
+  const showError = isError && !data;
 
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
       <AppBar variant="large" title="Histórico" subtitle={data ? formatSessionCount(total) : undefined} />
       <FlatList
         key={month}
-        data={isPending || isError ? [] : sessions}
+        data={isPending || showError ? [] : sessions}
         keyExtractor={(session) => session.id}
         contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + spacing.xxl }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={colors.accent} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
         }
         ListHeaderComponent={
           <View style={styles.header}>
@@ -90,7 +93,7 @@ export function SessionHistoryScreen() {
               <View style={styles.loading}>
                 <ActivityIndicator accessibilityLabel="Carregando histórico" color={colors.accent} size="large" />
               </View>
-            ) : isError ? (
+            ) : showError ? (
               <Card style={styles.stack}>
                 <Text style={typography.body}>Não foi possível carregar o seu histórico.</Text>
                 <Button
