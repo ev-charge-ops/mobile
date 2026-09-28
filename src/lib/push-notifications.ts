@@ -5,28 +5,42 @@ import { Platform } from 'react-native';
 import { colors } from '@/constants/theme';
 import { apiClient } from '@/lib/api-client';
 
-const DEFAULT_CHANNEL_ID = 'default';
+export const DEFAULT_CHANNEL_ID = 'default';
+
+export type AlertKeyOf = (data: Record<string, unknown> | null | undefined) => string | null;
 
 let registeredToken: string | null = null;
+const presentedAlerts = new Set<string>();
 
 export function isPushSupported() {
   return Platform.OS === 'ios' || Platform.OS === 'android';
 }
 
-export function configureNotificationHandler() {
+export function shouldPresentAlert(data: Record<string, unknown> | null | undefined, alertKeyOf?: AlertKeyOf) {
+  const key = alertKeyOf?.(data) ?? null;
+  if (!key) return true;
+  if (presentedAlerts.has(key)) return false;
+  presentedAlerts.add(key);
+  return true;
+}
+
+export function configureNotificationHandler(alertKeyOf?: AlertKeyOf) {
   if (!isPushSupported()) return;
 
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
+    handleNotification: async (notification) => {
+      const present = shouldPresentAlert(notification.request.content.data, alertKeyOf);
+      return {
+        shouldPlaySound: present,
+        shouldSetBadge: false,
+        shouldShowBanner: present,
+        shouldShowList: true,
+      };
+    },
   });
 }
 
-async function ensureAndroidChannel() {
+export async function ensureAndroidChannel() {
   if (Platform.OS !== 'android') return;
 
   await Notifications.setNotificationChannelAsync(DEFAULT_CHANNEL_ID, {

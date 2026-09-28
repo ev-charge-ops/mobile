@@ -1,4 +1,8 @@
-import { getNotificationHref, getPushNotificationId } from '@/features/notifications/notification-routing';
+import {
+  getNotificationHref,
+  getPushNotificationId,
+  getSessionAlertKey,
+} from '@/features/notifications/notification-routing';
 
 describe('getNotificationHref', () => {
   it.each([
@@ -40,5 +44,20 @@ describe('getPushNotificationId', () => {
     expect(getPushNotificationId({ notificationId: 'n1', type: 'CHARGING_COMPLETE' })).toBe('n1');
     expect(getPushNotificationId({ sessionId: 's1' })).toBeNull();
     expect(getPushNotificationId(undefined)).toBeNull();
+  });
+});
+
+describe('getSessionAlertKey', () => {
+  it('gives the same key to a local reminder and the push of the same alert', () => {
+    expect(getSessionAlertKey({ type: 'SESSION_REMINDER', sessionId: 's1', reminder: 'complete' })).toBe('s1:complete');
+    expect(getSessionAlertKey({ type: 'CHARGING_COMPLETE', sessionId: 's1' })).toBe('s1:complete');
+    expect(getSessionAlertKey({ type: 'SESSION_REMINDER', sessionId: 's1', reminder: 'idle' })).toBe('s1:idle');
+    expect(getSessionAlertKey({ type: 'IDLE_FEE_STARTED', sessionId: 's1' })).toBe('s1:idle');
+  });
+
+  it('has no key for other notifications', () => {
+    expect(getSessionAlertKey({ type: 'SESSION_ACTIVE', sessionId: 's1' })).toBeNull();
+    expect(getSessionAlertKey({ type: 'CHARGING_COMPLETE' })).toBeNull();
+    expect(getSessionAlertKey(null)).toBeNull();
   });
 });
