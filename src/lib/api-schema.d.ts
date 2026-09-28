@@ -334,6 +334,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update the identification data of the authenticated user
+         * @description Only the name can be changed; changing the email needs a verification flow and is not supported.
+         */
+        patch: operations["updateMyProfile"];
+        trace?: never;
+    };
+    "/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change or create the password of the authenticated user
+         * @description currentPassword is required when the user already has a password (hasPassword). Every refresh token of the user is revoked, including the current one, and a new session is returned that the caller must store in place of the old tokens. A security email is sent.
+         */
+        post: operations["changeMyPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/organizations": {
         parameters: {
             query?: never;
@@ -895,6 +935,8 @@ export interface components {
             role: components["schemas"]["Role"];
             /** @description Whether the user confirmed their email */
             emailVerified: boolean;
+            /** @description Whether the user has a password; accounts created with Google, Apple or an email code may not */
+            hasPassword: boolean;
         };
         AuthResponseDto: {
             user: components["schemas"]["UserResponseDto"];
@@ -974,6 +1016,16 @@ export interface components {
             identityToken: string;
             /** @description Name shared by Apple on the first authorization only */
             fullName?: components["schemas"]["AppleFullNameDto"];
+        };
+        UpdateMyProfileDto: {
+            /** @example Ana Souza */
+            name: string;
+        };
+        ChangeMyPasswordDto: {
+            /** @description Required when the account already has a password (hasPassword); omit it to create the first password of a Google, Apple or email code account */
+            currentPassword?: string;
+            /** @example n3w-s3cure-passw0rd */
+            newPassword: string;
         };
         /** @enum {string} */
         OrganizationType: "PRIVATE" | "COMMERCIAL";
@@ -2714,6 +2766,87 @@ export interface operations {
                 content?: never;
             };
             /** @description Invalid token or email not verified by Apple */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateMyProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMyProfileDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponseDto"];
+                };
+            };
+            /** @description Invalid payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    changeMyPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeMyPasswordDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthResponseDto"];
+                };
+            };
+            /** @description Invalid payload or INVALID_CURRENT_PASSWORD: the current password is missing or incorrect */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid access token */
             401: {
                 headers: {
                     [name: string]: unknown;
