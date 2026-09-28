@@ -60,6 +60,8 @@ export default function AppLayout() {
         <Stack.Screen name="sessions/[sessionId]" />
         <Stack.Screen name="account" />
         <Stack.Screen name="privacy" />
+        <Stack.Screen name="profile" />
+        <Stack.Screen name="change-password" />
       </Stack>
     </>
   );
