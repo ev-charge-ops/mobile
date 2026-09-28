@@ -18,6 +18,7 @@ export const testUser: AuthUser = {
   email: 'ana@example.com',
   role: 'DRIVER',
   emailVerified: false,
+  hasPassword: true,
 };
 
 export function createSessionValue(overrides: Partial<SessionContextValue> = {}): SessionContextValue {
@@ -30,14 +31,20 @@ export function createSessionValue(overrides: Partial<SessionContextValue> = {})
   };
 }
 
-export function renderWithProviders(ui: ReactElement, session: SessionContextValue = createSessionValue()) {
-  const queryClient = new QueryClient({
+export function createTestQueryClient() {
+  return new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: Infinity },
       mutations: { retry: false, gcTime: Infinity },
     },
   });
+}
 
+export function renderWithProviders(
+  ui: ReactElement,
+  session: SessionContextValue = createSessionValue(),
+  queryClient: QueryClient = createTestQueryClient(),
+) {
   function Providers({ children }: PropsWithChildren) {
     return (
       <SafeAreaProvider initialMetrics={safeAreaMetrics}>

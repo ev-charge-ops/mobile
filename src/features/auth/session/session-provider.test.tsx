@@ -29,7 +29,7 @@ const storage = (secureStorage as unknown as { store: Map<string, string> }).sto
 const api = jest.mocked(authApi);
 
 const storedSession: authApi.AuthSession = {
-  user: { id: 'u1', name: 'Ana', email: 'ana@example.com', role: 'MANAGER', emailVerified: true },
+  user: { id: 'u1', name: 'Ana', email: 'ana@example.com', role: 'MANAGER', emailVerified: true, hasPassword: true },
   accessToken: 'access-new',
   refreshToken: 'refresh-new',
 };
