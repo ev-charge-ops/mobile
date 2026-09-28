@@ -11,13 +11,15 @@ import { useTabBarHeight } from '@/components/ui/tab-bar';
 import { colors, fonts, motion, spacing } from '@/constants/theme';
 import { hasOpenSession, useActiveSession } from '@/features/charging/api/use-charging-sessions';
 import { ActiveSessionCard } from '@/features/charging/components/active-session-card';
+import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 
 const entering = FadeInDown.duration(motion.duration.slow).easing(motion.easing.sheet);
 
 export function CurrentChargeScreen() {
-  const { data: session, isPending, refetch, isRefetching } = useActiveSession();
+  const { data: session, isPending, refetch } = useActiveSession();
   const tabBarHeight = useTabBarHeight();
   const isActive = hasOpenSession(session);
+  const { refreshing, onRefresh } = usePullToRefresh(refetch);
 
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
@@ -27,9 +29,10 @@ export function CurrentChargeScreen() {
         subtitle={isPending ? undefined : isActive ? 'Sessão em andamento' : 'Nenhuma sessão ativa'}
       />
       <ScrollView
+        testID="current-charge-scroll"
         contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + spacing.xxl }]}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={colors.accent} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
         }
       >
         {isPending ? (
