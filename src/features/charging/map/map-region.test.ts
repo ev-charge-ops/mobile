@@ -1,5 +1,6 @@
 import {
   DEFAULT_REGION,
+  getAreaRegion,
   getFocusRegion,
   getRegionForCoordinates,
   getUserRegion,
@@ -42,5 +43,14 @@ describe('focus regions', () => {
     expect(focus.latitudeDelta).toBe(0.011);
 
     expect(getUserRegion(point).latitudeDelta).toBe(0.008);
+  });
+
+  it('opens a neighbourhood wide area around the demo center', () => {
+    const area = getAreaRegion({ latitude: -23.5692, longitude: -46.6312 });
+
+    expect(area.longitude).toBe(-46.6312);
+    expect(area.latitude).toBeLessThan(-23.5692);
+    expect(area.latitudeDelta).toBe(0.034);
+    expect(area.longitudeDelta).toBe(0.034);
   });
 });

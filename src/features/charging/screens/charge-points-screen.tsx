@@ -23,14 +23,9 @@ import { ChargePointPreview, openChargePoint } from '@/features/charging/compone
 import { ChargePointSearchField } from '@/features/charging/components/charge-point-search-field';
 import { ChargePointsMap, isMapSupported } from '@/features/charging/map/charge-points-map';
 import { MapErrorBoundary } from '@/features/charging/map/map-error-boundary';
-import {
-  getFocusRegion,
-  getRegionForCoordinates,
-  getUserRegion,
-  MAP_ANIMATION_DURATION,
-} from '@/features/charging/map/map-region';
+import { getFocusRegion, getRegionForCoordinates, MAP_ANIMATION_DURATION } from '@/features/charging/map/map-region';
 import type { ChargePointsMapHandle } from '@/features/charging/map/map-types';
-import { useUserLocation } from '@/features/charging/map/use-user-location';
+import { useMapCenter } from '@/features/charging/map/use-map-center';
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 import { haptics } from '@/lib/haptics';
 
@@ -67,7 +62,8 @@ export function ChargePointsScreen({ subtitle, accountAction }: ChargePointsScre
   const chargePoints = data ?? noChargePoints;
   const visible = filterChargePoints(chargePoints, filter, query);
   const selected = visible.find((chargePoint) => chargePoint.id === selectedId) ?? visible[0] ?? null;
-  const location = useUserLocation(mode === 'map');
+  const location = useMapCenter({ enabled: mode === 'map', chargePoints: data, isLoading: isPending });
+  const isDemoCenter = location.source === 'demo';
 
   const hasLocationSettled = location.status === 'denied' || location.status === 'unavailable';
 
@@ -77,16 +73,16 @@ export function ChargePointsScreen({ subtitle, accountAction }: ChargePointsScre
     if (location.coordinates) {
       if (centeredOn.current === 'user') return;
       centeredOn.current = 'user';
-      map.animateToRegion(getUserRegion(location.coordinates), MAP_ANIMATION_DURATION);
+      map.animateToRegion(location.regionFor(location.coordinates), MAP_ANIMATION_DURATION);
       return;
     }
     if (centeredOn.current !== 'none' || chargePoints.length === 0 || !hasLocationSettled) return;
     centeredOn.current = 'points';
     map.animateToRegion(getRegionForCoordinates(chargePoints), MAP_ANIMATION_DURATION);
-  }, [mode, location.coordinates, hasLocationSettled, chargePoints]);
+  }, [mode, location, hasLocationSettled, chargePoints]);
 
   const initialRegion = location.coordinates
-    ? getUserRegion(location.coordinates)
+    ? location.regionFor(location.coordinates)
     : getRegionForCoordinates(chargePoints);
 
   const selectChargePoint = (chargePoint: ChargePoint) => {
@@ -98,7 +94,7 @@ export function ChargePointsScreen({ subtitle, accountAction }: ChargePointsScre
   const locateUser = async () => {
     const coordinates = location.coordinates ?? (await location.request());
     if (coordinates) {
-      mapRef.current?.animateToRegion(getUserRegion(coordinates), MAP_ANIMATION_DURATION);
+      mapRef.current?.animateToRegion(location.regionFor(coordinates), MAP_ANIMATION_DURATION);
       return;
     }
     toast.show('Permita o acesso à localização nos ajustes para centralizar o mapa.', { tone: 'info' });
@@ -160,6 +156,7 @@ export function ChargePointsScreen({ subtitle, accountAction }: ChargePointsScre
               chargePoints={visible}
               selectedId={selected?.id ?? null}
               userCoordinates={location.coordinates}
+              userLabel={isDemoCenter ? 'Você' : null}
               initialRegion={initialRegion}
               padding={{ top: 120, right: 0, bottom: previewHeight, left: 0 }}
               onSelect={selectChargePoint}
@@ -173,7 +170,7 @@ export function ChargePointsScreen({ subtitle, accountAction }: ChargePointsScre
               <ChargePointSearchField value={query} onChangeText={setQuery} />
               <PressableScale
                 accessibilityRole="button"
-                accessibilityLabel="Centralizar na minha localização"
+                accessibilityLabel={isDemoCenter ? 'Centralizar no condomínio' : 'Centralizar na minha localização'}
                 onPress={locateUser}
                 haptic
                 scaleTo={0.92}
