@@ -4,7 +4,7 @@ import { ActivityIndicator, StyleSheet, Text, View, type StyleProp, type ViewSty
 
 import { Icon } from '@/components/ui/icon';
 import { PressableScale, type HapticFeedback } from '@/components/ui/pressable-scale';
-import { colors, fonts, radii } from '@/constants/theme';
+import { fonts, getColors, radii, type ColorScheme, type ThemeColors } from '@/constants/theme';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -14,7 +14,9 @@ export type ButtonProps = {
   onPress?: () => void;
   variant?: ButtonVariant;
   size?: ButtonSize;
+  scheme?: ColorScheme;
   icon?: LucideIcon;
+  trailingIcon?: LucideIcon;
   leadingIcon?: ReactNode;
   block?: boolean;
   disabled?: boolean;
@@ -25,34 +27,35 @@ export type ButtonProps = {
 };
 
 const sizes = {
-  sm: { height: 36, fontSize: 13, iconSize: 15, paddingHorizontal: 12 },
-  md: { height: 44, fontSize: 15, iconSize: 17, paddingHorizontal: 16 },
-  lg: { height: 52, fontSize: 16, iconSize: 19, paddingHorizontal: 20 },
+  sm: { height: 36, fontSize: 14, iconSize: 16, paddingHorizontal: 14 },
+  md: { height: 48, fontSize: 15, iconSize: 18, paddingHorizontal: 20 },
+  lg: { height: 56, fontSize: 17, iconSize: 20, paddingHorizontal: 24 },
 } as const;
 
-const filledVariants: readonly ButtonVariant[] = ['primary', 'secondary', 'danger'];
-
-function getTextColor(variant: ButtonVariant, disabled: boolean) {
-  if (disabled) return filledVariants.includes(variant) ? colors.textSubtle : colors.textDisabled;
-  if (variant === 'primary' || variant === 'danger') return colors.textOnAccent;
-  if (variant === 'ghost') return colors.textSubtle;
-  return colors.textTitle;
-}
-
-function getContainerStyle(variant: ButtonVariant, disabled: boolean): ViewStyle {
-  if (disabled) {
-    if (filledVariants.includes(variant)) return { backgroundColor: colors.surfaceInset };
-    if (variant === 'outline') return { borderWidth: 1, borderColor: colors.hairline };
-    return {};
-  }
+function getTextColor(tokens: ThemeColors, variant: ButtonVariant, disabled: boolean) {
+  if (disabled) return tokens.textDisabled;
   switch (variant) {
     case 'primary':
+      return tokens.textOnAccent;
     case 'danger':
-      return { backgroundColor: colors.accent };
+      return tokens.criticalText;
+    case 'ghost':
+      return tokens.textMuted;
+    default:
+      return tokens.textTitle;
+  }
+}
+
+function getContainerStyle(tokens: ThemeColors, variant: ButtonVariant, disabled: boolean): ViewStyle {
+  switch (variant) {
+    case 'primary':
+      return { backgroundColor: disabled ? tokens.surfaceRaised : tokens.accent };
     case 'secondary':
-      return { backgroundColor: colors.surfaceInset };
+      return { backgroundColor: tokens.surfaceInset };
     case 'outline':
-      return { borderWidth: 1, borderColor: colors.borderSubtle };
+      return { borderWidth: 1.5, borderColor: disabled ? tokens.hairline : tokens.borderSubtle };
+    case 'danger':
+      return { borderWidth: 1.5, borderColor: disabled ? tokens.hairline : tokens.critical };
     default:
       return {};
   }
@@ -63,7 +66,9 @@ export function Button({
   onPress,
   variant = 'primary',
   size = 'md',
+  scheme = 'light',
   icon,
+  trailingIcon,
   leadingIcon,
   block = false,
   disabled = false,
@@ -72,9 +77,10 @@ export function Button({
   style,
   testID,
 }: ButtonProps) {
+  const tokens = getColors(scheme);
   const sizeStyle = sizes[size];
   const isDisabled = disabled || loading;
-  const textColor = getTextColor(variant, isDisabled);
+  const textColor = getTextColor(tokens, variant, isDisabled);
 
   return (
     <PressableScale
@@ -85,7 +91,7 @@ export function Button({
       haptic={haptic}
       disabled={isDisabled}
       testID={testID}
-      style={[styles.base, getContainerStyle(variant, isDisabled), block && styles.block, style]}
+      style={[styles.base, getContainerStyle(tokens, variant, isDisabled), block && styles.block, style]}
     >
       <View style={[styles.content, { height: sizeStyle.height, paddingHorizontal: sizeStyle.paddingHorizontal }]}>
         {loading ? (
@@ -96,6 +102,7 @@ export function Button({
           leadingIcon
         )}
         <Text style={[styles.label, { fontSize: sizeStyle.fontSize, color: textColor }]}>{label}</Text>
+        {trailingIcon && !loading ? <Icon icon={trailingIcon} size={sizeStyle.iconSize} color={textColor} /> : null}
       </View>
     </PressableScale>
   );
@@ -103,7 +110,8 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: radii.card,
+    borderRadius: radii.pill,
+    borderCurve: 'continuous',
     overflow: 'hidden',
     alignSelf: 'flex-start',
   },
@@ -114,7 +122,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
   },
   label: {
     fontFamily: fonts.bold,
