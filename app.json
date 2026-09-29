@@ -106,7 +106,8 @@
           "icon": "./assets/images/android-icon-monochrome.png",
           "color": "#E8121F"
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,
