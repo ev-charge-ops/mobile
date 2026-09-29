@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 
 import { navigationTheme } from '@/constants/navigation-theme';
 import { colors } from '@/constants/theme';
+import { OfflineSessionScreen } from '@/features/auth/screens/offline-session-screen';
 import { RootErrorScreen } from '@/features/auth/screens/root-error-screen';
 import { useSession } from '@/features/auth/session/session-context';
 import { useReturnAfterSignIn } from '@/features/auth/session/use-return-after-sign-in';
@@ -44,6 +45,7 @@ function RootNavigator() {
   }, [isReady]);
 
   if (!isReady) return null;
+  if (status === 'offline') return <OfflineSessionScreen />;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bgBase } }}>
