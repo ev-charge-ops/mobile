@@ -22,14 +22,6 @@ async function toGlobalResponse(response: Response) {
 
 export function createAuthMiddleware(getHandlers: () => AuthTokenHandlers | null): Middleware {
   const pendingRetries = new Map<string, Request>();
-  let refreshInFlight: Promise<string | null> | null = null;
-
-  const refreshOnce = (handlers: AuthTokenHandlers) => {
-    refreshInFlight ??= handlers.refreshAccessToken().finally(() => {
-      refreshInFlight = null;
-    });
-    return refreshInFlight;
-  };
 
   return {
     async onRequest({ request, id }) {
@@ -49,7 +41,12 @@ export function createAuthMiddleware(getHandlers: () => AuthTokenHandlers | null
       const handlers = getHandlers();
       if (response.status !== 401 || !handlers || !retryRequest) return undefined;
 
-      const newToken = await refreshOnce(handlers).catch(() => null);
+      let newToken: string | null;
+      try {
+        newToken = await handlers.refreshAccessToken();
+      } catch {
+        return undefined;
+      }
       if (!newToken) {
         handlers.onUnauthorized?.();
         return undefined;

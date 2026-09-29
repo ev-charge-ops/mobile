@@ -27,6 +27,7 @@ export function createSessionValue(overrides: Partial<SessionContextValue> = {})
     user: null,
     startSession: jest.fn().mockResolvedValue(undefined),
     endSession: jest.fn().mockResolvedValue(undefined),
+    retryRestore: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }

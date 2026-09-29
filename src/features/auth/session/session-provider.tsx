@@ -15,7 +15,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
   }, [store]);
 
   return (
-    <SessionContext value={{ status, user, startSession: store.startSession, endSession: store.endSession }}>
+    <SessionContext value={{ status, user, startSession: store.startSession, endSession: store.endSession, retryRestore: store.retryRestore }}>
       {children}
     </SessionContext>
   );

@@ -67,7 +67,7 @@ describe('<SessionProvider />', () => {
 
     expect(await screen.findByText('authenticated')).toBeOnTheScreen();
     expect(screen.getByText('Ana')).toBeOnTheScreen();
-    expect(api.refresh).toHaveBeenCalledWith('refresh-old');
+    expect(api.refresh).toHaveBeenCalledWith('refresh-old', expect.anything());
     expect(setAuthTokenHandlers).toHaveBeenCalledWith(
       expect.objectContaining({ getAccessToken: expect.any(Function), refreshAccessToken: expect.any(Function) }),
     );
