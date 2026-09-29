@@ -34,6 +34,22 @@ beforeEach(() => {
   location.requestForegroundPermissionsAsync.mockResolvedValue({ granted: false } as never);
 });
 
+const nearbyPoint = buildCommercialChargePoint({
+  id: 'cp-4',
+  code: 'RM-01',
+  name: 'Rua Muniz · Vaga 1',
+  organizationName: 'Rede Muniz',
+  status: 'CHARGING',
+  latitude: -23.572,
+  longitude: -46.633,
+});
+
+function listedCardNames() {
+  return screen
+    .getAllByRole('button', { name: /, a \d/ })
+    .map((card) => card.props.accessibilityLabel as string);
+}
+
 async function showList() {
   await fireEvent.press(screen.getByRole('button', { name: 'Ver lista' }));
 }
@@ -50,6 +66,18 @@ describe('<ChargePointsScreen /> map mode', () => {
     expect(within(screen.getByTestId('marker-cp-3')).getByText(`R$${NBSP}2,84`)).toBeOnTheScreen();
     expect(screen.getByText('Condomínio · energia repassada a custo, sem margem')).toBeOnTheScreen();
     expect(screen.getByText('Previsão da IA · modelo v1')).toBeOnTheScreen();
+  });
+
+  it('shows the distance from the condominium in the preview', async () => {
+    api.listChargePoints.mockResolvedValue([buildChargePoint(), commercialPoint]);
+
+    await renderWithProviders(<ChargePointsScreen />);
+    await screen.findByText('Ver ponto e continuar');
+
+    expect(within(screen.getByTestId('distance-tag')).getByText('10 m')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByTestId('marker-cp-3'));
+    expect(await screen.findByText('2,6 km')).toBeOnTheScreen();
   });
 
   it('selects a marker, flies to it and opens the point from the preview', async () => {
@@ -152,7 +180,7 @@ describe('<ChargePointsScreen /> map mode', () => {
     await renderWithProviders(<ChargePointsScreen />);
 
     expect(await screen.findByText('O mapa não pôde ser carregado. Mostrando os pontos em lista.')).toBeOnTheScreen();
-    expect(await screen.findByRole('button', { name: 'Garagem L1 · Vaga 12, Livre' })).toBeOnTheScreen();
+    expect(await screen.findByRole('button', { name: 'Garagem L1 · Vaga 12, Livre, a 10 m' })).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Ver mapa' })).not.toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Ver lista' })).not.toBeOnTheScreen();
 
@@ -167,17 +195,49 @@ describe('<ChargePointsScreen /> list mode', () => {
     await renderWithProviders(<ChargePointsScreen />);
     await showList();
 
-    const privateCard = await screen.findByRole('button', { name: 'Garagem L1 · Vaga 12, Livre' });
+    const privateCard = await screen.findByRole('button', { name: 'Garagem L1 · Vaga 12, Livre, a 10 m' });
     expect(within(privateCard).getByText(`R$${NBSP}0,89`)).toBeOnTheScreen();
     expect(within(privateCard).getByText('7 kW · Condomínio')).toBeOnTheScreen();
     expect(within(privateCard).getByText('Fora de pico · ×0,80')).toBeOnTheScreen();
     expect(within(privateCard).getByText('Previsão da IA · modelo v1')).toBeOnTheScreen();
 
-    const commercialCard = screen.getByRole('button', { name: 'Garagem L2 · Visitantes, Em uso' });
+    const commercialCard = screen.getByRole('button', { name: 'Garagem L2 · Visitantes, Em uso, a 10 m' });
     expect(within(commercialCard).getByText(`R$${NBSP}2,84`)).toBeOnTheScreen();
     expect(within(commercialCard).getByText('Pico · ×1,50')).toBeOnTheScreen();
     expect(within(commercialCard).getByText('Regra por horário')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Ver mapa' })).toBeOnTheScreen();
+  });
+
+  it('sorts the points by distance from the condominium, nearest first', async () => {
+    api.listChargePoints.mockResolvedValue([commercialPoint, buildChargePoint(), nearbyPoint]);
+
+    await renderWithProviders(<ChargePointsScreen />);
+    await showList();
+    await screen.findByText('Garagem L1 · Vaga 12');
+
+    expect(listedCardNames()).toEqual([
+      'Garagem L1 · Vaga 12, Livre, a 10 m',
+      'Rua Muniz · Vaga 1, Em uso, a 360 m',
+      'Garagem L2 · Visitantes, Em uso, a 2,6 km',
+    ]);
+    expect(screen.getAllByTestId('distance-tag')).toHaveLength(3);
+  });
+
+  it('keeps the distance order after the search and the filter chips', async () => {
+    api.listChargePoints.mockResolvedValue([commercialPoint, buildChargePoint(), nearbyPoint]);
+
+    await renderWithProviders(<ChargePointsScreen />);
+    await showList();
+    await screen.findByText('Garagem L1 · Vaga 12');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Comercial' }));
+    expect(listedCardNames()).toEqual([
+      'Rua Muniz · Vaga 1, Em uso, a 360 m',
+      'Garagem L2 · Visitantes, Em uso, a 2,6 km',
+    ]);
+
+    await fireEvent.changeText(screen.getByLabelText('Buscar ponto de recarga'), 'vaga');
+    expect(listedCardNames()).toEqual(['Rua Muniz · Vaga 1, Em uso, a 360 m']);
   });
 
   it('filters by regime, availability and search', async () => {
@@ -209,7 +269,7 @@ describe('<ChargePointsScreen /> list mode', () => {
 
     await renderWithProviders(<ChargePointsScreen />);
     await showList();
-    await fireEvent.press(await screen.findByRole('button', { name: 'Garagem L1 · Vaga 12, Livre' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Garagem L1 · Vaga 12, Livre, a 10 m' }));
 
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/charge-points/[chargePointId]',
