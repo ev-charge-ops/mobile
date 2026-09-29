@@ -4,8 +4,11 @@ import { queryClient } from '@/lib/react-query';
 import { deleteSecureItem, getSecureItem, setSecureItem } from '@/lib/secure-storage';
 
 export const REFRESH_TOKEN_KEY = 'auth.refreshToken';
+export const RESTORE_ATTEMPTS = 3;
+export const RESTORE_BACKOFF_MS = 1000;
+export const REFRESH_TIMEOUT_MS = 15000;
 
-export type SessionStatus = 'loading' | 'authenticated' | 'anonymous';
+export type SessionStatus = 'loading' | 'authenticated' | 'anonymous' | 'offline';
 
 export type SessionSnapshot = {
   status: SessionStatus;
@@ -13,9 +16,24 @@ export type SessionSnapshot = {
 };
 
 const ANONYMOUS: SessionSnapshot = { status: 'anonymous', user: null };
+const OFFLINE: SessionSnapshot = { status: 'offline', user: null };
 
-function isRejectedToken(error: unknown) {
+export function isRejectedToken(error: unknown) {
   return error instanceof authApi.AuthApiError && (error.status === 400 || error.status === 401);
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+async function refreshWithTimeout(refreshToken: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
+  try {
+    return await authApi.refresh(refreshToken, controller.signal);
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function revokeStoredRefreshToken() {
@@ -32,7 +50,9 @@ export async function discardStoredSession() {
 export function createSessionStore() {
   let snapshot: SessionSnapshot = { status: 'loading', user: null };
   let accessToken: string | null = null;
+  let generation = 0;
   let restoring: Promise<void> | null = null;
+  let refreshing: Promise<string | null> | null = null;
   const listeners = new Set<() => void>();
 
   const setSnapshot = (next: SessionSnapshot) => {
@@ -40,35 +60,68 @@ export function createSessionStore() {
     listeners.forEach((listener) => listener());
   };
 
-  const startSession = async (session: authApi.AuthSession) => {
+  const adoptSession = async (session: authApi.AuthSession) => {
     await setSecureItem(REFRESH_TOKEN_KEY, session.refreshToken);
     accessToken = session.accessToken;
     setSnapshot({ status: 'authenticated', user: session.user });
   };
 
+  const startSession = async (session: authApi.AuthSession) => {
+    generation += 1;
+    await adoptSession(session);
+  };
+
   const clearSession = async () => {
+    generation += 1;
     accessToken = null;
     setSnapshot(ANONYMOUS);
     queryClient.clear();
     await deleteSecureItem(REFRESH_TOKEN_KEY);
   };
 
-  const refreshSession = async () => {
+  const performRefresh = async () => {
+    const startedAt = generation;
     const refreshToken = await getSecureItem(REFRESH_TOKEN_KEY);
     if (!refreshToken) return null;
-    const session = await authApi.refresh(refreshToken);
-    await startSession(session);
-    return session;
+
+    let session: authApi.AuthSession;
+    try {
+      session = await refreshWithTimeout(refreshToken);
+    } catch (error) {
+      if (startedAt !== generation) return accessToken;
+      if (!isRejectedToken(error)) throw error;
+      await clearSession();
+      return null;
+    }
+
+    if (startedAt !== generation) return accessToken;
+    await adoptSession(session);
+    return session.accessToken;
+  };
+
+  const refreshSession = () => {
+    refreshing ??= performRefresh().finally(() => {
+      refreshing = null;
+    });
+    return refreshing;
   };
 
   const restore = async () => {
-    try {
-      const session = await refreshSession();
-      if (!session) setSnapshot(ANONYMOUS);
-    } catch (error) {
-      if (isRejectedToken(error)) await deleteSecureItem(REFRESH_TOKEN_KEY).catch(() => undefined);
-      accessToken = null;
-      setSnapshot(ANONYMOUS);
+    const startedAt = generation;
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        const token = await refreshSession();
+        if (!token && startedAt === generation) setSnapshot(ANONYMOUS);
+        return;
+      } catch {
+        if (startedAt !== generation) return;
+        if (attempt >= RESTORE_ATTEMPTS) {
+          accessToken = null;
+          setSnapshot(OFFLINE);
+          return;
+        }
+        await wait(RESTORE_BACKOFF_MS * 2 ** (attempt - 1));
+      }
     }
   };
 
@@ -77,21 +130,22 @@ export function createSessionStore() {
     return restoring;
   };
 
+  const retryRestore = () => {
+    if (snapshot.status === 'offline') restoring = restore();
+    return restoreSession();
+  };
+
   const endSession = async () => {
     await revokeStoredRefreshToken();
     await clearSession();
   };
 
   const tokenHandlers: AuthTokenHandlers = {
-    getAccessToken: () => accessToken,
-    refreshAccessToken: async () => {
-      try {
-        const session = await refreshSession();
-        return session?.accessToken ?? null;
-      } catch {
-        return null;
-      }
+    getAccessToken: async () => {
+      if (snapshot.status === 'loading') await restoreSession();
+      return accessToken;
     },
+    refreshAccessToken: refreshSession,
     onUnauthorized: () => {
       void clearSession();
     },
@@ -108,6 +162,7 @@ export function createSessionStore() {
     startSession,
     endSession,
     restoreSession,
+    retryRestore,
     tokenHandlers,
   };
 }
