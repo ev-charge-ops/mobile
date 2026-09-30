@@ -196,7 +196,7 @@ function EmptyMonth({ monthLabel }: { monthLabel: string }) {
       <Card style={styles.stack}>
         <Text style={typography.subtitle}>Nenhuma recarga em {monthLabel.toLowerCase()}</Text>
         <Text style={styles.hint}>Suas recargas aparecem aqui com energia, preço e taxas de cada sessão.</Text>
-        <Button label="Encontrar pontos de recarga" icon={MapPin} size="sm" onPress={() => router.navigate('/')} />
+        <Button label="Encontrar pontos de recarga" icon={MapPin} size="sm" onPress={() => router.navigate('/points')} />
       </Card>
     </FadeInItem>
   );

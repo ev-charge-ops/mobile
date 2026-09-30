@@ -115,7 +115,7 @@ describe('<SessionHistoryScreen />', () => {
     await fireEvent.press(await screen.findByRole('button', { name: 'Encontrar pontos de recarga' }));
 
     expect(screen.getByText('Nenhuma recarga em outubro')).toBeOnTheScreen();
-    expect(router.navigate).toHaveBeenCalledWith('/');
+    expect(router.navigate).toHaveBeenCalledWith('/points');
   });
 
   it('retries after a failure', async () => {
