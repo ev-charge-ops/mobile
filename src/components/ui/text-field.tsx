@@ -36,7 +36,7 @@ export function TextField({
   const borderStyle = useAnimatedStyle(() => ({
     borderColor: hasError
       ? colors.borderDanger
-      : interpolateColor(focusProgress.get(), [0, 1], [colors.borderSubtle, colors.borderStrong]),
+      : interpolateColor(focusProgress.get(), [0, 1], [colors.borderSubtle, colors.textTitle]),
   }));
 
   const animateFocus = (value: number) => {
@@ -52,12 +52,12 @@ export function TextField({
         </Text>
       )}
       <Animated.View style={[styles.field, borderStyle]}>
-        {icon && <Icon icon={icon} size={17} color={focused ? colors.textMuted : colors.textDisabled} />}
+        {icon && <Icon icon={icon} size={18} color={focused ? colors.textTitle : colors.textMuted} />}
         <TextInput
           {...inputProps}
           accessibilityLabel={inputProps.accessibilityLabel ?? label}
           autoCapitalize={autoCapitalize}
-          keyboardAppearance="dark"
+          keyboardAppearance="light"
           placeholderTextColor={colors.textDisabled}
           selectionColor={colors.accent}
           style={styles.input}
@@ -87,39 +87,40 @@ export function TextField({
 
 const styles = StyleSheet.create({
   label: {
-    fontSize: 13.5,
+    fontSize: 14,
     fontFamily: fonts.semibold,
-    color: colors.textMuted,
-    marginBottom: 7,
+    color: colors.textBody,
+    marginBottom: 8,
   },
   required: {
-    color: colors.accent,
+    color: colors.criticalText,
   },
   field: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    height: 50,
-    paddingHorizontal: 14,
+    height: 52,
+    paddingHorizontal: 16,
     backgroundColor: colors.surfaceCard,
     borderRadius: radii.input,
-    borderWidth: 1,
+    borderCurve: 'continuous',
+    borderWidth: 1.5,
   },
   input: {
     flex: 1,
-    fontSize: 15,
-    fontFamily: fonts.semibold,
+    fontSize: 16,
+    fontFamily: fonts.medium,
     color: colors.textTitle,
     paddingVertical: 0,
   },
   helper: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 13,
+    lineHeight: 18,
     fontFamily: fonts.medium,
-    color: colors.textSubtle,
+    color: colors.textMuted,
     marginTop: 6,
   },
   error: {
-    color: colors.statusFault,
+    color: colors.criticalText,
   },
 });
