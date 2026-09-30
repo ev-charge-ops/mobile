@@ -1,19 +1,51 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { PressableScale } from '@/components/ui/pressable-scale';
-import { colors } from '@/constants/theme';
+import { getColors, type ColorScheme, type ThemeColors } from '@/constants/theme';
+
+export type IconButtonTone = 'plain' | 'inset' | 'surface' | 'inverse';
 
 export type IconButtonProps = {
   icon: LucideIcon;
   accessibilityLabel: string;
   onPress?: () => void;
-  tone?: 'plain' | 'inset';
+  tone?: IconButtonTone;
+  scheme?: ColorScheme;
   size?: number;
+  badge?: boolean;
+  style?: StyleProp<ViewStyle>;
+  testID?: string;
 };
 
-export function IconButton({ icon, accessibilityLabel, onPress, tone = 'plain', size = 40 }: IconButtonProps) {
+function getToneStyle(tokens: ThemeColors, tone: IconButtonTone) {
+  switch (tone) {
+    case 'inset':
+      return { backgroundColor: tokens.surfaceInset, color: tokens.textTitle };
+    case 'surface':
+      return { backgroundColor: tokens.surfaceCard, color: tokens.textTitle };
+    case 'inverse':
+      return { backgroundColor: tokens.surfaceInverse, color: tokens.textOnInverse };
+    default:
+      return { backgroundColor: 'transparent', color: tokens.textTitle };
+  }
+}
+
+export function IconButton({
+  icon,
+  accessibilityLabel,
+  onPress,
+  tone = 'plain',
+  scheme = 'light',
+  size = 44,
+  badge = false,
+  style,
+  testID,
+}: IconButtonProps) {
+  const tokens = getColors(scheme);
+  const toneStyle = getToneStyle(tokens, tone);
+
   return (
     <PressableScale
       accessibilityRole="button"
@@ -21,9 +53,28 @@ export function IconButton({ icon, accessibilityLabel, onPress, tone = 'plain', 
       onPress={onPress}
       scaleTo={0.92}
       hitSlop={4}
-      style={[styles.button, { width: size, height: size, borderRadius: size / 2 }, tone === 'inset' && styles.inset]}
+      testID={testID}
+      style={[
+        styles.button,
+        { width: size, height: size, borderRadius: size / 2, backgroundColor: toneStyle.backgroundColor },
+        style,
+      ]}
     >
-      <Icon icon={icon} size={20} color={colors.textTitle} />
+      <Icon icon={icon} size={20} color={toneStyle.color} />
+      {badge ? (
+        <View
+          testID={testID ? `${testID}-badge` : 'icon-button-badge'}
+          style={[
+            styles.badge,
+            {
+              top: size * 0.22,
+              right: size * 0.24,
+              backgroundColor: tokens.critical,
+              borderColor: tone === 'plain' ? tokens.bgBase : toneStyle.backgroundColor,
+            },
+          ]}
+        />
+      ) : null}
     </PressableScale>
   );
 }
@@ -33,7 +84,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  inset: {
-    backgroundColor: colors.surfaceInset,
+  badge: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
   },
 });
