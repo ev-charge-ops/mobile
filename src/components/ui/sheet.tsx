@@ -5,19 +5,21 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { colors, motion, radii, spacing } from '@/constants/theme';
+import { getColors, motion, radii, shadows, spacing, type ColorScheme } from '@/constants/theme';
 
 export type SheetProps = PropsWithChildren<{
   visible: boolean;
   onClose: () => void;
   closeLabel?: string;
+  scheme?: ColorScheme;
 }>;
 
 const DISMISS_DISTANCE = 90;
 const DISMISS_VELOCITY = 700;
 const PAN_ACTIVATION = 12;
 
-export function Sheet({ visible, onClose, closeLabel = 'Fechar', children }: SheetProps) {
+export function Sheet({ visible, onClose, closeLabel = 'Fechar', scheme = 'light', children }: SheetProps) {
+  const tokens = getColors(scheme);
   const { height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [mounted, setMounted] = useState(visible);
@@ -33,11 +35,11 @@ export function Sheet({ visible, onClose, closeLabel = 'Fechar', children }: She
       return;
     }
     translateY.set(
-      withTiming(screenHeight, { duration: motion.duration.base, easing: motion.easing.in }, (finished) => {
+      withTiming(screenHeight, { duration: motion.duration.slow, easing: motion.easing.in }, (finished) => {
         if (finished) scheduleOnRN(setMounted, false);
       }),
     );
-    scrimOpacity.set(withTiming(0, { duration: motion.duration.base, easing: motion.easing.in }));
+    scrimOpacity.set(withTiming(0, { duration: motion.duration.slow, easing: motion.easing.in }));
   }, [visible, screenHeight, translateY, scrimOpacity]);
 
   const pan = Gesture.Pan()
@@ -61,7 +63,7 @@ export function Sheet({ visible, onClose, closeLabel = 'Fechar', children }: She
 
   return (
     <View style={[StyleSheet.absoluteFill, styles.passThrough]}>
-      <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, scrimStyle]}>
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: tokens.surfaceScrim }, scrimStyle]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={closeLabel}
@@ -73,9 +75,17 @@ export function Sheet({ visible, onClose, closeLabel = 'Fechar', children }: She
         <GestureDetector gesture={pan}>
           <Animated.View
             accessibilityViewIsModal
-            style={[styles.sheet, { paddingBottom: insets.bottom + spacing.xl }, sheetStyle]}
+            style={[
+              styles.sheet,
+              {
+                backgroundColor: tokens.surfaceSheet,
+                boxShadow: scheme === 'night' ? shadows.sheetNight : shadows.sheet,
+                paddingBottom: insets.bottom + spacing.xl,
+              },
+              sheetStyle,
+            ]}
           >
-            <View style={styles.grabber} />
+            <View style={[styles.grabber, { backgroundColor: tokens.borderSubtle }]} />
             {children}
           </Animated.View>
         </GestureDetector>
@@ -88,26 +98,21 @@ const styles = StyleSheet.create({
   passThrough: {
     pointerEvents: 'box-none',
   },
-  scrim: {
-    backgroundColor: colors.surfaceScrim,
-  },
   anchor: {
     flex: 1,
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: colors.surfaceSheet,
     borderTopLeftRadius: radii.sheet,
     borderTopRightRadius: radii.sheet,
-    paddingHorizontal: spacing.lg,
+    borderCurve: 'continuous',
+    paddingHorizontal: spacing.xl,
     paddingTop: 10,
-    boxShadow: '0 -12px 40px rgba(0, 0, 0, 0.55)',
   },
   grabber: {
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.borderSubtle,
     alignSelf: 'center',
     marginBottom: 14,
   },
