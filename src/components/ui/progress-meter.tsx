@@ -4,7 +4,6 @@ import Animated, {
   cancelAnimation,
   Easing,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withRepeat,
   withTiming,
@@ -124,15 +123,13 @@ export function ProgressMeter({
 }
 
 function FlowStripes({ color }: { color: string }) {
-  const reducedMotion = useReducedMotion();
   const offset = useSharedValue(0);
 
   useEffect(() => {
-    if (reducedMotion) return;
     offset.set(0);
     offset.set(withRepeat(withTiming(flowPeriod, { duration: motion.duration.flow, easing: Easing.linear }), -1));
     return () => cancelAnimation(offset);
-  }, [offset, reducedMotion]);
+  }, [offset]);
 
   const stripesStyle = useAnimatedStyle(() => ({ transform: [{ translateX: offset.get() }] }));
 

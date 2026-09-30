@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-library';
 
 import { queryClient } from '@/lib/react-query';
@@ -23,17 +24,25 @@ jest.mock('@/lib/secure-storage', () => {
 
 const mockHomeScreenFailure = { enabled: false };
 
-jest.mock('@/features/charging/screens/charge-points-screen', () => {
-  const actual = jest.requireActual('@/features/charging/screens/charge-points-screen');
+jest.mock('@/features/charging/screens/current-charge-screen', () => {
+  const actual = jest.requireActual('@/features/charging/screens/current-charge-screen');
   return {
-    ChargePointsScreen: (props: object) => {
+    CurrentChargeScreen: (props: object) => {
       if (mockHomeScreenFailure.enabled) throw new Error('Home failed to render');
-      return actual.ChargePointsScreen(props);
+      return actual.CurrentChargeScreen(props);
     },
   };
 });
 
+jest.mock('@/features/charging/components/active-session-card', () => {
+  const { Text } = jest.requireActual('react-native');
+  return {
+    ActiveSessionCard: ({ session }: { session: { id: string } }) => <Text>{`Sessão ${session.id}`}</Text>,
+  };
+});
+
 const user = { id: 'u1', name: 'Ana', email: 'ana@example.com', role: 'DRIVER', emailVerified: true, hasPassword: true };
+const openSession = { id: 'session-1', status: 'ACTIVE', chargePoint: { id: 'cp-1', code: 'L1-01', name: 'Garagem L1' } };
 const organizations = [{ id: 'o1', name: 'Residencial Aclimação', type: 'CONDOMINIUM', role: 'DRIVER', unitLabel: 'B · 42' }];
 
 const purposes = [
@@ -116,10 +125,19 @@ async function flush(ms = 0) {
   });
 }
 
+let app: ReturnType<typeof renderRouter>;
+
 async function renderApp() {
-  await renderRouter('./src/app', { initialUrl: '/login' });
+  app = renderRouter('./src/app', { initialUrl: '/login' });
+  await app;
   jest.useRealTimers();
   await flush();
+}
+
+async function signInToHome() {
+  await renderApp();
+  await signIn();
+  expect(await screen.findByText('Olá, Ana')).toBeOnTheScreen();
 }
 
 async function signIn() {
@@ -158,16 +176,20 @@ afterEach(() => {
 });
 
 describe('signing in', () => {
-  it('shows the search tab when native fetch responses are not global Response instances', async () => {
+  it('shows the home tab when native fetch responses are not global Response instances', async () => {
     await renderApp();
 
     await signIn();
 
-    expect(await screen.findByText('Buscar pontos')).toBeOnTheScreen();
-    expect(screen.getByRole('tab', { name: 'Buscar' })).toBeSelected();
-    expect(screen.getByRole('tab', { name: 'Recarga' })).toBeOnTheScreen();
+    expect(await screen.findByText('Olá, Ana')).toBeOnTheScreen();
+    expect(screen.getByRole('tab', { name: 'Início' })).toBeSelected();
+    expect(screen.getByRole('tab', { name: 'Pontos' })).toBeOnTheScreen();
+    expect(screen.getByRole('tab', { name: 'Histórico' })).toBeOnTheScreen();
+    expect(screen.getByRole('tab', { name: 'Conta' })).toBeOnTheScreen();
+    expect(screen.queryByRole('tab', { name: 'Recarga' })).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Avisos' })).toBeNull();
     await flush(50);
-    expect(screen.getByText('Buscar pontos')).toBeOnTheScreen();
+    expect(screen.getByText('Olá, Ana')).toBeOnTheScreen();
   });
 
   it('asks for consent before showing the tabs when the terms must be accepted', async () => {
@@ -178,31 +200,64 @@ describe('signing in', () => {
     await signIn();
 
     expect(await screen.findByText('O que coletamos e por quê')).toBeOnTheScreen();
-    expect(screen.queryByText('Buscar pontos')).toBeNull();
+    expect(screen.queryByText('Olá, Ana')).toBeNull();
 
     await fireEvent.press(screen.getByRole('button', { name: 'Aceitar e continuar' }));
 
-    expect(await screen.findByText('Buscar pontos')).toBeOnTheScreen();
+    expect(await screen.findByText('Olá, Ana')).toBeOnTheScreen();
   });
 
-  it('opens the account screen from the search tab', async () => {
-    await renderApp();
-    await signIn();
+  it('opens the account tab', async () => {
+    await signInToHome();
 
-    await fireEvent.press(await screen.findByRole('button', { name: 'Conta' }));
+    await fireEvent.press(screen.getByRole('tab', { name: 'Conta' }));
 
     expect(await screen.findByText('Ana')).toBeOnTheScreen();
     expect(await screen.findByText('Residencial Aclimação')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Sair' })).toBeOnTheScreen();
   });
 
-  it('switches to the charging tab', async () => {
-    await renderApp();
-    await signIn();
+  it('switches to the points tab', async () => {
+    await signInToHome();
 
-    await fireEvent.press(await screen.findByRole('tab', { name: 'Recarga' }));
+    await fireEvent.press(screen.getByRole('tab', { name: 'Pontos' }));
 
-    expect(await screen.findByText('Nenhuma recarga ativa')).toBeOnTheScreen();
+    expect(await screen.findByText('Buscar pontos')).toBeOnTheScreen();
+    expect(screen.getByRole('tab', { name: 'Pontos' })).toBeSelected();
+  });
+
+  it('opens the notices from the bell and goes back', async () => {
+    await signInToHome();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Avisos' }));
+
+    expect(await screen.findByText('Nenhum aviso por enquanto')).toBeOnTheScreen();
+    expect(app.getPathname()).toBe('/notifications');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+
+    expect(await screen.findByText('Olá, Ana')).toBeOnTheScreen();
+    expect(app.getPathname()).toBe('/');
+  });
+
+  it('sends the charging action to the points tab when no session is open', async () => {
+    await signInToHome();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Iniciar recarga' }));
+
+    expect(await screen.findByText('Buscar pontos')).toBeOnTheScreen();
+    expect(app.getPathname()).toBe('/points');
+  });
+
+  it('sends the charging action to the open session', async () => {
+    setRoute('GET /sessions/active', 200, { session: openSession });
+    await signInToHome();
+
+    expect(await screen.findByText('Sessão session-1')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Recarga em andamento' }));
+    await flush();
+
+    expect(app.getPathname()).toBe('/sessions/session-1');
   });
 
   it('shows an error with retry when the profile cannot be loaded', async () => {
@@ -217,7 +272,7 @@ describe('signing in', () => {
     setRoute('GET /auth/me', 200, user);
     await fireEvent.press(screen.getByRole('button', { name: 'Tentar novamente' }));
 
-    expect(await screen.findByText('Buscar pontos')).toBeOnTheScreen();
+    expect(await screen.findByText('Olá, Ana')).toBeOnTheScreen();
   });
 
   it('shows the error boundary instead of a blank screen when home fails to render', async () => {
@@ -246,11 +301,50 @@ describe('deep links', () => {
   });
 
   it('sends a signed out visitor of the tabs to the login', async () => {
-    await renderRouter('./src/app', { initialUrl: '/charging' });
+    await renderRouter('./src/app', { initialUrl: '/points' });
     jest.useRealTimers();
     await flush();
 
     expect(await screen.findByRole('button', { name: 'Entrar' })).toBeOnTheScreen();
+  });
+});
+
+describe('push notification targets', () => {
+  it('opens an organization invite on the account tab', async () => {
+    await signInToHome();
+
+    await act(async () => {
+      router.push('/account');
+    });
+
+    expect(await screen.findByRole('button', { name: 'Sair' })).toBeOnTheScreen();
+    expect(screen.getByRole('tab', { name: 'Conta' })).toBeSelected();
+    expect(app.getPathname()).toBe('/account');
+  });
+
+  it('opens the notices as a stack screen', async () => {
+    await signInToHome();
+
+    await act(async () => {
+      router.push('/notifications');
+    });
+
+    expect(await screen.findByText('Nenhum aviso por enquanto')).toBeOnTheScreen();
+    expect(app.getPathname()).toBe('/notifications');
+  });
+
+  it('opens the charge point of a queue turn and the session of a charging notice', async () => {
+    await signInToHome();
+
+    await act(async () => {
+      router.push({ pathname: '/charge-points/[chargePointId]', params: { chargePointId: 'cp-1' } });
+    });
+    expect(app.getPathname()).toBe('/charge-points/cp-1');
+
+    await act(async () => {
+      router.push({ pathname: '/sessions/[sessionId]', params: { sessionId: 'session-1' } });
+    });
+    expect(app.getPathname()).toBe('/sessions/session-1');
   });
 });
 

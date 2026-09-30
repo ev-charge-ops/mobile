@@ -7,7 +7,7 @@ import { NotificationsScreen } from '@/features/notifications/screens/notificati
 import { buildNotification, buildNotificationPage } from '@/features/notifications/testing/notification-fixtures';
 import { createTestQueryClient, renderWithProviders } from '@/features/notifications/testing/render-with-providers';
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() } }));
 
 jest.mock('@/features/notifications/api/notifications-api', () => ({
   listMyNotifications: jest.fn(),
@@ -206,5 +206,14 @@ describe('<NotificationsScreen />', () => {
     });
     await waitFor(() => expect(getRefreshControl().refreshing).toBe(false));
     expect(api.listMyNotifications).toHaveBeenCalledTimes(2);
+  });
+
+  it('goes back from the stack header', async () => {
+    api.listMyNotifications.mockResolvedValue(buildNotificationPage([]));
+
+    await renderWithProviders(<NotificationsScreen />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Voltar' }));
+
+    expect(router.back).toHaveBeenCalledTimes(1);
   });
 });
