@@ -51,8 +51,8 @@ export function TabBar({ state, navigation, items }: TabBarProps) {
       {hasGlass ? (
         <GlassView
           glassEffectStyle="regular"
-          colorScheme="dark"
-          tintColor="rgba(18,18,20,0.4)"
+          colorScheme="light"
+          tintColor={colors.surfaceNav}
           style={StyleSheet.absoluteFill}
         />
       ) : (
@@ -102,7 +102,7 @@ function TabBarButton({ item, isActive, onPress, onLongPress }: TabBarButtonProp
     transform: [{ translateY: -2 * progress.get() }, { scale: 1 + 0.06 * progress.get() }],
   }));
   const labelStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(progress.get(), [0, 1], [colors.textSubtle, colors.accentOnQuiet]),
+    color: interpolateColor(progress.get(), [0, 1], [colors.textMuted, colors.textTitle]),
   }));
   const dotStyle = useAnimatedStyle(() => ({
     opacity: progress.get(),
@@ -122,7 +122,7 @@ function TabBarButton({ item, isActive, onPress, onLongPress }: TabBarButtonProp
       style={styles.item}
     >
       <Animated.View style={iconStyle}>
-        <Icon icon={item.icon} size={22} color={isActive ? colors.accentOnQuiet : colors.textSubtle} />
+        <Icon icon={item.icon} size={22} color={isActive ? colors.textTitle : colors.textMuted} />
         {item.badge ? <View testID={`tab-badge-${item.name}`} style={styles.badge} /> : null}
         {count > 0 ? (
           <View testID={`tab-count-${item.name}`} style={styles.count}>
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceNav,
   },
   overlay: {
-    backgroundColor: 'rgba(18,18,20,0.62)',
+    backgroundColor: colors.surfaceNav,
     borderTopWidth: 1,
     borderTopColor: colors.hairline,
   },
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.statusCharging,
+    backgroundColor: colors.energy,
     borderWidth: 1.5,
     borderColor: colors.bgBase,
   },
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.accent,
+    backgroundColor: colors.critical,
     borderWidth: 1.5,
     borderColor: colors.bgBase,
   },
