@@ -4,7 +4,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { motion } from '@/constants/theme';
 
-export const STAGGER_STEP_MS = 60;
+export const STAGGER_STEP_MS = motion.revealStagger;
 
 export type FadeInItemProps = PropsWithChildren<{
   index?: number;
@@ -15,7 +15,7 @@ export type FadeInItemProps = PropsWithChildren<{
 export function FadeInItem({ index = 0, style, testID, children }: FadeInItemProps) {
   return (
     <Animated.View
-      entering={FadeInDown.duration(motion.duration.slow)
+      entering={FadeInDown.duration(motion.duration.reveal)
         .delay(index * STAGGER_STEP_MS)
         .easing(motion.easing.sheet)}
       style={style}

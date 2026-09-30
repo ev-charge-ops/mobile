@@ -18,10 +18,10 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 export type RingTone = 'charging' | 'idle' | 'fault' | 'info' | 'accent';
 
 export const ringToneColors: Record<RingTone, string> = {
-  charging: colors.statusCharging,
-  idle: colors.statusIdle,
-  fault: colors.statusFault,
-  info: colors.statusInfo,
+  charging: colors.energy,
+  idle: colors.warning,
+  fault: colors.critical,
+  info: colors.info,
   accent: colors.accent,
 };
 

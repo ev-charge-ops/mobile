@@ -3,7 +3,7 @@ import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 
 import { env } from '@/config/env';
-import { colors, palette } from '@/constants/theme';
+import { colors, radii } from '@/constants/theme';
 import type { PaymentSheetParams } from '@/features/charging/api/charging-api';
 import { toOpaqueHex } from '@/features/charging/payments/opaque-hex';
 
@@ -32,7 +32,7 @@ export async function presentCardPayment(sheet: PaymentSheetParams): Promise<Car
     customerEphemeralKeySecret: sheet.customerEphemeralKeySecret,
     paymentIntentClientSecret: sheet.paymentIntentClientSecret,
     returnURL: Linking.createURL('stripe-redirect'),
-    style: 'alwaysDark',
+    style: 'alwaysLight',
     primaryButtonLabel: 'Autorizar e liberar',
     defaultBillingDetails: { address: { country: 'BR' } },
     appearance: {
@@ -47,10 +47,10 @@ export async function presentCardPayment(sheet: PaymentSheetParams): Promise<Car
         componentText: colors.textTitle,
         placeholderText: colors.textDisabled,
         icon: colors.textMuted,
-        error: palette.red400,
+        error: colors.criticalText,
       },
-      shapes: { borderRadius: 12 },
-      primaryButton: { shapes: { borderRadius: 16 } },
+      shapes: { borderRadius: radii.input },
+      primaryButton: { shapes: { borderRadius: radii.cardLarge } },
     },
   });
   if (init.error) throw new CardPaymentError(init.error.localizedMessage ?? init.error.message);

@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   clock: {
     fontSize: 44,
     lineHeight: 48,
-    fontFamily: fonts.monoBold,
+    fontFamily: fonts.mono,
     fontVariant: ['tabular-nums'],
   },
   unit: {

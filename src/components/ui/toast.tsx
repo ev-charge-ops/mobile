@@ -5,7 +5,7 @@ import Animated, { FadeInUp, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/ui/icon';
-import { colors, fonts, motion, radii, spacing } from '@/constants/theme';
+import { colors, fonts, motion, nightColors, radii, shadows, spacing } from '@/constants/theme';
 
 export type ToastTone = 'success' | 'info' | 'error';
 
@@ -28,9 +28,9 @@ type ToastContextValue = {
 const DEFAULT_DURATION = 2600;
 
 const toneStyles: Record<ToastTone, { icon: LucideIcon; color: string }> = {
-  success: { icon: CircleCheck, color: colors.statusCharging },
-  info: { icon: Info, color: colors.statusInfo },
-  error: { icon: CircleAlert, color: colors.statusFault },
+  success: { icon: CircleCheck, color: nightColors.energy },
+  info: { icon: Info, color: nightColors.info },
+  error: { icon: CircleAlert, color: nightColors.critical },
 };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -107,15 +107,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    padding: 14,
-    borderRadius: radii.card,
-    backgroundColor: colors.surfaceRaised,
-    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.5)',
+    paddingVertical: 14,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.lg,
+    borderCurve: 'continuous',
+    backgroundColor: colors.surfaceInverse,
+    boxShadow: shadows.floatingStrong,
   },
   message: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 20,
     fontFamily: fonts.semibold,
-    color: colors.textTitle,
+    color: colors.textOnInverse,
   },
 });

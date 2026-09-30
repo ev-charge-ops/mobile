@@ -32,7 +32,7 @@ export function AppBar({
     <View style={[styles.bar, isLarge && styles.barLarge, style]}>
       {onBack && (
         <View style={styles.back}>
-          <IconButton icon={variant === 'modal' ? X : ChevronLeft} accessibilityLabel={backLabel} onPress={onBack} />
+          <IconButton icon={variant === 'modal' ? X : ChevronLeft} tone="surface" accessibilityLabel={backLabel} onPress={onBack} />
         </View>
       )}
       <View style={styles.titles}>
@@ -55,17 +55,17 @@ const styles = StyleSheet.create({
     minHeight: spacing.appBarHeight,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.md,
     paddingHorizontal: spacing.gutter,
     paddingVertical: spacing.sm,
   },
   barLarge: {
-    minHeight: 72,
+    minHeight: 76,
     alignItems: 'flex-end',
-    paddingBottom: 10,
+    paddingBottom: spacing.md,
   },
   back: {
-    marginLeft: -spacing.sm,
+    marginRight: spacing.xs,
   },
   titles: {
     flex: 1,
@@ -73,19 +73,21 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 17,
+    lineHeight: 22,
     fontFamily: fonts.bold,
     color: colors.textTitle,
   },
   titleLarge: {
-    fontSize: 24,
-    lineHeight: 30,
-    fontFamily: fonts.extrabold,
-    letterSpacing: -0.2,
+    fontSize: 32,
+    lineHeight: 38,
+    fontFamily: fonts.bold,
+    letterSpacing: -0.8,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 13,
+    lineHeight: 18,
     fontFamily: fonts.medium,
-    color: colors.textSubtle,
+    color: colors.textMuted,
     marginTop: 1,
   },
 });
