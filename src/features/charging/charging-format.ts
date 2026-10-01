@@ -100,6 +100,7 @@ export function formatSessionCode(sessionId: string) {
 export function formatLimit(limit: ChargingSession['limit']) {
   if (limit.type === 'ENERGY' && limit.energyKwh !== null) return formatEnergy(limit.energyKwh, { fractionDigits: 1 });
   if (limit.type === 'AMOUNT' && limit.amountCents !== null) return `Até ${formatCents(limit.amountCents)}`;
+  if (limit.type === 'PERCENT' && limit.socPercent !== null) return `Até ${limit.socPercent}%`;
   return 'Até completar';
 }
 

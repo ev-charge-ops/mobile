@@ -667,6 +667,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organizations/{organizationId}/sessions/{sessionId}/anomaly-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm or dismiss the anomaly flag of a session of the organization (managers only), with an optional note. Reviewing again replaces the previous decision; billing does not change */
+        post: operations["reviewSessionAnomaly"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sessions/{sessionId}/stop": {
         parameters: {
             query?: never;
@@ -793,7 +810,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List the sessions of the organization (managers only), filtered by month, unit, status, charge point and anomaly flag */
+        /** List the sessions of the organization (managers only), filtered by month, unit, status, charge point, anomaly flag and anomaly review status */
         get: operations["listOrganizationSessions"];
         put?: never;
         post?: never;
@@ -1738,6 +1755,11 @@ export interface components {
             /** @example Ana Ribeiro */
             name: string;
         };
+        /**
+         * @description Manager review of the anomaly flag: PENDING_REVIEW for flagged sessions not reviewed yet, CONFIRMED or DISMISSED after the review, null when the session is not flagged. Billing never changes with the review
+         * @enum {string}
+         */
+        AnomalyReviewStatus: "PENDING_REVIEW" | "CONFIRMED" | "DISMISSED";
         OrganizationSessionDetailResponseDto: {
             /** Format: uuid */
             id: string;
@@ -1840,6 +1862,28 @@ export interface components {
             driver: components["schemas"]["OrganizationSessionDriverDto"];
             /** @description Version of the ML model that produced the anomaly score */
             anomalyModelVersion: string | null;
+            /** @description Manager review of the anomaly flag: PENDING_REVIEW for flagged sessions not reviewed yet, CONFIRMED or DISMISSED after the review, null when the session is not flagged. Billing never changes with the review */
+            anomalyReviewStatus: components["schemas"]["AnomalyReviewStatus"] | null;
+            /** @example Morador confirmou a recarga de um veículo visitante */
+            anomalyReviewNote: string | null;
+            /** Format: date-time */
+            anomalyReviewedAt: string | null;
+            /**
+             * Format: uuid
+             * @description Manager who reviewed the anomaly
+             */
+            anomalyReviewedById: string | null;
+        };
+        /**
+         * @description CONFIRMED keeps the session as an anomaly, DISMISSED marks it as a false positive
+         * @enum {string}
+         */
+        AnomalyReviewDecision: "CONFIRMED" | "DISMISSED";
+        ReviewSessionAnomalyRequestDto: {
+            /** @description CONFIRMED keeps the session as an anomaly, DISMISSED marks it as a false positive */
+            status: components["schemas"]["AnomalyReviewDecision"];
+            /** @example Morador confirmou a recarga de um veículo visitante */
+            note?: string;
         };
         WebhookReceiptDto: {
             /** @example true */
@@ -2005,6 +2049,17 @@ export interface components {
             /** @description Anomaly score from the ML service, when available */
             anomalyScore: number | null;
             isAnomaly: boolean | null;
+            /** @description Manager review of the anomaly flag: PENDING_REVIEW for flagged sessions not reviewed yet, CONFIRMED or DISMISSED after the review, null when the session is not flagged. Billing never changes with the review */
+            anomalyReviewStatus: components["schemas"]["AnomalyReviewStatus"] | null;
+            /** @example Morador confirmou a recarga de um veículo visitante */
+            anomalyReviewNote: string | null;
+            /** Format: date-time */
+            anomalyReviewedAt: string | null;
+            /**
+             * Format: uuid
+             * @description Manager who reviewed the anomaly
+             */
+            anomalyReviewedById: string | null;
         };
         OrganizationSessionPageDto: {
             items: components["schemas"]["OrganizationSessionDto"][];
@@ -2014,6 +2069,36 @@ export interface components {
             page: number;
             /** @example 20 */
             pageSize: number;
+        };
+        MonthComparisonDto: {
+            /** @example 2026-07 */
+            month: string;
+            /** @example 1190.2 */
+            energyKwh: number;
+            /** @example 96 */
+            sessionsCount: number;
+            /**
+             * @description Energy cost of the sessions started in the month
+             * @example 121870
+             */
+            energyCents: number;
+            /**
+             * @description Total of the sessions started in the month (energy plus idle fees)
+             * @example 128420
+             */
+            totalCents: number;
+        };
+        MonthPeakDto: {
+            /**
+             * @description Highest simultaneous charging demand of the sessions started in the month, without the common area reserve
+             * @example 36
+             */
+            demandKw: number;
+            /**
+             * Format: date-time
+             * @description When the peak started, null without charging in the month
+             */
+            at: string | null;
         };
         SiteCapacityDto: {
             /** @example 75 */
@@ -2077,6 +2162,27 @@ export interface components {
             anomalyScore: number | null;
             /** @example v1 */
             anomalyModelVersion: string | null;
+            /** @description Manager review of the anomaly flag: PENDING_REVIEW for flagged sessions not reviewed yet, CONFIRMED or DISMISSED after the review, null when the session is not flagged. Billing never changes with the review */
+            anomalyReviewStatus: components["schemas"]["AnomalyReviewStatus"] | null;
+            /** @example Morador confirmou a recarga de um veículo visitante */
+            anomalyReviewNote: string | null;
+            /** Format: date-time */
+            anomalyReviewedAt: string | null;
+            /**
+             * Format: uuid
+             * @description Manager who reviewed the anomaly
+             */
+            anomalyReviewedById: string | null;
+        };
+        OverviewActiveSessionDto: {
+            /** Format: uuid */
+            sessionId: string;
+            status: components["schemas"]["ChargingSessionStatus"];
+            /**
+             * Format: date-time
+             * @description When the free grace period ends (set once charging ended, in GRACE and IDLE); the idle fee starts at this instant
+             */
+            graceEndsAt: string | null;
         };
         OverviewChargePointDto: {
             /** Format: uuid */
@@ -2097,6 +2203,13 @@ export interface components {
             status: components["schemas"]["ChargePointStatus"];
             /** @description Current price of the point; null when no tariff is configured */
             pricing: components["schemas"]["ChargePointPricingDto"] | null;
+            /**
+             * @description Power delivered now by the session charging at the point (from its latest telemetry), 0 when it is not charging
+             * @example 6.4
+             */
+            currentPowerKw: number;
+            /** @description Open session at the point, null when it is free */
+            activeSession: components["schemas"]["OverviewActiveSessionDto"] | null;
         };
         OrganizationOverviewResponseDto: {
             /** @example 2026-08 */
@@ -2105,6 +2218,24 @@ export interface components {
             energyKwh: number;
             /** @example 102 */
             sessionsCount: number;
+            /**
+             * @description Energy cost of the sessions started in the month, every regime
+             * @example 128930
+             */
+            energyCents: number;
+            /**
+             * @description Total of the sessions started in the month (energy plus idle fees), every regime
+             * @example 136210
+             */
+            totalCents: number;
+            /** @description Same totals for the previous month, for month over month deltas */
+            previousMonth: components["schemas"]["MonthComparisonDto"];
+            /**
+             * @description Sessions of the month at commercial points of the organization or by drivers who are not members
+             * @example 14
+             */
+            visitorSessionsCount: number;
+            monthPeak: components["schemas"]["MonthPeakDto"];
             /**
              * @description Sessions open now (charging, grace or idle)
              * @example 1
@@ -2131,6 +2262,11 @@ export interface components {
              * @example 3
              */
             anomaliesCount: number;
+            /**
+             * @description Flagged sessions still waiting for a manager review (PENDING_REVIEW) that started before the end of the month
+             * @example 2
+             */
+            anomaliesPendingReviewCount: number;
             /** @description Latest sessions flagged as anomalous that started before the end of the month, newest first (up to 5) */
             recentAnomalies: components["schemas"]["RecentAnomalyDto"][];
             /** @description Charge points of the organization with their current price */
@@ -3982,6 +4118,67 @@ export interface operations {
             };
         };
     };
+    reviewSessionAnomaly: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: string;
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewSessionAnomalyRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationSessionDetailResponseDto"];
+                };
+            };
+            /** @description Invalid status or note */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Member without the required organization role */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SESSION_NOT_FOUND, or organization not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SESSION_NOT_FLAGGED: the session is not flagged as anomalous */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     stopSession: {
         parameters: {
             query?: never;
@@ -4318,6 +4515,8 @@ export interface operations {
                 chargePointId?: string;
                 /** @description true keeps only the sessions flagged as anomalous; false keeps the ones not flagged (including the unscored) */
                 anomaly?: boolean;
+                /** @description Keeps only the flagged sessions with this review status */
+                reviewStatus?: components["schemas"]["AnomalyReviewStatus"];
             };
             header?: never;
             path: {
