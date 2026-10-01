@@ -1,79 +1,74 @@
 import {
+  formatClosingDate,
+  formatCompactDuration,
   formatMonthLabel,
-  getRecentMonths,
-  getRegimes,
-  getWeeklyConsumption,
-  summarizeSessions,
+  formatShortMonthLabel,
+  getCurrentMonth,
+  getDailyBars,
+  getMonthDistance,
+  getSessionDayTile,
+  getSessionDuration,
+  shiftMonth,
 } from '@/features/charging/history-month';
 import { buildClosedSession } from '@/features/charging/testing/session-fixtures';
 
-describe('getRecentMonths', () => {
-  it('lists the current month and the two before it in São Paulo time', () => {
-    expect(getRecentMonths(Date.parse('2026-10-07T15:00:00.000Z'))).toEqual([
-      { value: '2026-10', label: 'Outubro' },
-      { value: '2026-09', label: 'Setembro' },
-      { value: '2026-08', label: 'Agosto' },
-    ]);
+describe('months', () => {
+  it('reads the current month in São Paulo time', () => {
+    expect(getCurrentMonth(Date.parse('2026-10-07T15:00:00.000Z'))).toBe('2026-10');
+    expect(getCurrentMonth(Date.parse('2026-02-01T02:00:00.000Z'))).toBe('2026-01');
   });
 
-  it('crosses the year and uses the local month near midnight', () => {
-    expect(getRecentMonths(Date.parse('2026-02-01T02:00:00.000Z')).map((month) => month.value)).toEqual([
-      '2026-01',
-      '2025-12',
-      '2025-11',
-    ]);
+  it('steps across years', () => {
+    expect(shiftMonth('2026-01', -1)).toBe('2025-12');
+    expect(shiftMonth('2025-12', 1)).toBe('2026-01');
+    expect(getMonthDistance('2025-11', '2026-02')).toBe(3);
   });
 
-  it('formats a month label', () => {
+  it('formats long and short labels', () => {
     expect(formatMonthLabel('2026-03')).toBe('Março');
+    expect(formatShortMonthLabel('2026-09')).toBe('Set 2026');
   });
 });
 
-describe('summarizeSessions', () => {
-  it('adds energy, costs, idle fees and totals', () => {
-    const summary = summarizeSessions([
-      buildClosedSession({ energyKwh: 2, energyCostCents: 178, idleFeeCents: 1100, totalCents: 1278 }),
-      buildClosedSession({ energyKwh: 16.4, energyCostCents: 1460, idleFeeCents: 0, totalCents: 1460 }),
-    ]);
-
-    expect(summary.energyKwh).toBeCloseTo(18.4);
-    expect(summary).toMatchObject({ energyCents: 1638, idleCents: 1100, totalCents: 2738 });
-  });
-});
-
-describe('getWeeklyConsumption', () => {
-  it('buckets the energy by week of the month in São Paulo time', () => {
-    const weeks = getWeeklyConsumption(
+describe('getDailyBars', () => {
+  it('fills every day of the month relative to the busiest one', () => {
+    const bars = getDailyBars(
       [
-        buildClosedSession({ startedAt: '2026-08-01T12:00:00.000Z', energyKwh: 5 }),
-        buildClosedSession({ startedAt: '2026-08-07T20:00:00.000Z', energyKwh: 3 }),
-        buildClosedSession({ startedAt: '2026-08-15T02:00:00.000Z', energyKwh: 4 }),
-        buildClosedSession({ startedAt: '2026-08-31T22:00:00.000Z', energyKwh: 7 }),
-        buildClosedSession({ startedAt: '2026-09-01T02:00:00.000Z', energyKwh: 9 }),
+        { date: '2026-09-03', energyKwh: 10 },
+        { date: '2026-09-07', energyKwh: 20 },
+        { date: '2026-09-07', energyKwh: 5 },
+        { date: '2026-08-31', energyKwh: 99 },
       ],
-      '2026-08',
+      '2026-09',
     );
 
-    expect(weeks).toEqual([
-      { label: 'S1', energyKwh: 8 },
-      { label: 'S2', energyKwh: 4 },
-      { label: 'S3', energyKwh: 0 },
-      { label: 'S4', energyKwh: 0 },
-      { label: 'S5', energyKwh: 16 },
-    ]);
+    expect(bars).toHaveLength(30);
+    expect(bars[2]).toEqual({ day: 3, energyKwh: 10, ratio: 0.4 });
+    expect(bars[6]).toEqual({ day: 7, energyKwh: 25, ratio: 1 });
+    expect(bars[0].ratio).toBe(0);
   });
 
-  it('uses four weeks for a 28 day February', () => {
-    expect(getWeeklyConsumption([], '2026-02')).toHaveLength(4);
+  it('stays flat without energy', () => {
+    expect(getDailyBars([], '2026-02').every((bar) => bar.ratio === 0)).toBe(true);
+    expect(getDailyBars([], '2028-02')).toHaveLength(29);
   });
 });
 
-describe('getRegimes', () => {
-  it('lists the regimes present in the month', () => {
-    expect(getRegimes([])).toEqual([]);
-    expect(getRegimes([buildClosedSession({ regime: 'COMMERCIAL' }), buildClosedSession()])).toEqual([
-      'PRIVATE',
-      'COMMERCIAL',
-    ]);
+describe('session rows', () => {
+  it('formats the closing date in local time', () => {
+    expect(formatClosingDate('2026-10-01T02:59:59.999Z')).toBe('30/09');
+  });
+
+  it('builds the date tile', () => {
+    expect(getSessionDayTile('2026-09-27T12:00:00.000Z')).toEqual({ day: '27', month: 'SET' });
+  });
+
+  it('formats compact durations', () => {
+    expect(formatCompactDuration(45 * 60)).toBe('45min');
+    expect(formatCompactDuration(161 * 60)).toBe('2h 41min');
+  });
+
+  it('uses the simulated charging time of the session', () => {
+    expect(getSessionDuration(buildClosedSession(), Date.parse('2026-10-07T15:00:00.000Z'))).toBe('19min');
   });
 });
