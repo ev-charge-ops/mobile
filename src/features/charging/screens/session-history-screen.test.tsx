@@ -2,6 +2,8 @@ import { fireEvent, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
 import * as chargingApi from '@/features/charging/api/charging-api';
+import * as statementApi from '@/features/charging/api/statement-api';
+import type { MyMonthlyStatement } from '@/features/charging/api/statement-api';
 import { SessionHistoryScreen } from '@/features/charging/screens/session-history-screen';
 import { renderWithProviders } from '@/features/charging/testing/render-with-providers';
 import { buildClosedSession, buildSession } from '@/features/charging/testing/session-fixtures';
@@ -13,7 +15,10 @@ jest.mock('@/features/charging/api/charging-api', () => {
   return { ...actual, listMySessions: jest.fn() };
 });
 
+jest.mock('@/features/charging/api/statement-api', () => ({ getMyMonthlyStatement: jest.fn() }));
+
 const api = jest.mocked(chargingApi);
+const statements = jest.mocked(statementApi);
 
 const NBSP = ' ';
 const NOW = Date.parse('2026-10-07T15:00:00.000Z');
@@ -22,9 +27,32 @@ function page(items: chargingApi.ChargingSession[], total = items.length) {
   return { items, total, page: 1, pageSize: 100 };
 }
 
+function buildStatement(overrides: Partial<MyMonthlyStatement> = {}): MyMonthlyStatement {
+  return {
+    organization: { id: 'org-1', name: 'Residencial Aclimação' },
+    unitLabel: 'B · 42',
+    month: '2026-10',
+    status: 'OPEN',
+    closesAt: '2026-11-01T02:59:59.999Z',
+    energyKwh: 54.3,
+    energyCents: 4833,
+    utilityRateCents: 89,
+    accessFeeCents: 3500,
+    idleFeeCents: 0,
+    totalCents: 8333,
+    sessionsCount: 4,
+    dailyEnergy: [
+      { date: '2026-10-02', energyKwh: 18.42 },
+      { date: '2026-10-06', energyKwh: 14.1 },
+    ],
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(Date, 'now').mockReturnValue(NOW);
+  statements.getMyMonthlyStatement.mockResolvedValue(buildStatement());
 });
 
 afterEach(() => {
@@ -32,25 +60,16 @@ afterEach(() => {
 });
 
 describe('<SessionHistoryScreen />', () => {
-  it('summarizes the current month with totals, weekly bars and the regime banner', async () => {
+  it('shows the unit statement and the sessions of the current month', async () => {
     api.listMySessions.mockResolvedValue(
       page([
-        buildClosedSession({ id: 's1', startedAt: '2026-10-02T12:00:00.000Z' }),
-        buildClosedSession({
-          id: 's2',
-          startedAt: '2026-10-06T12:00:00.000Z',
-          chargePoint: { id: 'cp-2', code: 'L1-02', name: 'Garagem L1 · Vaga 13' },
-          energyKwh: 16.405,
-          energyCostCents: 1460,
-          idleFeeCents: 0,
-          totalCents: 1460,
-        }),
+        buildClosedSession({ id: 's1' }),
         buildSession({
           id: 's3',
           status: 'INTERRUPTED',
           startedAt: '2026-10-07T12:00:00.000Z',
-          energyCostCents: 50,
-          idleFeeCents: 0,
+          chargePoint: { id: 'cp-2', code: 'L1-02', name: 'Garagem L1 · Vaga 13' },
+          energyKwh: 0.5,
           totalCents: 50,
         }),
       ]),
@@ -58,48 +77,54 @@ describe('<SessionHistoryScreen />', () => {
 
     await renderWithProviders(<SessionHistoryScreen />);
 
-    expect(await screen.findAllByText('3 recargas')).toHaveLength(2);
+    expect(await screen.findByText('2 sessões')).toBeOnTheScreen();
     expect(api.listMySessions).toHaveBeenCalledWith(1, 100, '2026-10');
-    expect(screen.getByRole('tab', { name: 'Outubro' })).toBeSelected();
-    expect(screen.getByRole('tab', { name: 'Setembro' })).toBeOnTheScreen();
-    expect(screen.getByRole('tab', { name: 'Agosto' })).toBeOnTheScreen();
-    expect(screen.getAllByText('19,9')).toHaveLength(2);
-    expect(screen.getByText('Total no mês')).toBeOnTheScreen();
-    expect(screen.getByText('27,88')).toBeOnTheScreen();
-    expect(screen.getByLabelText('Semana 1: 19,9 kWh')).toBeOnTheScreen();
-    expect(screen.getByLabelText('Semana 2: sem recargas')).toBeOnTheScreen();
-    expect(screen.getByText('Condomínio · energia a custo')).toBeOnTheScreen();
-    expect(screen.queryByText('Comercial · preço dinâmico')).toBeNull();
-    expect(screen.getByText(`+ R$${NBSP}11,00 ocupação`)).toBeOnTheScreen();
-    expect(screen.getByText('Interrompida')).toBeOnTheScreen();
+    expect(statements.getMyMonthlyStatement).toHaveBeenCalledWith('2026-10');
+    expect(screen.getByText('Out 2026')).toBeOnTheScreen();
+    expect(await screen.findByText('Seu rateio · unidade B · 42')).toBeOnTheScreen();
+    expect(screen.getByText('83,33')).toBeOnTheScreen();
+    expect(screen.getByText('Fecha 31/10')).toBeOnTheScreen();
+    expect(screen.getByText(`Energia · 54,30 kWh × R$${NBSP}0,89`)).toBeOnTheScreen();
+    expect(screen.getByText(`R$${NBSP}35,00`)).toBeOnTheScreen();
+    expect(screen.getByText('Ocupação após tolerância')).toBeOnTheScreen();
+    expect(screen.getAllByTestId('statement-bar-active')).toHaveLength(2);
+    expect(screen.getAllByTestId('statement-bar')).toHaveLength(29);
+    expect(screen.getByText('2,00 kWh')).toBeOnTheScreen();
+    expect(screen.getByText('L1-01 · 19min')).toBeOnTheScreen();
+    expect(screen.getByText(`R$${NBSP}12,78`)).toBeOnTheScreen();
+    expect(screen.getByText(/^L1-02 · .* · Interrompida$/)).toBeOnTheScreen();
+    expect(screen.getAllByText('OUT')).toHaveLength(2);
   });
 
-  it('loads another month from the segmented control', async () => {
-    api.listMySessions.mockImplementation(async (_page, _size, month) =>
-      month === '2026-09'
-        ? page([buildClosedSession({ id: 's9', regime: 'COMMERCIAL', startedAt: '2026-09-20T12:00:00.000Z' })])
-        : page([]),
+  it('marks a closed statement and hides it without a condo unit', async () => {
+    statements.getMyMonthlyStatement.mockImplementation(async (month) =>
+      month === '2026-09' ? buildStatement({ month, status: 'CLOSED' }) : null,
     );
+    api.listMySessions.mockResolvedValue(page([buildClosedSession({ startedAt: '2026-10-02T12:00:00.000Z' })]));
 
     await renderWithProviders(<SessionHistoryScreen />);
-    expect(await screen.findByText('Nenhuma recarga em outubro')).toBeOnTheScreen();
 
-    await fireEvent.press(screen.getByRole('tab', { name: 'Setembro' }));
+    expect(await screen.findByText('1 sessão')).toBeOnTheScreen();
+    expect(screen.queryByTestId('monthly-statement-card')).toBeNull();
 
-    expect(await screen.findByText('Comercial · preço dinâmico')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Mês anterior' }));
+
+    expect(await screen.findByText('Fechado')).toBeOnTheScreen();
+    expect(screen.getByText('Set 2026')).toBeOnTheScreen();
     expect(api.listMySessions).toHaveBeenCalledWith(1, 100, '2026-09');
-    expect(screen.getByLabelText(/^Semana 3: 2(,0)? kWh$/)).toBeOnTheScreen();
   });
 
-  it('labels the total as partial while more pages remain', async () => {
-    api.listMySessions.mockResolvedValue(page([buildClosedSession({ startedAt: '2026-10-02T12:00:00.000Z' })], 150));
+  it('does not go past the current month', async () => {
+    api.listMySessions.mockResolvedValue(page([]));
 
     await renderWithProviders(<SessionHistoryScreen />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Próximo mês' }));
 
-    expect(await screen.findByText('Total das recargas carregadas')).toBeOnTheScreen();
+    expect(await screen.findByText('Nenhuma recarga em outubro')).toBeOnTheScreen();
+    expect(api.listMySessions).not.toHaveBeenCalledWith(1, 100, '2026-11');
   });
 
-  it('opens the session detail', async () => {
+  it('opens the session receipt', async () => {
     api.listMySessions.mockResolvedValue(page([buildClosedSession({ id: 's1' })]));
 
     await renderWithProviders(<SessionHistoryScreen />);
@@ -126,6 +151,6 @@ describe('<SessionHistoryScreen />', () => {
     await renderWithProviders(<SessionHistoryScreen />);
     await fireEvent.press(await screen.findByRole('button', { name: 'Tentar novamente' }));
 
-    expect(await screen.findAllByText('1 recarga')).toHaveLength(2);
+    expect(await screen.findByText('1 sessão')).toBeOnTheScreen();
   });
 });
