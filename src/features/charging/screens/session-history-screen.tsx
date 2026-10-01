@@ -1,59 +1,35 @@
 import { router } from 'expo-router';
-import { MapPin, RotateCw } from 'lucide-react-native';
-import { useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ChevronLeft, ChevronRight, MapPin, RotateCw } from 'lucide-react-native';
+import { Fragment, useCallback, useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AppBar } from '@/components/ui/app-bar';
 import { Button } from '@/components/ui/button';
-import { Card, Divider, SectionTitle } from '@/components/ui/card';
-import { FadeInItem } from '@/components/ui/fade-in-item';
-import { InfoBanner } from '@/components/ui/info-banner';
-import { MetricTile } from '@/components/ui/metric-tile';
+import { IconButton } from '@/components/ui/icon-button';
 import { PressableScale } from '@/components/ui/pressable-scale';
-import { SegmentedControl } from '@/components/ui/segmented-control';
-import { StatusPill } from '@/components/ui/status-pill';
+import { Rise } from '@/components/ui/rise';
 import { useTabBarHeight } from '@/components/ui/tab-bar';
-import { colors, fonts, radii, spacing, typography } from '@/constants/theme';
-import type { ChargePointType, ChargingSession } from '@/features/charging/api/charging-api';
+import { colors, fonts, spacing } from '@/constants/theme';
+import type { ChargingSession } from '@/features/charging/api/charging-api';
 import { useSessionHistory } from '@/features/charging/api/use-charging-sessions';
+import { useMyStatement } from '@/features/charging/api/use-my-statement';
+import { formatCents, formatDate, sessionStatusLabels } from '@/features/charging/charging-format';
+import { MonthlyStatementCard } from '@/features/charging/components/monthly-statement-card';
 import {
-  formatAmount,
-  formatCents,
-  formatDate,
-  formatTime,
-  sessionStatusLabels,
-  sessionStatusPill,
-} from '@/features/charging/charging-format';
-import { WeeklyConsumptionChart } from '@/features/charging/components/weekly-consumption-chart';
-import {
-  getRecentMonths,
-  getRegimes,
-  getWeeklyConsumption,
-  summarizeSessions,
+  formatMonthLabel,
+  formatShortMonthLabel,
+  getCurrentMonth,
+  getMonthDistance,
+  getSessionDayTile,
+  getSessionDuration,
+  HISTORY_MONTHS_BACK,
+  shiftMonth,
 } from '@/features/charging/history-month';
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 import { formatEnergy } from '@/utils/format-energy';
 
-const HEADER_ITEMS = 4;
-const MAX_STAGGER_INDEX = 10;
-
-const regimeBanners: Record<ChargePointType, { title: string; body: string; tone: 'success' | 'info' }> = {
-  PRIVATE: {
-    title: 'Condomínio · energia a custo',
-    body: 'Energia repassada a custo, sem margem, e somada à taxa condominial da sua unidade.',
-    tone: 'success',
-  },
-  COMMERCIAL: {
-    title: 'Comercial · preço dinâmico',
-    body: 'O preço por kWh acompanha a demanda, fica travado no início da recarga e é cobrado no cartão.',
-    tone: 'info',
-  },
-};
-
 function formatSessionCount(total: number) {
-  if (total === 0) return 'Nenhuma recarga';
-  return total === 1 ? '1 recarga' : `${total} recargas`;
+  return total === 1 ? '1 sessão' : `${total} sessões`;
 }
 
 function openSession(sessionId: string) {
@@ -61,169 +37,144 @@ function openSession(sessionId: string) {
 }
 
 export function SessionHistoryScreen() {
-  const [months] = useState(() => getRecentMonths(Date.now()));
-  const [month, setMonth] = useState(months[0].value);
-  const { data, isPending, isError, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useSessionHistory(month);
+  const [now] = useState(() => Date.now());
+  const currentMonth = getCurrentMonth(now);
+  const [month, setMonth] = useState(currentMonth);
+  const history = useSessionHistory(month);
+  const statement = useMyStatement(month);
   const tabBarHeight = useTabBarHeight();
-  const sessions = data?.pages.flatMap((page) => page.items) ?? [];
-  const total = data?.pages[0]?.total ?? 0;
-  const monthLabel = months.find((option) => option.value === month)?.label ?? '';
-  const { refreshing, onRefresh } = usePullToRefresh(refetch);
-  const showError = isError && !data;
+  const sessions = history.data?.pages.flatMap((page) => page.items) ?? [];
+  const total = history.data?.pages[0]?.total ?? 0;
+  const showError = history.isError && !history.data;
+  const monthsBack = getMonthDistance(month, currentMonth);
+
+  const refetchHistory = history.refetch;
+  const refetchStatement = statement.refetch;
+  const refetchAll = useCallback(
+    () => Promise.all([refetchHistory(), refetchStatement()]),
+    [refetchHistory, refetchStatement],
+  );
+  const { refreshing, onRefresh } = usePullToRefresh(refetchAll);
+
+  const loadMore = () => {
+    if (history.hasNextPage && !history.isFetchingNextPage) history.fetchNextPage();
+  };
 
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
-      <AppBar variant="large" title="Histórico" subtitle={data ? formatSessionCount(total) : undefined} />
-      <FlatList
+      <View style={styles.header}>
+        <Text accessibilityRole="header" style={styles.title}>
+          Histórico
+        </Text>
+        <View style={styles.stepper} testID="month-stepper">
+          <IconButton
+            icon={ChevronLeft}
+            size={36}
+            accessibilityLabel="Mês anterior"
+            onPress={monthsBack < HISTORY_MONTHS_BACK ? () => setMonth(shiftMonth(month, -1)) : undefined}
+            style={monthsBack >= HISTORY_MONTHS_BACK && styles.disabled}
+          />
+          <Text accessibilityLabel={formatMonthLabel(month)} style={styles.monthLabel}>
+            {formatShortMonthLabel(month)}
+          </Text>
+          <IconButton
+            icon={ChevronRight}
+            size={36}
+            accessibilityLabel="Próximo mês"
+            onPress={monthsBack > 0 ? () => setMonth(shiftMonth(month, 1)) : undefined}
+            style={monthsBack <= 0 && styles.disabled}
+          />
+        </View>
+      </View>
+      <ScrollView
         key={month}
-        data={isPending || showError ? [] : sessions}
-        keyExtractor={(session) => session.id}
+        testID="history-scroll"
         contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + spacing.xxl }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
-        }
-        ListHeaderComponent={
-          <View style={styles.header}>
-            <FadeInItem index={0}>
-              <SegmentedControl<string> options={months} value={month} onChange={setMonth} testID="month-control" />
-            </FadeInItem>
-            {isPending ? (
-              <View style={styles.loading}>
-                <ActivityIndicator accessibilityLabel="Carregando histórico" color={colors.accent} size="large" />
-              </View>
-            ) : showError ? (
-              <Card style={styles.stack}>
-                <Text style={typography.body}>Não foi possível carregar o seu histórico.</Text>
-                <Button
-                  label="Tentar novamente"
-                  icon={RotateCw}
-                  variant="secondary"
-                  size="sm"
-                  loading={isRefetching}
-                  onPress={() => refetch()}
-                />
-              </Card>
-            ) : sessions.length === 0 ? (
-              <EmptyMonth monthLabel={monthLabel} />
-            ) : (
-              <MonthOverview sessions={sessions} total={total} month={month} />
-            )}
-          </View>
-        }
-        renderItem={({ item, index }) => (
-          <FadeInItem index={Math.min(index + HEADER_ITEMS, MAX_STAGGER_INDEX)}>
-            <SessionRow session={item} onPress={() => openSession(item.id)} />
-          </FadeInItem>
-        )}
-        onEndReachedThreshold={0.4}
-        onEndReached={() => {
-          if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+        onScroll={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 200) loadMore();
         }}
-        ListFooterComponent={
-          isFetchingNextPage ? (
-            <ActivityIndicator accessibilityLabel="Carregando mais recargas" color={colors.accent} />
-          ) : sessions.length > 0 ? (
-            <Text style={styles.legal}>Sessão interrompida registra o kWh parcial medido até a desconexão.</Text>
-          ) : null
-        }
-      />
+        scrollEventThrottle={200}
+      >
+        {statement.data ? (
+          <Rise index={0}>
+            <MonthlyStatementCard statement={statement.data} />
+          </Rise>
+        ) : null}
+        {history.isPending ? (
+          <View style={styles.loading}>
+            <ActivityIndicator accessibilityLabel="Carregando histórico" color={colors.accent} size="large" />
+          </View>
+        ) : showError ? (
+          <Rise index={1} style={[styles.card, styles.message]}>
+            <Text style={styles.messageText}>Não foi possível carregar o seu histórico.</Text>
+            <Button
+              label="Tentar novamente"
+              icon={RotateCw}
+              variant="secondary"
+              size="sm"
+              loading={history.isRefetching}
+              onPress={() => history.refetch()}
+            />
+          </Rise>
+        ) : sessions.length === 0 ? (
+          <Rise index={1} style={[styles.card, styles.message]}>
+            <Text style={styles.messageTitle}>Nenhuma recarga em {formatMonthLabel(month).toLowerCase()}</Text>
+            <Text style={styles.messageText}>
+              Suas recargas aparecem aqui com energia, preço e taxas de cada sessão.
+            </Text>
+            <Button label="Encontrar pontos de recarga" icon={MapPin} size="sm" onPress={() => router.navigate('/points')} />
+          </Rise>
+        ) : (
+          <>
+            <Rise index={1} style={styles.listHead}>
+              <Text style={styles.listTitle}>Recargas</Text>
+              <Text style={styles.listCount}>{formatSessionCount(total)}</Text>
+            </Rise>
+            <Rise index={2} style={[styles.card, styles.list]}>
+              {sessions.map((session, index) => (
+                <Fragment key={session.id}>
+                  {index > 0 ? <View style={styles.divider} /> : null}
+                  <SessionRow session={session} now={now} />
+                </Fragment>
+              ))}
+            </Rise>
+            {history.isFetchingNextPage ? (
+              <ActivityIndicator accessibilityLabel="Carregando mais recargas" color={colors.accent} />
+            ) : null}
+          </>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-type MonthOverviewProps = {
-  sessions: ChargingSession[];
-  total: number;
-  month: string;
-};
+function SessionRow({ session, now }: { session: ChargingSession; now: number }) {
+  const tile = getSessionDayTile(session.startedAt);
+  const status = session.status === 'CLOSED' ? null : sessionStatusLabels[session.status];
+  const hint = [session.chargePoint.code, getSessionDuration(session, now), status].filter(Boolean).join(' · ');
 
-function MonthOverview({ sessions, total, month }: MonthOverviewProps) {
-  const summary = summarizeSessions(sessions);
-  const weeks = getWeeklyConsumption(sessions, month);
-  const regimes = getRegimes(sessions);
-  const isPartial = sessions.length < total;
-
-  return (
-    <>
-      <FadeInItem index={1}>
-        <Card>
-          <View style={styles.metrics}>
-            <MetricTile
-              value={formatEnergy(summary.energyKwh, { withUnit: false, fractionDigits: 1 })}
-              unit="kWh"
-              label="Consumo"
-              style={styles.metric}
-            />
-            <MetricTile value={formatAmount(summary.energyCents)} unit="R$" label="Energia" style={styles.metric} />
-            <MetricTile
-              value={formatAmount(summary.idleCents)}
-              unit="R$"
-              label="Ocupação"
-              tone={summary.idleCents > 0 ? 'fault' : 'default'}
-              style={styles.metric}
-            />
-          </View>
-          <Divider style={styles.divider} />
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>{isPartial ? 'Total das recargas carregadas' : 'Total no mês'}</Text>
-            <MetricTile value={formatAmount(summary.totalCents)} unit="R$" />
-          </View>
-        </Card>
-      </FadeInItem>
-      <FadeInItem index={2}>
-        <WeeklyConsumptionChart weeks={weeks} />
-      </FadeInItem>
-      <FadeInItem index={3} style={styles.stack}>
-        {regimes.map((regime) => (
-          <InfoBanner key={regime} tone={regimeBanners[regime].tone} title={regimeBanners[regime].title}>
-            {regimeBanners[regime].body}
-          </InfoBanner>
-        ))}
-      </FadeInItem>
-      <View style={styles.sessionsHead}>
-        <SectionTitle style={styles.sessionsTitle}>Sessões</SectionTitle>
-        <Text style={styles.sessionsCount}>{formatSessionCount(total)}</Text>
-      </View>
-    </>
-  );
-}
-
-function EmptyMonth({ monthLabel }: { monthLabel: string }) {
-  return (
-    <FadeInItem index={1}>
-      <Card style={styles.stack}>
-        <Text style={typography.subtitle}>Nenhuma recarga em {monthLabel.toLowerCase()}</Text>
-        <Text style={styles.hint}>Suas recargas aparecem aqui com energia, preço e taxas de cada sessão.</Text>
-        <Button label="Encontrar pontos de recarga" icon={MapPin} size="sm" onPress={() => router.navigate('/points')} />
-      </Card>
-    </FadeInItem>
-  );
-}
-
-function SessionRow({ session, onPress }: { session: ChargingSession; onPress: () => void }) {
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={`${session.chargePoint.name}, ${formatDate(session.startedAt)}, ${formatCents(session.totalCents)}`}
-      onPress={onPress}
+      accessibilityLabel={`${session.chargePoint.name}, ${formatDate(session.startedAt)}, ${formatEnergy(session.energyKwh)}, ${formatCents(session.totalCents)}`}
+      onPress={() => openSession(session.id)}
       scaleTo={0.98}
       style={styles.row}
     >
+      <View style={styles.dateTile}>
+        <Text style={styles.dateDay}>{tile.day}</Text>
+        <Text style={styles.dateMonth}>{tile.month}</Text>
+      </View>
       <View style={styles.rowTexts}>
-        <Text style={styles.rowTitle}>{session.chargePoint.name}</Text>
-        <Text style={styles.rowHint}>
-          {formatDate(session.startedAt)} · {formatTime(session.startedAt)} · {formatEnergy(session.energyKwh)}
+        <Text style={styles.rowTitle}>{formatEnergy(session.energyKwh)}</Text>
+        <Text numberOfLines={1} style={styles.rowHint}>
+          {hint}
         </Text>
-        <StatusPill status={sessionStatusPill[session.status]} label={sessionStatusLabels[session.status]} />
       </View>
-      <View style={styles.rowValue}>
-        <Text style={styles.rowTotal}>{formatCents(session.totalCents)}</Text>
-        {session.idleFeeCents > 0 ? (
-          <Text style={styles.rowIdle}>+ {formatCents(session.idleFeeCents)} ocupação</Text>
-        ) : null}
-      </View>
+      <Text style={styles.rowTotal}>{formatCents(session.totalCents)}</Text>
     </PressableScale>
   );
 }
@@ -233,103 +184,142 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bgBase,
   },
-  content: {
-    gap: spacing.md,
-    paddingHorizontal: spacing.gutter,
-  },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.gutter,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+  },
+  title: {
+    fontSize: 30,
+    lineHeight: 36,
+    fontFamily: fonts.bold,
+    letterSpacing: -0.9,
+    color: colors.textTitle,
+  },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    padding: 4,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceCard,
+  },
+  monthLabel: {
+    fontSize: 14,
+    fontFamily: fonts.bold,
+    color: colors.textTitle,
+    paddingHorizontal: 2,
+  },
+  disabled: {
+    opacity: 0.3,
+  },
+  content: {
+    flexGrow: 1,
     gap: spacing.md,
+    paddingHorizontal: spacing.md,
   },
   loading: {
     paddingVertical: spacing.massive,
     alignItems: 'center',
   },
-  stack: {
+  card: {
+    backgroundColor: colors.surfaceCard,
+    borderRadius: 24,
+    borderCurve: 'continuous',
+  },
+  message: {
+    padding: spacing.xl,
     gap: spacing.md,
   },
-  hint: {
-    ...typography.body,
+  messageTitle: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontFamily: fonts.bold,
+    color: colors.textTitle,
+  },
+  messageText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: fonts.medium,
     color: colors.textMuted,
   },
-  metrics: {
+  listHead: {
     flexDirection: 'row',
-    gap: spacing.lg,
-  },
-  metric: {
-    flex: 1,
-  },
-  divider: {
-    marginVertical: spacing.lg,
-  },
-  totalRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    paddingTop: spacing.xs,
+    paddingHorizontal: spacing.sm,
   },
-  totalLabel: {
+  listTitle: {
+    fontSize: 17,
+    fontFamily: fonts.bold,
+    color: colors.textTitle,
+  },
+  listCount: {
     fontSize: 14,
     fontFamily: fonts.semibold,
     color: colors.textMuted,
   },
-  sessionsHead: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    paddingRight: spacing.xxs,
+  list: {
+    paddingVertical: spacing.xs,
   },
-  sessionsTitle: {
-    marginTop: 0,
-  },
-  sessionsCount: {
-    fontSize: 12,
-    fontFamily: fonts.semibold,
-    color: colors.textSubtle,
-  },
-  legal: {
-    fontSize: 11,
-    lineHeight: 16,
-    fontFamily: fonts.medium,
-    color: colors.textDisabled,
-    textAlign: 'center',
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.xs,
+  divider: {
+    height: 1,
+    marginHorizontal: spacing.lg,
+    backgroundColor: colors.hairline,
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: spacing.md,
-    padding: 14,
-    borderRadius: radii.card,
-    backgroundColor: colors.surfaceCard,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  dateTile: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceInset,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dateDay: {
+    fontSize: 16,
+    lineHeight: 18,
+    fontFamily: fonts.bold,
+    color: colors.textTitle,
+  },
+  dateMonth: {
+    fontSize: 10,
+    lineHeight: 12,
+    fontFamily: fonts.bold,
+    color: colors.textMuted,
   },
   rowTexts: {
     flex: 1,
     minWidth: 0,
-    gap: spacing.xs,
+    gap: 2,
   },
   rowTitle: {
     fontSize: 15,
+    lineHeight: 20,
     fontFamily: fonts.bold,
+    fontVariant: ['tabular-nums'],
     color: colors.textTitle,
   },
   rowHint: {
-    fontSize: 12,
+    fontSize: 13,
+    lineHeight: 18,
     fontFamily: fonts.medium,
-    color: colors.textSubtle,
-  },
-  rowValue: {
-    alignItems: 'flex-end',
-    gap: 2,
+    color: colors.textMuted,
   },
   rowTotal: {
-    fontSize: 16,
-    fontFamily: fonts.extrabold,
-    color: colors.textTitle,
+    fontSize: 15,
+    fontFamily: fonts.bold,
     fontVariant: ['tabular-nums'],
-  },
-  rowIdle: {
-    fontSize: 11,
-    fontFamily: fonts.semibold,
-    color: colors.statusFault,
+    color: colors.textTitle,
   },
 });
