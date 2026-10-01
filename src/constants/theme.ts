@@ -291,6 +291,7 @@ export const motion = {
     slow: 320,
     sheet: 480,
     reveal: 480,
+    rise: 600,
     plug: 600,
     splash: 1100,
     flow: 1200,
@@ -304,5 +305,6 @@ export const motion = {
     plug: Easing.bezier(0.65, 0, 0.35, 1),
   },
   revealStagger: 60,
+  riseDistance: 18,
   pressScale: 0.97,
 } as const;

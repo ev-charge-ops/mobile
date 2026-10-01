@@ -8,7 +8,7 @@ export function buildSession(overrides: Partial<ChargingSessionDetail> = {}): Ch
     organizationId: 'org-1',
     unitLabel: 'B · 42',
     regime: 'PRIVATE',
-    limit: { type: 'FULL', energyKwh: null, amountCents: null },
+    limit: { type: 'FULL', energyKwh: null, amountCents: null, socPercent: null },
     targetEnergyKwh: 12,
     startedAt: '2026-10-07T13:55:00.000Z',
     chargingEndedAt: null,
