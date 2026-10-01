@@ -8,10 +8,14 @@ import type { ChargePointsMapProps } from '@/features/charging/map/map-types';
 
 export const isMapSupported = true;
 
+const ZOOM_DURATION = 240;
+const FALLBACK_ZOOM = 15;
+
 export function ChargePointsMap({
   ref,
   chargePoints,
   selectedId,
+  myCharge,
   userCoordinates,
   userLabel,
   initialRegion,
@@ -22,6 +26,16 @@ export function ChargePointsMap({
 
   useImperativeHandle(ref, () => ({
     animateToRegion: (region, duration) => mapRef.current?.animateToRegion(region, duration),
+    zoomBy: (delta) => {
+      const map = mapRef.current;
+      if (!map) return;
+      map
+        .getCamera()
+        .then((camera) =>
+          map.animateCamera({ zoom: (camera.zoom ?? FALLBACK_ZOOM) + delta }, { duration: ZOOM_DURATION }),
+        )
+        .catch(() => undefined);
+    },
   }));
 
   return (
@@ -40,11 +54,14 @@ export function ChargePointsMap({
       toolbarEnabled={false}
     >
       {userCoordinates ? <UserLocationMarker {...userCoordinates} label={userLabel} /> : null}
-      {chargePoints.map((chargePoint) => (
+      {chargePoints.map((chargePoint, index) => (
         <ChargePointMarker
           key={chargePoint.id}
           chargePoint={chargePoint}
+          index={index}
           isSelected={chargePoint.id === selectedId}
+          isMine={myCharge?.chargePointId === chargePoint.id}
+          chargeLabel={myCharge?.label}
           onPress={() => onSelect(chargePoint)}
         />
       ))}
