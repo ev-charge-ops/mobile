@@ -12,20 +12,20 @@ export type ChargePointSearchFieldProps = {
 export function ChargePointSearchField({ value, onChangeText }: ChargePointSearchFieldProps) {
   return (
     <View style={styles.field}>
-      <Icon icon={Search} size={17} color={colors.textDisabled} />
+      <Icon icon={Search} size={18} color={colors.textMuted} />
       <TextInput
-        accessibilityLabel="Buscar ponto de recarga"
+        accessibilityLabel="Buscar ponto"
         value={value}
         onChangeText={onChangeText}
-        placeholder="Condomínio, vaga ou código"
-        placeholderTextColor={colors.textDisabled}
+        placeholder="Buscar ponto ou garagem"
+        placeholderTextColor={colors.textMuted}
         returnKeyType="search"
         autoCorrect={false}
         style={styles.input}
       />
       {value.length > 0 ? (
         <Pressable accessibilityRole="button" accessibilityLabel="Limpar busca" hitSlop={8} onPress={() => onChangeText('')}>
-          <Icon icon={X} size={17} color={colors.textSubtle} />
+          <Icon icon={X} size={17} color={colors.textMuted} />
         </Pressable>
       ) : null}
     </View>
@@ -39,17 +39,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     height: 52,
-    paddingHorizontal: 14,
-    borderRadius: radii.input,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    paddingHorizontal: 18,
+    borderRadius: radii.pill,
     backgroundColor: colors.surfaceCard,
   },
   input: {
     flex: 1,
     paddingVertical: 0,
     fontSize: 15,
-    fontFamily: fonts.semibold,
+    fontFamily: fonts.medium,
     color: colors.textTitle,
   },
 });

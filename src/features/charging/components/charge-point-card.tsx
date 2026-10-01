@@ -1,10 +1,10 @@
-import { PlugZap } from 'lucide-react-native';
+import { Plug } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { StatusPill } from '@/components/ui/status-pill';
-import { colors, fonts, radii, spacing } from '@/constants/theme';
+import { fonts, nightColors, radii, spacing } from '@/constants/theme';
 import type { ChargePoint } from '@/features/charging/api/charging-api';
 import { formatDistance } from '@/features/charging/charge-point-distance';
 import {
@@ -25,33 +25,35 @@ export type ChargePointCardProps = {
 };
 
 const statusIconColors: Record<ChargePoint['status'], string> = {
-  AVAILABLE: colors.statusCharging,
-  CHARGING: colors.statusCharging,
-  IDLE: colors.statusIdle,
-  OFFLINE: colors.statusOffline,
+  AVAILABLE: nightColors.energy,
+  CHARGING: nightColors.warning,
+  IDLE: nightColors.warning,
+  OFFLINE: nightColors.textMuted,
 };
 
 export function ChargePointCard({ chargePoint, distanceMeters, onPress }: ChargePointCardProps) {
   const { pricing } = chargePoint;
+  const queue = chargePoint.queueLength > 0 ? `, ${chargePoint.queueLength} na fila` : '';
+  const distance = distanceMeters == null ? '' : `, a ${formatDistance(distanceMeters)}`;
 
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={`${chargePoint.name}, ${chargePointStatusLabels[chargePoint.status]}${chargePoint.queueLength > 0 ? `, ${chargePoint.queueLength} na fila` : ''}${distanceMeters == null ? '' : `, a ${formatDistance(distanceMeters)}`}`}
+      accessibilityLabel={`${chargePoint.name}, ${chargePointStatusLabels[chargePoint.status]}${queue}${distance}`}
       onPress={onPress}
       scaleTo={0.98}
       style={styles.card}
     >
       <View style={styles.header}>
         <View style={styles.iconTile}>
-          <Icon icon={PlugZap} size={22} color={statusIconColors[chargePoint.status]} />
+          <Icon icon={Plug} size={22} color={statusIconColors[chargePoint.status]} />
         </View>
         <View style={styles.titles}>
           <Text style={styles.name}>{chargePoint.name}</Text>
           <Text style={styles.location}>
             {chargePoint.organizationName} · {chargePoint.code}
           </Text>
-          <DistanceTag distanceMeters={distanceMeters} />
+          <DistanceTag distanceMeters={distanceMeters} scheme="night" />
         </View>
         <View style={styles.price}>
           {pricing ? (
@@ -68,8 +70,9 @@ export function ChargePointCard({ chargePoint, distanceMeters, onPress }: Charge
         <StatusPill
           status={chargePointStatusPill[chargePoint.status]}
           label={chargePointStatusLabels[chargePoint.status]}
+          scheme="night"
         />
-        <QueueLengthTag queueLength={chargePoint.queueLength} />
+        <QueueLengthTag queueLength={chargePoint.queueLength} scheme="night" />
         <Text style={styles.metaText}>
           {formatPower(chargePoint.maxPowerKw)} · {regimeLabels[chargePoint.type]}
         </Text>
@@ -80,6 +83,7 @@ export function ChargePointCard({ chargePoint, distanceMeters, onPress }: Charge
           factor={pricing.demandFactor}
           source={pricing.demandFactorSource}
           modelVersion={pricing.demandModelVersion}
+          scheme="night"
         />
       ) : null}
     </PressableScale>
@@ -89,9 +93,12 @@ export function ChargePointCard({ chargePoint, distanceMeters, onPress }: Charge
 const styles = StyleSheet.create({
   card: {
     gap: spacing.md,
-    padding: 14,
-    borderRadius: radii.card,
-    backgroundColor: colors.surfaceCard,
+    padding: spacing.lg,
+    borderRadius: radii.card + 4,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+    borderColor: nightColors.borderSubtle,
+    backgroundColor: nightColors.surfaceCard,
   },
   header: {
     flexDirection: 'row',
@@ -99,12 +106,12 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   iconTile: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     borderRadius: radii.tile,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceInset,
+    backgroundColor: nightColors.surfaceInset,
   },
   titles: {
     flex: 1,
@@ -113,12 +120,12 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontFamily: fonts.bold,
-    color: colors.textTitle,
+    color: nightColors.textTitle,
   },
   location: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: fonts.medium,
-    color: colors.textSubtle,
+    color: nightColors.textMuted,
     marginTop: 2,
   },
   price: {
@@ -127,13 +134,13 @@ const styles = StyleSheet.create({
   priceValue: {
     fontSize: 18,
     fontFamily: fonts.extrabold,
-    color: colors.textTitle,
+    color: nightColors.textTitle,
     fontVariant: ['tabular-nums'],
   },
   priceUnit: {
     fontSize: 11,
     fontFamily: fonts.medium,
-    color: colors.textSubtle,
+    color: nightColors.textMuted,
   },
   meta: {
     flexDirection: 'row',
@@ -145,6 +152,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 12,
     fontFamily: fonts.semibold,
-    color: colors.textSubtle,
+    color: nightColors.textMuted,
   },
 });

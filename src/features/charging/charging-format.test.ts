@@ -5,6 +5,7 @@ import {
   formatLimit,
   formatPower,
   formatPricePerKwh,
+  splitChargePointName,
 } from '@/features/charging/charging-format';
 
 const NBSP = ' ';
@@ -39,5 +40,10 @@ describe('charging format', () => {
       `Até R$${NBSP}20,00`,
     );
     expect(formatLimit({ type: 'FULL', energyKwh: null, amountCents: null, socPercent: null })).toBe('Até completar');
+  });
+
+  it('splits the garage from the spot in the point name', () => {
+    expect(splitChargePointName('Garagem L1 · Vaga 12')).toEqual({ garage: 'Garagem L1', spot: 'Vaga 12' });
+    expect(splitChargePointName('Vaga avulsa')).toEqual({ garage: null, spot: 'Vaga avulsa' });
   });
 });
