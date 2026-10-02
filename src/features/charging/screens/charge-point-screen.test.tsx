@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { Linking } from 'react-native';
 
 import * as chargingApi from '@/features/charging/api/charging-api';
 import * as cardPaymentModule from '@/features/charging/payments/card-payment';
@@ -8,13 +9,22 @@ import { buildChargePoint, buildCommercialChargePoint, buildQueueEntry } from '@
 import { buildSession } from '@/features/charging/testing/session-fixtures';
 import { renderWithProviders } from '@/features/charging/testing/render-with-providers';
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() } }));
+jest.mock('expo-router', () => {
+  const { useEffect } = jest.requireActual<typeof import('react')>('react');
+  return {
+    router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn(() => true) },
+    useFocusEffect: (effect: () => void | (() => void)) => useEffect(effect, [effect]),
+  };
+});
+
+jest.mock('expo-status-bar', () => ({ setStatusBarStyle: jest.fn() }));
 
 jest.mock('@/features/charging/api/charging-api', () => {
   const actual = jest.requireActual('@/features/charging/api/charging-api');
   return {
     ...actual,
     getChargePoint: jest.fn(),
+    listChargePoints: jest.fn(),
     startSession: jest.fn(),
     getActiveSession: jest.fn(),
     createSessionPaymentSheet: jest.fn(),
@@ -57,6 +67,7 @@ const NBSP = ' ';
 
 beforeEach(() => {
   jest.clearAllMocks();
+  api.listChargePoints.mockResolvedValue([buildChargePoint()]);
 });
 
 describe('<ChargePointScreen />', () => {
@@ -65,14 +76,54 @@ describe('<ChargePointScreen />', () => {
 
     await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
 
-    expect(await screen.findByText('Garagem L1 · Vaga 12')).toBeOnTheScreen();
+    expect(await screen.findByText('L1-01 · Vaga 12')).toBeOnTheScreen();
     expect(api.getChargePoint).toHaveBeenCalledWith('cp-1');
-    expect(screen.getByText('Condomínio · energia a custo')).toBeOnTheScreen();
+    expect(screen.getByText('Garagem L1 · Residencial Aclimação')).toBeOnTheScreen();
+    expect(screen.getByText('Disponível agora')).toBeOnTheScreen();
+    expect(screen.getAllByText(`R$${NBSP}0,89/kWh`)).toHaveLength(2);
+    expect(screen.getByText('7 kW')).toBeOnTheScreen();
+    expect(await screen.findByText('10 m')).toBeOnTheScreen();
+    expect(screen.getByText('Grupo A · rateio no condomínio')).toBeOnTheScreen();
+    expect(
+      screen.getByText(
+        'Energia repassada a custo, sem margem (ANEEL RN 1.000/2021). Tolerância de 10 min após a carga completa.',
+      ),
+    ).toBeOnTheScreen();
     expect(screen.getByText('Tarifa da concessionária, sem margem')).toBeOnTheScreen();
     expect(screen.getByText('Fora de pico · ×0,80')).toBeOnTheScreen();
     expect(screen.getByText(`R$${NBSP}0,25/min`)).toBeOnTheScreen();
     expect(screen.getByText('GoodWe HCA G2')).toBeOnTheScreen();
-    expect(screen.getByTestId('charge-point-hero-glow')).toBeOnTheScreen();
+    expect(screen.getByTestId('charge-point-photo-fallback')).toBeOnTheScreen();
+  });
+
+  it('shows the photo of the point when there is one', async () => {
+    api.getChargePoint.mockResolvedValue(
+      buildChargePoint({ photoUrl: 'https://app.evchargeops.com.br/media/points/garage-a.webp' }),
+    );
+
+    await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
+
+    expect(await screen.findByTestId('charge-point-photo')).toBeOnTheScreen();
+    expect(screen.queryByTestId('charge-point-photo-fallback')).not.toBeOnTheScreen();
+  });
+
+  it('opens the directions to the point in the maps app', async () => {
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    api.getChargePoint.mockResolvedValue(buildChargePoint());
+
+    await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Como chegar' }));
+
+    expect(openURL).toHaveBeenCalledWith(expect.stringContaining('-23.56905,-46.63145'));
+  });
+
+  it('goes back to the map from the back button', async () => {
+    api.getChargePoint.mockResolvedValue(buildChargePoint());
+
+    await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Voltar ao mapa' }));
+
+    expect(router.back).toHaveBeenCalled();
   });
 
   it('explains the dynamic price of a commercial point', async () => {
@@ -80,7 +131,8 @@ describe('<ChargePointScreen />', () => {
 
     await renderWithProviders(<ChargePointScreen chargePointId="cp-3" />);
 
-    expect(await screen.findByText('Rede comercial · tarifa dinâmica')).toBeOnTheScreen();
+    expect(await screen.findByText('Rede comercial · cobrança no cartão')).toBeOnTheScreen();
+    expect(screen.getByText(/Tarifa base de R\$\s1,89\/kWh × fator de demanda/)).toBeOnTheScreen();
     expect(screen.getByText(`Tarifa base R$${NBSP}1,89/kWh × fator ×1,50`)).toBeOnTheScreen();
     expect(screen.getByText('Pico · ×1,50')).toBeOnTheScreen();
   });
