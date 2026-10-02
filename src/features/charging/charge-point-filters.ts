@@ -1,18 +1,43 @@
-import type { ChargePoint } from '@/features/charging/api/charging-api';
+import type { ChargePoint, ChargePointType } from '@/features/charging/api/charging-api';
 
-export type ChargePointFilter = 'ALL' | 'PRIVATE' | 'COMMERCIAL' | 'AVAILABLE';
+export type RegimeFilter = 'ALL' | ChargePointType;
+export type PowerFilter = 'ANY' | 'AC_7' | 'AC_22';
 
-export const chargePointFilters: { id: ChargePointFilter; label: string }[] = [
+export type ChargePointFilters = {
+  availableOnly: boolean;
+  power: PowerFilter;
+  regime: RegimeFilter;
+};
+
+export const DEFAULT_CHARGE_POINT_FILTERS: ChargePointFilters = { availableOnly: false, power: 'ANY', regime: 'ALL' };
+
+export const powerFilters: { id: Exclude<PowerFilter, 'ANY'>; label: string }[] = [
+  { id: 'AC_7', label: '7 kW' },
+  { id: 'AC_22', label: '22 kW' },
+];
+
+export const regimeFilters: { id: RegimeFilter; label: string }[] = [
   { id: 'ALL', label: 'Todos' },
   { id: 'PRIVATE', label: 'Condomínio' },
   { id: 'COMMERCIAL', label: 'Comercial' },
-  { id: 'AVAILABLE', label: 'Só livres' },
 ];
 
-export function matchesFilter(chargePoint: ChargePoint, filter: ChargePointFilter) {
-  if (filter === 'ALL') return true;
-  if (filter === 'AVAILABLE') return chargePoint.status === 'AVAILABLE';
-  return chargePoint.type === filter;
+const FAST_AC_MIN_KW = 11;
+
+export function matchesPower(chargePoint: ChargePoint, power: PowerFilter) {
+  if (power === 'ANY') return true;
+  const isFast = chargePoint.maxPowerKw >= FAST_AC_MIN_KW;
+  return power === 'AC_22' ? isFast : !isFast;
+}
+
+export function matchesFilters(chargePoint: ChargePoint, filters: ChargePointFilters) {
+  if (filters.availableOnly && chargePoint.status !== 'AVAILABLE') return false;
+  if (filters.regime !== 'ALL' && chargePoint.type !== filters.regime) return false;
+  return matchesPower(chargePoint, filters.power);
+}
+
+export function countActiveFilters(filters: ChargePointFilters) {
+  return Number(filters.availableOnly) + Number(filters.power !== 'ANY') + Number(filters.regime !== 'ALL');
 }
 
 export function normalizeSearchText(value: string) {
@@ -30,6 +55,8 @@ export function matchesSearch(chargePoint: ChargePoint, query: string) {
   return terms.every((term) => haystack.includes(term));
 }
 
-export function filterChargePoints(chargePoints: ChargePoint[], filter: ChargePointFilter, query: string) {
-  return chargePoints.filter((chargePoint) => matchesFilter(chargePoint, filter) && matchesSearch(chargePoint, query));
+export function filterChargePoints(chargePoints: ChargePoint[], filters: ChargePointFilters, query: string) {
+  return chargePoints.filter(
+    (chargePoint) => matchesFilters(chargePoint, filters) && matchesSearch(chargePoint, query),
+  );
 }

@@ -235,7 +235,7 @@ describe('signing in', () => {
 
     await fireEvent.press(screen.getByRole('tab', { name: 'Pontos' }));
 
-    expect(await screen.findByText('Buscar pontos')).toBeOnTheScreen();
+    expect(await screen.findByLabelText('Buscar ponto')).toBeOnTheScreen();
     expect(screen.getByRole('tab', { name: 'Pontos' })).toBeSelected();
   });
 
@@ -258,7 +258,7 @@ describe('signing in', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'Iniciar recarga' }));
 
-    expect(await screen.findByText('Buscar pontos')).toBeOnTheScreen();
+    expect(await screen.findByLabelText('Buscar ponto')).toBeOnTheScreen();
     expect(app.getPathname()).toBe('/points');
   });
 

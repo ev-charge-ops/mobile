@@ -6,12 +6,19 @@ import type { Coordinates } from '@/features/charging/map/map-region';
 
 export type ChargePointsMapHandle = {
   animateToRegion: (region: Region, duration?: number) => void;
+  zoomBy: (delta: number) => void;
+};
+
+export type MyCharge = {
+  chargePointId: string;
+  label: string | null;
 };
 
 export type ChargePointsMapProps = {
   ref?: Ref<ChargePointsMapHandle>;
   chargePoints: ChargePoint[];
   selectedId: string | null;
+  myCharge?: MyCharge | null;
   userCoordinates: Coordinates | null;
   userLabel?: string | null;
   initialRegion: Region;
