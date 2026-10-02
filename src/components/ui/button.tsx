@@ -7,7 +7,7 @@ import { PressableScale, type HapticFeedback } from '@/components/ui/pressable-s
 import { fonts, getColors, radii, type ColorScheme, type ThemeColors } from '@/constants/theme';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
-export type ButtonSize = 'sm' | 'md' | 'lg';
+export type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
 
 export type ButtonProps = {
   label: string;
@@ -17,6 +17,7 @@ export type ButtonProps = {
   scheme?: ColorScheme;
   icon?: LucideIcon;
   trailingIcon?: LucideIcon;
+  trailingIconColor?: string;
   leadingIcon?: ReactNode;
   block?: boolean;
   disabled?: boolean;
@@ -30,6 +31,7 @@ const sizes = {
   sm: { height: 36, fontSize: 14, iconSize: 16, paddingHorizontal: 14 },
   md: { height: 48, fontSize: 15, iconSize: 18, paddingHorizontal: 20 },
   lg: { height: 56, fontSize: 17, iconSize: 20, paddingHorizontal: 24 },
+  xl: { height: 60, fontSize: 17, iconSize: 20, paddingHorizontal: 24 },
 } as const;
 
 function getTextColor(tokens: ThemeColors, variant: ButtonVariant, disabled: boolean) {
@@ -69,6 +71,7 @@ export function Button({
   scheme = 'light',
   icon,
   trailingIcon,
+  trailingIconColor,
   leadingIcon,
   block = false,
   disabled = false,
@@ -102,7 +105,13 @@ export function Button({
           leadingIcon
         )}
         <Text style={[styles.label, { fontSize: sizeStyle.fontSize, color: textColor }]}>{label}</Text>
-        {trailingIcon && !loading ? <Icon icon={trailingIcon} size={sizeStyle.iconSize} color={textColor} /> : null}
+        {trailingIcon && !loading ? (
+          <Icon
+            icon={trailingIcon}
+            size={sizeStyle.iconSize}
+            color={isDisabled ? textColor : (trailingIconColor ?? textColor)}
+          />
+        ) : null}
       </View>
     </PressableScale>
   );
