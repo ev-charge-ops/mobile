@@ -34,51 +34,74 @@ function Harness({ initial = DEFAULT_LIMIT_DRAFT }: { initial?: LimitDraft }) {
   );
 }
 
+function slide(actionName: 'increment' | 'decrement') {
+  return fireEvent(screen.getByTestId('limit-slider'), 'accessibilityAction', { nativeEvent: { actionName } });
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   changes.length = 0;
 });
 
 describe('<ChargingLimitPicker />', () => {
-  it('starts without a limit and lets the driver define one', async () => {
+  it('starts at 80% with the energy and cost it takes', async () => {
     await render(<Harness />);
 
-    expect(screen.getByText('Até encher')).toBeOnTheScreen();
-    await fireEvent.press(screen.getByRole('button', { name: 'Definir um limite' }));
-
-    expect(screen.getByRole('tab', { name: 'Por valor' })).toBeSelected();
-    expect(screen.getByText('30,00')).toBeOnTheScreen();
-    expect(screen.getByText('≈ 33,7 kWh')).toBeOnTheScreen();
-    expect(screen.getByText(`a R$${NBSP}0,89 por kWh`)).toBeOnTheScreen();
+    expect(screen.getByRole('tab', { name: '%' })).toBeSelected();
+    expect(screen.getByTestId('limit-value')).toHaveTextContent('80%');
+    expect(screen.getByText(`≈ 19,0 kWh · R$${NBSP}16,91`)).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '80%' })).toBeSelected();
+    expect(screen.getByText(/bateria de 50 kWh com 42% de carga/)).toBeOnTheScreen();
   });
 
-  it('picks presets with a selection haptic', async () => {
-    await render(<Harness initial={{ ...DEFAULT_LIMIT_DRAFT, type: 'AMOUNT' }} />);
+  it('steps the limit with the round buttons and the slider', async () => {
+    await render(<Harness />);
 
-    await fireEvent.press(screen.getByRole('button', { name: 'R$ 40' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Aumentar limite' }));
+    expect(changes.at(-1)).toMatchObject({ type: 'PERCENT', socPercent: 85 });
 
-    expect(changes.at(-1)).toMatchObject({ type: 'AMOUNT', amountReais: 40 });
-    expect(screen.getByRole('button', { name: 'R$ 40' })).toBeSelected();
+    await fireEvent.press(screen.getByRole('button', { name: 'Diminuir limite' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Diminuir limite' }));
+    expect(changes.at(-1)).toMatchObject({ type: 'PERCENT', socPercent: 75 });
+
+    await slide('decrement');
+    expect(changes.at(-1)).toMatchObject({ type: 'PERCENT', socPercent: 70 });
+    expect(screen.getByTestId('limit-slider')).toHaveAccessibilityValue({ min: 50, max: 100, now: 70 });
     expect(haptics.selection).toHaveBeenCalled();
   });
 
-  it('switches to energy and follows the slider', async () => {
-    await render(<Harness initial={{ ...DEFAULT_LIMIT_DRAFT, type: 'AMOUNT' }} />);
+  it('switches to energy and shows the cost and charge it reaches', async () => {
+    await render(<Harness />);
 
-    await fireEvent.press(screen.getByRole('tab', { name: 'Por energia' }));
-    await fireEvent(screen.getByTestId('limit-slider'), 'valueChange', 24);
+    await fireEvent.press(screen.getByRole('tab', { name: 'kWh' }));
+    await fireEvent.press(screen.getByRole('button', { name: '20 kWh' }));
 
-    expect(changes.at(-1)).toMatchObject({ type: 'ENERGY', energyKwh: 24 });
-    expect(screen.getByText('24,0')).toBeOnTheScreen();
-    expect(screen.getByText(`≈ R$${NBSP}21,36`)).toBeOnTheScreen();
+    expect(changes.at(-1)).toMatchObject({ type: 'ENERGY', energyKwh: 20 });
+    expect(screen.getByTestId('limit-value')).toHaveTextContent('20');
+    expect(screen.getByText(`≈ R$${NBSP}17,80 · até 82%`)).toBeOnTheScreen();
   });
 
-  it('removes the limit', async () => {
-    await render(<Harness initial={{ ...DEFAULT_LIMIT_DRAFT, type: 'ENERGY' }} />);
+  it('limits by amount', async () => {
+    await render(<Harness />);
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Remover' }));
+    await fireEvent.press(screen.getByRole('tab', { name: 'R$' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'R$ 25' }));
+    await slide('increment');
 
+    expect(changes.at(-1)).toMatchObject({ type: 'AMOUNT', amountReais: 30 });
+    expect(screen.getByTestId('limit-value')).toHaveTextContent('30');
+    expect(screen.getByText('≈ 29,0 kWh · até 100%')).toBeOnTheScreen();
+  });
+
+  it('charges until full and leaves it from the buttons', async () => {
+    await render(<Harness />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Até encher' }));
     expect(changes.at(-1)).toMatchObject({ type: 'FULL' });
-    expect(screen.getByText('Até encher')).toBeOnTheScreen();
+    expect(screen.getByTestId('limit-value')).toHaveTextContent('Até encher');
+    expect(screen.getByText(`≈ 29,0 kWh · R$${NBSP}25,81`)).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Diminuir limite' }));
+    expect(changes.at(-1)).toMatchObject({ type: 'PERCENT', socPercent: 95 });
   });
 });

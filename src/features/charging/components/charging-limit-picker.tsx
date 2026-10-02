@@ -1,36 +1,90 @@
-import Slider from '@react-native-community/slider';
-import { BatteryCharging, SlidersHorizontal } from 'lucide-react-native';
+import { Minus, Plus, type LucideIcon } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { Button } from '@/components/ui/button';
-import { Card, Divider } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { Slider } from '@/components/ui/slider';
 import { colors, fonts, motion, radii, spacing } from '@/constants/theme';
-import { formatAmount, formatCents } from '@/features/charging/charging-format';
+import { formatCents } from '@/features/charging/charging-format';
 import {
-  AMOUNT_STEP_REAIS,
-  amountToEnergyKwh,
   clampDraft,
   ENERGY_PRESETS_KWH,
-  ENERGY_STEP_KWH,
-  energyToAmountCents,
+  estimateLimit,
   getAmountPresets,
+  getLimitRange,
   getMaxAmountReais,
-  MAX_ENERGY_KWH,
-  MIN_AMOUNT_REAIS,
-  MIN_ENERGY_KWH,
+  getModeValue,
+  REFERENCE_BATTERY_KWH,
+  REFERENCE_SOC_PERCENT,
+  setModeValue,
+  SOC_PRESETS_PERCENT,
+  stepDraft,
   type LimitDraft,
   type LimitMode,
 } from '@/features/charging/charging-limit';
 import { formatEnergy } from '@/utils/format-energy';
 
 const modes = [
-  { value: 'AMOUNT', label: 'Por valor' },
-  { value: 'ENERGY', label: 'Por energia' },
+  { value: 'PERCENT', label: '%' },
+  { value: 'ENERGY', label: 'kWh' },
+  { value: 'AMOUNT', label: 'R$' },
 ] as const;
+
+const modeLabels: Record<LimitMode, string> = {
+  PERCENT: 'Limite em porcentagem da bateria',
+  ENERGY: 'Limite em kWh',
+  AMOUNT: 'Limite em reais',
+};
+
+type Preset = { label: string; value: number | null };
+
+function getPresets(mode: LimitMode, pricePerKwhCents: number): Preset[] {
+  const values =
+    mode === 'PERCENT'
+      ? SOC_PRESETS_PERCENT.map((soc) => ({ label: `${soc}%`, value: soc }))
+      : mode === 'ENERGY'
+        ? ENERGY_PRESETS_KWH.map((energy) => ({ label: `${energy} kWh`, value: energy }))
+        : getAmountPresets(getMaxAmountReais(pricePerKwhCents)).map((amount) => ({
+            label: `R$ ${amount}`,
+            value: amount,
+          }));
+  return [...values, { label: 'Até encher', value: null }];
+}
+
+export function formatLimitReadout(draft: LimitDraft) {
+  if (draft.type === 'FULL') return { prefix: null, value: 'Até encher', unit: null };
+  if (draft.type === 'PERCENT') return { prefix: null, value: `${draft.socPercent}%`, unit: null };
+  if (draft.type === 'ENERGY') {
+    return { prefix: null, value: formatEnergy(draft.energyKwh, { fractionDigits: 0, withUnit: false }), unit: 'kWh' };
+  }
+  return { prefix: 'R$', value: String(draft.amountReais), unit: null };
+}
+
+export function formatLimitEquivalent(draft: LimitDraft, pricePerKwhCents: number) {
+  const estimate = estimateLimit(draft, pricePerKwhCents);
+  const energy = formatEnergy(estimate.energyKwh, { fractionDigits: 1 });
+  const amount = formatCents(estimate.amountCents);
+  if (draft.type === 'ENERGY') return `≈ ${amount} · até ${estimate.socPercent}%`;
+  if (draft.type === 'AMOUNT') return `≈ ${energy} · até ${estimate.socPercent}%`;
+  return `≈ ${energy} · ${amount}`;
+}
+
+function RoundButton({ icon, label, onPress }: { icon: LucideIcon; label: string; onPress: () => void }) {
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      haptic="selection"
+      scaleTo={0.9}
+      style={styles.round}
+    >
+      <Icon icon={icon} size={20} color={colors.textTitle} />
+    </PressableScale>
+  );
+}
 
 export type ChargingLimitPickerProps = {
   value: LimitDraft;
@@ -40,214 +94,158 @@ export type ChargingLimitPickerProps = {
 
 export function ChargingLimitPicker({ value, onChange, pricePerKwhCents }: ChargingLimitPickerProps) {
   const draft = clampDraft(value, pricePerKwhCents);
-  const update = (patch: Partial<LimitDraft>) => onChange({ ...draft, ...patch });
-
-  if (draft.type === 'FULL') {
-    return (
-      <Card>
-        <View style={styles.fullRow}>
-          <View style={styles.tile}>
-            <Icon icon={BatteryCharging} size={22} color={colors.statusCharging} />
-          </View>
-          <View style={styles.flex}>
-            <Text style={styles.fullTitle}>Até encher</Text>
-            <Text style={styles.hint}>{`${formatCents(pricePerKwhCents)} por kWh · tarifa travada`}</Text>
-          </View>
-        </View>
-        <Text style={styles.prose}>A recarga vai até o veículo parar de aceitar carga. Você paga só o kWh medido.</Text>
-        <Divider style={styles.divider} />
-        <Button
-          label="Definir um limite"
-          icon={SlidersHorizontal}
-          variant="outline"
-          block
-          haptic="selection"
-          onPress={() => update({ type: 'AMOUNT' })}
-        />
-      </Card>
-    );
-  }
-
-  const mode: LimitMode = draft.type;
-  const isAmount = mode === 'AMOUNT';
-  const maxAmount = getMaxAmountReais(pricePerKwhCents);
-  const presets = isAmount
-    ? getAmountPresets(maxAmount).map((amount) => ({ value: amount, label: `R$ ${amount}` }))
-    : ENERGY_PRESETS_KWH.map((energy) => ({ value: energy, label: `${energy} kWh` }));
-  const current = isAmount ? draft.amountReais : draft.energyKwh;
-  const display = isAmount
-    ? formatAmount(draft.amountReais * 100)
-    : formatEnergy(draft.energyKwh, { withUnit: false, fractionDigits: 1 });
-  const equivalent = isAmount
-    ? `≈ ${formatEnergy(amountToEnergyKwh(draft.amountReais, pricePerKwhCents), { fractionDigits: 1 })}`
-    : `≈ ${formatCents(energyToAmountCents(draft.energyKwh, pricePerKwhCents))}`;
-
-  const setCurrent = (next: number) => update(isAmount ? { amountReais: next } : { energyKwh: next });
+  const range = getLimitRange(draft.mode, pricePerKwhCents);
+  const isFull = draft.type === 'FULL';
+  const current = isFull ? range.max : getModeValue(draft);
+  const readout = formatLimitReadout(draft);
+  const presets = getPresets(draft.mode, pricePerKwhCents);
 
   return (
-    <Card>
-      <SegmentedControl
-        options={modes}
-        value={mode}
-        onChange={(type) => update({ type })}
-        style={styles.segmented}
-      />
-      <Animated.View key={mode} entering={FadeIn.duration(motion.duration.base)}>
-        <View style={styles.numberRow}>
-          <View style={styles.numberPair}>
-            {isAmount ? <Text style={styles.prefix}>R$</Text> : null}
-            <Text style={styles.number} testID="limit-value">
-              {display}
-            </Text>
-            {isAmount ? null : <Text style={styles.unit}>kWh</Text>}
-          </View>
-          <View style={styles.equivalent}>
-            <Text style={styles.equivalentValue}>{equivalent}</Text>
-            <Text style={styles.equivalentLabel}>{`a ${formatCents(pricePerKwhCents)} por kWh`}</Text>
-          </View>
+    <View style={styles.card}>
+      <Animated.View key={`${draft.type}`} entering={FadeIn.duration(motion.duration.fast)} style={styles.readout}>
+        <View style={styles.valueRow}>
+          {readout.prefix ? <Text style={styles.affix}>{readout.prefix}</Text> : null}
+          <Text testID="limit-value" style={[styles.value, isFull && styles.valueFull]}>
+            {readout.value}
+          </Text>
+          {readout.unit ? <Text style={styles.affix}>{readout.unit}</Text> : null}
         </View>
+        <Text testID="limit-equivalent" style={styles.equivalent}>
+          {formatLimitEquivalent(draft, pricePerKwhCents)}
+        </Text>
+      </Animated.View>
+      <View style={styles.controls}>
+        <RoundButton
+          icon={Minus}
+          label="Diminuir limite"
+          onPress={() => onChange(stepDraft(draft, -1, pricePerKwhCents))}
+        />
         <Slider
           testID="limit-slider"
-          accessibilityLabel={isAmount ? 'Limite em reais' : 'Limite em kWh'}
-          style={styles.slider}
-          minimumValue={isAmount ? MIN_AMOUNT_REAIS : MIN_ENERGY_KWH}
-          maximumValue={isAmount ? maxAmount : MAX_ENERGY_KWH}
-          step={isAmount ? AMOUNT_STEP_REAIS : ENERGY_STEP_KWH}
+          accessibilityLabel={modeLabels[draft.mode]}
+          valueText={readout.unit ? `${readout.value} ${readout.unit}` : readout.value}
           value={current}
-          onValueChange={setCurrent}
-          minimumTrackTintColor={colors.accent}
-          maximumTrackTintColor={colors.meterTrack}
-          thumbTintColor={colors.controlKnob}
+          min={range.min}
+          max={range.max}
+          step={range.step}
+          onChange={(next) => onChange(setModeValue(draft, next))}
+          style={styles.slider}
         />
-        <View style={styles.presets}>
-          {presets.map((preset) => {
-            const selected = current === preset.value;
-            return (
-              <PressableScale
-                key={preset.label}
-                accessibilityRole="button"
-                accessibilityLabel={preset.label}
-                accessibilityState={{ selected }}
-                haptic="selection"
-                scaleTo={0.95}
-                onPress={() => setCurrent(preset.value)}
-                style={[styles.preset, selected && styles.presetSelected]}
-              >
-                <Text style={[styles.presetLabel, selected && styles.presetLabelSelected]}>{preset.label}</Text>
-              </PressableScale>
-            );
-          })}
-        </View>
-      </Animated.View>
-      <Divider style={styles.divider} />
-      <View style={styles.footer}>
-        <View style={styles.flex}>
-          <Text style={styles.footerTitle}>Encerra ao atingir o limite</Text>
-          <Text style={styles.footerHint}>Você paga só o que for medido até lá</Text>
-        </View>
-        <Button label="Remover" variant="ghost" size="sm" haptic="selection" onPress={() => update({ type: 'FULL' })} />
+        <RoundButton
+          icon={Plus}
+          label="Aumentar limite"
+          onPress={() => onChange(stepDraft(draft, 1, pricePerKwhCents))}
+        />
       </View>
-    </Card>
+      <SegmentedControl
+        options={modes}
+        value={draft.mode}
+        onChange={(mode) => onChange({ ...draft, type: mode, mode })}
+        style={styles.segmented}
+      />
+      <View style={styles.presets}>
+        {presets.map((preset) => {
+          const selected = preset.value === null ? isFull : !isFull && current === preset.value;
+          return (
+            <PressableScale
+              key={preset.label}
+              accessibilityRole="button"
+              accessibilityLabel={preset.label}
+              accessibilityState={{ selected }}
+              haptic="selection"
+              scaleTo={0.95}
+              onPress={() =>
+                onChange(preset.value === null ? { ...draft, type: 'FULL' } : setModeValue(draft, preset.value))
+              }
+              style={[styles.preset, selected && styles.presetSelected]}
+            >
+              <Text style={[styles.presetLabel, selected && styles.presetLabelSelected]}>{preset.label}</Text>
+            </PressableScale>
+          );
+        })}
+      </View>
+      <Text style={styles.footnote}>
+        {`Estimativa para uma bateria de ${REFERENCE_BATTERY_KWH} kWh com ${REFERENCE_SOC_PERCENT}% de carga, ` +
+          `a ${formatCents(pricePerKwhCents)} por kWh travado. ` +
+          'A recarga encerra ao atingir o limite e você paga só o medido.'}
+      </Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-    minWidth: 0,
-  },
-  fullRow: {
-    flexDirection: 'row',
+  card: {
     alignItems: 'center',
-    gap: 14,
+    gap: spacing.lg,
+    padding: spacing.xxl,
+    borderRadius: radii.xxl - 4,
+    borderCurve: 'continuous',
+    backgroundColor: colors.surfaceCard,
+    borderWidth: 1,
+    borderColor: colors.hairline,
   },
-  tile: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.tile,
+  readout: {
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceInset,
+    gap: 2,
   },
-  fullTitle: {
-    fontSize: 17,
-    fontFamily: fonts.bold,
-    color: colors.textTitle,
-  },
-  hint: {
-    fontSize: 12,
-    fontFamily: fonts.medium,
-    color: colors.textSubtle,
-    marginTop: 2,
-  },
-  prose: {
-    marginTop: 14,
-    fontSize: 13,
-    lineHeight: 19,
-    fontFamily: fonts.medium,
-    color: colors.textSubtle,
-  },
-  divider: {
-    marginVertical: spacing.lg,
-  },
-  segmented: {
-    marginBottom: 18,
-  },
-  numberRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  numberPair: {
+  valueRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 6,
   },
-  prefix: {
-    fontSize: 15,
+  value: {
+    fontSize: 48,
+    lineHeight: 54,
     fontFamily: fonts.bold,
-    color: colors.textSubtle,
-  },
-  number: {
-    fontSize: 38,
-    lineHeight: 42,
-    fontFamily: fonts.bold,
-    letterSpacing: -0.6,
+    letterSpacing: -1.9,
     color: colors.textTitle,
     fontVariant: ['tabular-nums'],
   },
-  unit: {
-    fontSize: 12,
-    fontFamily: fonts.semibold,
-    color: colors.textSubtle,
+  valueFull: {
+    fontSize: 40,
+    letterSpacing: -1.4,
+  },
+  affix: {
+    fontSize: 20,
+    fontFamily: fonts.bold,
+    color: colors.textMuted,
   },
   equivalent: {
-    alignItems: 'flex-end',
-  },
-  equivalentValue: {
-    fontSize: 15,
-    fontFamily: fonts.bold,
-    color: colors.textTitle,
-  },
-  equivalentLabel: {
-    fontSize: 11,
+    fontSize: 14,
     fontFamily: fonts.medium,
-    color: colors.textSubtle,
-    marginTop: 1,
+    color: colors.textMuted,
+    fontVariant: ['tabular-nums'],
+  },
+  controls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    alignSelf: 'stretch',
+  },
+  round: {
+    width: 52,
+    height: 52,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceInset,
   },
   slider: {
-    marginTop: 14,
-    height: 34,
+    flex: 1,
+  },
+  segmented: {
+    alignSelf: 'stretch',
   },
   presets: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     gap: spacing.sm,
-    marginTop: spacing.xs,
+    alignSelf: 'stretch',
   },
   preset: {
-    flex: 1,
     height: 36,
+    paddingHorizontal: 14,
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
@@ -255,31 +253,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   presetSelected: {
-    borderColor: 'transparent',
-    backgroundColor: colors.surfaceInset,
+    borderColor: colors.accent,
+    backgroundColor: colors.accent,
   },
   presetLabel: {
-    fontSize: 13,
-    fontFamily: fonts.bold,
-    color: colors.textSubtle,
+    fontSize: 14,
+    fontFamily: fonts.semibold,
+    color: colors.textTitle,
   },
   presetLabelSelected: {
-    color: colors.textTitle,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  footerTitle: {
-    fontSize: 13,
     fontFamily: fonts.bold,
-    color: colors.textTitle,
+    color: colors.textOnAccent,
   },
-  footerHint: {
-    fontSize: 11,
+  footnote: {
+    fontSize: 12,
+    lineHeight: 17,
     fontFamily: fonts.medium,
     color: colors.textSubtle,
-    marginTop: 1,
+    textAlign: 'center',
   },
 });
