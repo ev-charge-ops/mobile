@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { Button } from '@/components/ui/button';
+import { PressableScale } from '@/components/ui/pressable-scale';
 import { useToast } from '@/components/ui/toast';
-import { colors, spacing, typography } from '@/constants/theme';
+import { colors, fonts, radii } from '@/constants/theme';
 import type { AuthSession } from '@/features/auth/api/auth-api';
 import { useAppleLogin, useGoogleLogin } from '@/features/auth/api/use-oauth-login';
 import { getOAuthLoginErrorMessage, type OAuthProvider } from '@/features/auth/auth-errors';
@@ -44,50 +44,101 @@ export function OAuthButtons({ onSignedIn }: OAuthButtonsProps = {}) {
         <Text style={styles.dividerLabel}>ou</Text>
         <View style={styles.line} />
       </View>
-      {isGoogleAvailable ? (
-        <Button
-          label="Continuar com o Google"
-          variant="outline"
-          size="lg"
-          block
-          leadingIcon={<GoogleLogo />}
-          loading={googleLogin.isPending}
-          disabled={appleLogin.isPending}
-          onPress={() => googleLogin.mutate(undefined, { onError: showError('google') })}
-        />
-      ) : null}
-      {isAppleAvailable ? (
-        <Button
-          label="Continuar com a Apple"
-          variant="outline"
-          size="lg"
-          block
-          leadingIcon={<AppleLogo color={googleLogin.isPending ? colors.textDisabled : colors.textTitle} />}
-          loading={appleLogin.isPending}
-          disabled={googleLogin.isPending}
-          onPress={() => appleLogin.mutate(undefined, { onError: showError('apple') })}
-        />
-      ) : null}
+      <View style={styles.row}>
+        {isGoogleAvailable ? (
+          <OAuthPill
+            label="Google"
+            accessibilityLabel="Continuar com o Google"
+            logo={<GoogleLogo />}
+            loading={googleLogin.isPending}
+            disabled={appleLogin.isPending}
+            onPress={() => googleLogin.mutate(undefined, { onError: showError('google') })}
+          />
+        ) : null}
+        {isAppleAvailable ? (
+          <OAuthPill
+            label="Apple"
+            accessibilityLabel="Continuar com a Apple"
+            logo={<AppleLogo color={googleLogin.isPending ? colors.textDisabled : colors.textTitle} />}
+            loading={appleLogin.isPending}
+            disabled={googleLogin.isPending}
+            onPress={() => appleLogin.mutate(undefined, { onError: showError('apple') })}
+          />
+        ) : null}
+      </View>
     </View>
+  );
+}
+
+type OAuthPillProps = {
+  label: string;
+  accessibilityLabel: string;
+  logo: ReactNode;
+  loading: boolean;
+  disabled: boolean;
+  onPress: () => void;
+};
+
+function OAuthPill({ label, accessibilityLabel, logo, loading, disabled, onPress }: OAuthPillProps) {
+  const isDisabled = disabled || loading;
+
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      disabled={isDisabled}
+      haptic
+      onPress={onPress}
+      style={styles.pill}
+    >
+      {loading ? <ActivityIndicator size="small" color={colors.textTitle} /> : logo}
+      <Text style={[styles.pillLabel, isDisabled && styles.pillLabelDisabled]}>{label}</Text>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    gap: spacing.md,
+    gap: 12,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: 12,
   },
   line: {
     flex: 1,
-    height: StyleSheet.hairlineWidth * 2,
-    backgroundColor: colors.hairline,
+    height: 1,
+    backgroundColor: colors.borderSubtle,
   },
   dividerLabel: {
-    ...typography.label,
-    color: colors.textSubtle,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: fonts.medium,
+    color: colors.textMuted,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  pill: {
+    flex: 1,
+    height: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderRadius: radii.pill,
+    borderCurve: 'continuous',
+    backgroundColor: colors.surfaceCard,
+  },
+  pillLabel: {
+    fontSize: 15,
+    fontFamily: fonts.bold,
+    color: colors.textTitle,
+  },
+  pillLabelDisabled: {
+    color: colors.textDisabled,
   },
 });
