@@ -48,7 +48,7 @@ describe('<ChargingLimitPicker />', () => {
     await render(<Harness />);
 
     expect(screen.getByRole('tab', { name: '%' })).toBeSelected();
-    expect(screen.getByTestId('limit-value')).toHaveTextContent('80%');
+    expect(screen.getByTestId('limit-value')).toHaveTextContent('80');
     expect(screen.getByText(`≈ 19,0 kWh · R$${NBSP}16,91`)).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: '80%' })).toBeSelected();
     expect(screen.getByText(/bateria de 50 kWh com 42% de carga/)).toBeOnTheScreen();

@@ -1,20 +1,16 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { CreditCard, Zap } from 'lucide-react-native';
-import { useState } from 'react';
+import { CircleAlert, CreditCard, Lock, Sparkles, Timer, X, Zap, type LucideIcon } from 'lucide-react-native';
+import { Fragment, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
-import { Card, SectionTitle } from '@/components/ui/card';
-import { ListRow } from '@/components/ui/list-row';
+import { Icon } from '@/components/ui/icon';
+import { IconButton } from '@/components/ui/icon-button';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
-import { colors, fonts, spacing, typography } from '@/constants/theme';
-import {
-  getActiveSession,
-  type ChargePoint,
-  type ChargePointPricing,
-} from '@/features/charging/api/charging-api';
+import { colors, fonts, palette, radii, spacing } from '@/constants/theme';
+import { getActiveSession, type ChargePoint, type ChargePointPricing } from '@/features/charging/api/charging-api';
 import {
   activeSessionQueryKey,
   usePayForSession,
@@ -27,9 +23,47 @@ import {
   formatCents,
   formatDemandFactor,
   formatDemandSource,
+  formatPower,
   formatPricePerKwh,
 } from '@/features/charging/charging-format';
 import { ChargingLimitPicker } from '@/features/charging/components/charging-limit-picker';
+
+export const regimeGroupLabels: Record<ChargePoint['type'], string> = {
+  PRIVATE: 'Grupo A',
+  COMMERCIAL: 'Grupo B',
+};
+
+type Term = { icon: LucideIcon; title: string; body: string };
+
+export function getStartTerms(chargePoint: ChargePoint, pricing: ChargePointPricing): Term[] {
+  const isPrivate = chargePoint.type === 'PRIVATE';
+  return [
+    {
+      icon: Lock,
+      title: 'Tarifa travada no início',
+      body: isPrivate
+        ? `${formatPricePerKwh(pricing.pricePerKwhCents)}, repassada a custo`
+        : `${formatPricePerKwh(pricing.pricePerKwhCents)}, com pré-autorização no cartão`,
+    },
+    {
+      icon: Sparkles,
+      title: `${demandLevelLabels[pricing.demandLevel]} · ${formatDemandFactor(pricing.demandFactor)}`,
+      body: formatDemandSource(pricing.demandFactorSource, pricing.demandModelVersion),
+    },
+    {
+      icon: Timer,
+      title: `Tolerância de ${pricing.gracePeriodMinutes} min`,
+      body: 'após a carga completa para retirar o veículo',
+    },
+    {
+      icon: CircleAlert,
+      title: 'Multa de ocupação',
+      body:
+        `de ${formatCents(pricing.idleFeeCentsPerMinute)}/min após a tolerância, ` +
+        `com teto de ${formatCents(pricing.idleFeeCapCents)}`,
+    },
+  ];
+}
 
 export type StartChargingSheetProps = {
   chargePoint: ChargePoint;
@@ -45,6 +79,7 @@ export function StartChargingSheet({ chargePoint, pricing, visible, onClose }: S
   const payForSession = usePayForSession();
   const needsCardPayment = chargePoint.type === 'COMMERCIAL';
   const [limit, setLimit] = useState<LimitDraft>(DEFAULT_LIMIT_DRAFT);
+  const terms = getStartTerms(chargePoint, pricing);
 
   const openActiveSession = async () => {
     const active = await queryClient.fetchQuery({ queryKey: activeSessionQueryKey, queryFn: getActiveSession });
@@ -78,43 +113,36 @@ export function StartChargingSheet({ chargePoint, pricing, visible, onClose }: S
 
   return (
     <Sheet visible={visible} onClose={onClose}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View>
-          <Text accessibilityRole="header" style={typography.heading}>
-            Confirmar recarga
-          </Text>
-          <Text style={styles.subtitle}>{chargePoint.name}</Text>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <View style={styles.titles}>
+            <Text accessibilityRole="header" style={styles.title}>
+              Iniciar recarga · {chargePoint.code}
+            </Text>
+            <Text style={styles.subtitle}>
+              {[chargePoint.name, formatPower(chargePoint.maxPowerKw), regimeGroupLabels[chargePoint.type]].join(' · ')}
+            </Text>
+          </View>
+          <IconButton icon={X} tone="inset" accessibilityLabel="Fechar" onPress={onClose} />
         </View>
-        <Card padding={0} style={styles.inset}>
-          <ListRow
-            label="Preço por kWh"
-            value={formatPricePerKwh(pricing.pricePerKwhCents)}
-            hint="Travado quando a recarga começa"
-          />
-          <ListRow
-            label="Demanda agora"
-            value={`${demandLevelLabels[pricing.demandLevel]} · ${formatDemandFactor(pricing.demandFactor)}`}
-            hint={formatDemandSource(pricing.demandFactorSource, pricing.demandModelVersion)}
-          />
-          <ListRow
-            label="Taxa de ocupação"
-            value={`${formatCents(pricing.idleFeeCentsPerMinute)}/min`}
-            hint={`Só depois de ${pricing.gracePeriodMinutes} min de tolerância`}
-            divider={needsCardPayment}
-          />
-          {needsCardPayment ? (
-            <ListRow
-              icon={CreditCard}
-              label="Pagamento no cartão"
-              value="Pré-autorização"
-              hint="Reservamos o valor máximo e cobramos só o consumido ao encerrar"
-              divider={false}
-            />
-          ) : null}
-        </Card>
-        <View style={styles.section}>
-          <SectionTitle>Limite de recarga</SectionTitle>
-          <ChargingLimitPicker value={limit} onChange={setLimit} pricePerKwhCents={pricing.pricePerKwhCents} />
+        <ChargingLimitPicker
+          value={limit}
+          onChange={setLimit}
+          pricePerKwhCents={pricing.pricePerKwhCents}
+          maxPowerKw={chargePoint.maxPowerKw}
+        />
+        <View style={styles.terms}>
+          {terms.map((term, index) => (
+            <Fragment key={term.title}>
+              {index > 0 ? <View style={styles.divider} /> : null}
+              <View style={styles.term}>
+                <Icon icon={term.icon} size={18} color={colors.textMuted} style={styles.termIcon} />
+                <Text style={styles.termText}>
+                  <Text style={styles.termTitle}>{term.title}</Text> · {term.body}
+                </Text>
+              </View>
+            </Fragment>
+          ))}
         </View>
         {startSession.isError ? (
           <Text accessibilityRole="alert" style={styles.error}>
@@ -122,9 +150,11 @@ export function StartChargingSheet({ chargePoint, pricing, visible, onClose }: S
           </Text>
         ) : null}
         <Button
-          label={needsCardPayment ? 'Continuar para pagamento' : 'Confirmar e iniciar'}
-          icon={needsCardPayment ? CreditCard : Zap}
-          size="lg"
+          label={needsCardPayment ? 'Continuar para pagamento' : 'Conectar e iniciar'}
+          icon={needsCardPayment ? CreditCard : undefined}
+          trailingIcon={needsCardPayment ? undefined : Zap}
+          trailingIconColor={palette.green500}
+          size="xl"
           block
           haptic
           loading={startSession.isPending}
@@ -139,17 +169,56 @@ const styles = StyleSheet.create({
   content: {
     gap: spacing.lg,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  titles: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  title: {
+    fontSize: 26,
+    lineHeight: 29,
+    fontFamily: fonts.bold,
+    letterSpacing: -0.8,
+    color: colors.textTitle,
+  },
   subtitle: {
     fontSize: 14,
     fontFamily: fonts.medium,
-    color: colors.textSubtle,
-    marginTop: 2,
+    color: colors.textMuted,
   },
-  inset: {
-    backgroundColor: colors.surfaceCard,
+  terms: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 6,
+    borderRadius: radii.card,
+    backgroundColor: colors.surfaceInset,
   },
-  section: {
-    gap: 10,
+  term: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    paddingVertical: 10,
+  },
+  termIcon: {
+    marginTop: 1,
+  },
+  termText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: fonts.medium,
+    color: colors.textBody,
+  },
+  termTitle: {
+    fontFamily: fonts.bold,
+    color: colors.textTitle,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.borderSubtle,
   },
   error: {
     fontSize: 13,
