@@ -1,22 +1,32 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import * as StatusBar from 'expo-status-bar';
 import { Share } from 'react-native';
 
 import * as chargingApi from '@/features/charging/api/charging-api';
 import * as cardPaymentModule from '@/features/charging/payments/card-payment';
 import { SessionScreen } from '@/features/charging/screens/session-screen';
+import { buildChargePoint } from '@/features/charging/testing/fixtures';
 import { buildClosedSession, buildSession } from '@/features/charging/testing/session-fixtures';
 import { renderWithProviders } from '@/features/charging/testing/render-with-providers';
 
-jest.mock('expo-router', () => ({
-  router: { back: jest.fn(), replace: jest.fn(), dismissTo: jest.fn(), canGoBack: jest.fn(() => true) },
-}));
+jest.mock('expo-router', () => {
+  const { useEffect } = jest.requireActual<typeof import('react')>('react');
+  return {
+    router: { back: jest.fn(), replace: jest.fn(), dismissTo: jest.fn(), canGoBack: jest.fn(() => true) },
+    useFocusEffect: (effect: () => void | (() => void)) => useEffect(effect, [effect]),
+    useIsFocused: () => true,
+  };
+});
+
+jest.mock('expo-status-bar', () => ({ setStatusBarStyle: jest.fn() }));
 
 jest.mock('@/features/charging/api/charging-api', () => {
   const actual = jest.requireActual('@/features/charging/api/charging-api');
   return {
     ...actual,
     getSession: jest.fn(),
+    getChargePoint: jest.fn(),
     stopSession: jest.fn(),
     createSessionPaymentSheet: jest.fn(),
     confirmSessionPayment: jest.fn(),
@@ -62,31 +72,76 @@ beforeEach(() => {
 });
 
 describe('<SessionScreen />', () => {
-  it('shows the live energy, power and running cost', async () => {
+  it('shows the live energy, power and running cost in the night view', async () => {
     api.getSession.mockResolvedValue(buildSession({ startedAt: secondsAgo(17) }));
 
     await renderWithProviders(<SessionScreen sessionId="session-1" />);
 
-    expect(await screen.findByText('Recarga em andamento')).toBeOnTheScreen();
-    expect(screen.getByText('1,48')).toBeOnTheScreen();
-    expect(screen.getByText('Carregando · 17 min')).toBeOnTheScreen();
-    expect(screen.getByText('Custo até agora')).toBeOnTheScreen();
+    expect(await screen.findByRole('header', { name: 'L1-01 · Vaga 12' })).toBeOnTheScreen();
+    expect(screen.getByText(/^Garagem L1 · início \d\d:\d\d$/)).toBeOnTheScreen();
+    expect(screen.getByText('Carregando')).toBeOnTheScreen();
+    expect(screen.getByText(/^leitura há \d+ s$/)).toBeOnTheScreen();
+    expect(screen.getByTestId('live-energy')).toHaveTextContent('1,48');
+    expect(screen.getByText('Potência')).toBeOnTheScreen();
+    expect(screen.getByText('17')).toBeOnTheScreen();
     expect(screen.getByText('1,32')).toBeOnTheScreen();
-    expect(screen.getByText('60×')).toBeOnTheScreen();
+    expect(screen.getByText(/^Tarifa travada às \d\d:\d\d · R\$\s0,89\/kWh, repassada a custo$/)).toBeOnTheScreen();
+    expect(screen.getByText('Simulação acelerada · 60×')).toBeOnTheScreen();
+    expect(screen.getByTestId('car-top-video')).toBeOnTheScreen();
+    expect(StatusBar.setStatusBarStyle).toHaveBeenCalledWith('light', true);
     expect(api.getSession).toHaveBeenCalledWith('session-1');
   });
 
-  it('shows how much energy is left and the estimated end', async () => {
+  it('shows the charge, the limit and when it is reached', async () => {
     api.getSession.mockResolvedValue(
-      buildSession({ startedAt: secondsAgo(17), energyKwh: 5, targetEnergyKwh: 12, energyCostCents: 445 }),
+      buildSession({
+        socPercent: 68,
+        limit: { type: 'PERCENT', energyKwh: null, amountCents: null, socPercent: 80 },
+        projectedChargingEndsAt: secondsAhead(42 * 60 + 20),
+      }),
     );
 
     await renderWithProviders(<SessionScreen sessionId="session-1" />);
 
-    expect(await screen.findByText('Faltam 7,00 kWh')).toBeOnTheScreen();
-    expect(screen.getByText('Término estimado')).toBeOnTheScreen();
-    expect(screen.getByText(/^~ \d\d:\d\d$/)).toBeOnTheScreen();
-    expect(screen.getByRole('progressbar', { name: 'Bateria do veículo' })).toHaveAccessibilityValue({ now: 45 });
+    expect(await screen.findByText('68% · limite de 80% em cerca de 42 min')).toBeOnTheScreen();
+    expect(screen.getByText('limite 80%')).toBeOnTheScreen();
+    expect(screen.getByRole('progressbar', { name: '68% de carga, limite em 80%' })).toHaveAccessibilityValue({
+      now: 68,
+    });
+  });
+
+  it('explains the limit and lists the reminders of the session', async () => {
+    api.getSession.mockResolvedValue(
+      buildSession({
+        projectedChargingEndsAt: secondsAhead(30 * 60),
+        projectedGraceEndsAt: secondsAhead(40 * 60),
+        projectedIdleStartsAt: secondsAhead(40 * 60),
+      }),
+    );
+
+    await renderWithProviders(<SessionScreen sessionId="session-1" />);
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Ajustar limite' }));
+    expect(await screen.findByText('Limite da recarga')).toBeOnTheScreen();
+    expect(screen.getByText('Até completar')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Entendi' }));
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Lembrete' }));
+    expect(await screen.findByText('Lembretes desta recarga')).toBeOnTheScreen();
+    expect(screen.getByText('Recarga concluída')).toBeOnTheScreen();
+    expect(screen.getByText('Tolerância acabando')).toBeOnTheScreen();
+    expect(screen.getByText('Multa de ocupação')).toBeOnTheScreen();
+  });
+
+  it('plugs the connector when the charger starts', async () => {
+    api.getSession.mockResolvedValue(buildSession({ status: 'PENDING', energyKwh: 0 }));
+
+    await renderWithProviders(<SessionScreen sessionId="session-1" />);
+    expect(await screen.findByText('Liberando o carregador')).toBeOnTheScreen();
+
+    api.getSession.mockResolvedValue(buildSession());
+    expect(await screen.findByTestId('plug-connector', {}, { timeout: 4000 })).toBeOnTheScreen();
+    expect(screen.getByTestId('car-port')).toBeOnTheScreen();
   });
 
   it('walks through the release checklist while pending and can cancel', async () => {
@@ -133,13 +188,17 @@ describe('<SessionScreen />', () => {
 
     await renderWithProviders(<SessionScreen sessionId="session-1" />);
 
-    expect(await screen.findByRole('header', { name: 'Carga concluída' })).toBeOnTheScreen();
-    expect(screen.getByText('Tolerância gratuita')).toBeOnTheScreen();
+    expect(await screen.findByText('Recarga concluída')).toBeOnTheScreen();
+    expect(screen.getByText('Tolerância')).toBeOnTheScreen();
+    expect(screen.getByText('Sem multa por')).toBeOnTheScreen();
     expect(screen.getByText(/^0[56]:\d\d$/)).toBeOnTheScreen();
+    expect(screen.getByText(/^Retire o veículo até \d\d:\d\d para liberar a vaga sem multa\.$/)).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Avisar quando faltar 2 min' })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Retirei o veículo · encerrar' })).toBeOnTheScreen();
   });
 
   it('shows the idle fee accumulating after the grace period', async () => {
+    api.getChargePoint.mockResolvedValue(buildChargePoint({ status: 'IDLE', queueLength: 2 }));
     api.getSession.mockResolvedValue(
       buildSession({
         status: 'IDLE',
@@ -155,9 +214,12 @@ describe('<SessionScreen />', () => {
 
     await renderWithProviders(<SessionScreen sessionId="session-1" />);
 
-    expect(await screen.findByRole('header', { name: 'Taxa de ocupação' })).toBeOnTheScreen();
-    expect(screen.getByText('Tempo excedente na vaga')).toBeOnTheScreen();
-    expect(screen.getByText(`R$${NBSP}5,00 / R$${NBSP}30,00`)).toBeOnTheScreen();
+    expect(await screen.findByRole('header', { name: 'Multa de ocupação em curso' })).toBeOnTheScreen();
+    expect(screen.getByText('Tempo na vaga')).toBeOnTheScreen();
+    expect(screen.getByText('5,00')).toBeOnTheScreen();
+    expect(screen.getByText(`Faltam R$${NBSP}25,00 até o teto`)).toBeOnTheScreen();
+    expect(screen.getByText(/O valor entra no rateio da unidade B · 42\./)).toBeOnTheScreen();
+    expect(await screen.findByText('2 na fila para este ponto')).toBeOnTheScreen();
   });
 
   it('stops an idle session without asking again', async () => {
@@ -203,7 +265,7 @@ describe('<SessionScreen />', () => {
 
     await renderWithProviders(<SessionScreen sessionId="session-1" />);
 
-    expect(await screen.findByText('Recarga em andamento')).toBeOnTheScreen();
+    expect(await screen.findByText('Carregando')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Compartilhar recibo' })).not.toBeOnTheScreen();
   });
 
@@ -252,8 +314,8 @@ describe('<SessionScreen />', () => {
     expect(await screen.findByText('Pagamento autorizado. Carregador liberado!')).toBeOnTheScreen();
     expect(api.createSessionPaymentSheet).toHaveBeenCalledWith('session-1');
     expect(cardPayment.presentCardPayment).toHaveBeenCalledWith(sheetFixture);
-    expect(screen.getByRole('header', { name: 'Recarga em andamento' })).toBeOnTheScreen();
-    expect(screen.getByText('Pré-autorizado · só o consumido é cobrado')).toBeOnTheScreen();
+    expect(screen.getByText('Carregando')).toBeOnTheScreen();
+    expect(screen.getByText(/com fator ×0,80$/)).toBeOnTheScreen();
   });
 
   it('shows the card error from the payment sheet', async () => {
