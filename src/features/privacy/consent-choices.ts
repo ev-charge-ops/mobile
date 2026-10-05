@@ -1,4 +1,3 @@
-import { Building2, ChartLine, CircleUser, Megaphone, type LucideIcon } from 'lucide-react-native';
 import { Share } from 'react-native';
 
 import {
@@ -10,13 +9,6 @@ import {
 } from '@/features/privacy/api/privacy-api';
 
 export type ConsentChoices = Partial<Record<ConsentPurpose, boolean>>;
-
-export const purposeIcons: Record<ConsentPurpose, LucideIcon> = {
-  ESSENTIAL_SERVICE: CircleUser,
-  BILLING_SHARING: Building2,
-  USAGE_ANALYTICS: ChartLine,
-  MARKETING_COMMUNICATIONS: Megaphone,
-};
 
 export function isPurposeGranted(purpose: ConsentPurposeState, choices: ConsentChoices) {
   if (purpose.required) return true;

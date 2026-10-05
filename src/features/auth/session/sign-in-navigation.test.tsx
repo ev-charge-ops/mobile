@@ -226,7 +226,7 @@ describe('signing in', () => {
     await fireEvent.press(screen.getByRole('tab', { name: 'Conta' }));
 
     expect(await screen.findByText('Ana')).toBeOnTheScreen();
-    expect(await screen.findByText('Residencial Aclimação')).toBeOnTheScreen();
+    expect(await screen.findByText('Residencial Aclimação · B · 42')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Sair' })).toBeOnTheScreen();
   });
 
