@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { CreditCard, House, LogOut, RotateCw, Share2, Square, X } from 'lucide-react-native';
+import { RotateCw, Square } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,7 +7,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBar } from '@/components/ui/app-bar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { IconButton } from '@/components/ui/icon-button';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { colors, fonts, getColors, spacing, typography } from '@/constants/theme';
@@ -20,7 +19,8 @@ import { useChargingSession, usePayForSession, useStopSession } from '@/features
 import { getCardPaymentErrorMessage, getStopSessionErrorMessage } from '@/features/charging/charging-errors';
 import { formatCents } from '@/features/charging/charging-format';
 import { LiveChargingNight } from '@/features/charging/components/live-charging-night';
-import { LiveSessionPanel } from '@/features/charging/components/live-session-panel';
+import { PaymentView } from '@/features/charging/components/payment-view';
+import { ReleasePanel } from '@/features/charging/components/release-panel';
 import { SessionReceipt } from '@/features/charging/components/session-receipt';
 import { buildReceiptShareText } from '@/features/charging/receipt-share';
 import { isSessionOpen } from '@/features/charging/session-timing';
@@ -167,86 +167,41 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
     );
   }
 
+  if (session?.status === 'AWAITING_PAYMENT') {
+    return (
+      <PaymentView
+        session={session}
+        isPaying={payForSession.isPending}
+        isCanceling={stopSession.isPending}
+        onPay={pay}
+        onCancel={stop}
+        onClose={goBack}
+      />
+    );
+  }
+
+  if (session && !isOpen) {
+    return <SessionReceipt session={session} now={now} onShare={shareReceipt} onDone={() => router.dismissTo('/')} />;
+  }
+
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
-        <AppBar
-          title={session ? titles[session.status] : 'Recarga'}
-          onBack={goBack}
-          actions={
-            session && !isOpen ? (
-              <IconButton icon={Share2} accessibilityLabel="Compartilhar recibo" onPress={shareReceipt} />
-            ) : undefined
-          }
-        />
+        <AppBar title={session ? titles[session.status] : 'Recarga'} onBack={goBack} />
         {session ? (
           <>
             <ScrollView contentContainerStyle={styles.content}>
-              {isOpen ? <LiveSessionPanel session={session} /> : <SessionReceipt session={session} />}
+              <ReleasePanel session={session} />
             </ScrollView>
             <View style={styles.footer}>
-              {session.status === 'PENDING' ? (
-                <Button
-                  label="Cancelar"
-                  variant="ghost"
-                  size="md"
-                  block
-                  loading={stopSession.isPending}
-                  onPress={stop}
-                />
-              ) : session.status === 'ACTIVE' ? (
-                <Button
-                  label="Encerrar recarga"
-                  icon={Square}
-                  variant="danger"
-                  size="lg"
-                  block
-                  loading={stopSession.isPending}
-                  onPress={() => setConfirmingStop(true)}
-                />
-              ) : session.status === 'AWAITING_PAYMENT' ? (
-                <View style={styles.stack}>
-                  <Button
-                    label="Pagar com cartão"
-                    icon={CreditCard}
-                    size="lg"
-                    block
-                    loading={payForSession.isPending}
-                    disabled={stopSession.isPending}
-                    onPress={pay}
-                  />
-                  <Button
-                    label="Cancelar recarga"
-                    icon={X}
-                    variant="outline"
-                    size="lg"
-                    block
-                    loading={stopSession.isPending}
-                    disabled={payForSession.isPending}
-                    onPress={stop}
-                  />
-                </View>
-              ) : isOpen ? (
-                <Button
-                  label="Retirei o veículo · encerrar"
-                  icon={LogOut}
-                  variant={session.status === 'IDLE' ? 'danger' : 'primary'}
-                  size="lg"
-                  block
-                  haptic="impactMedium"
-                  loading={stopSession.isPending}
-                  onPress={stop}
-                />
-              ) : (
-                <Button
-                  label="Voltar ao início"
-                  icon={House}
-                  size="lg"
-                  block
-                  haptic
-                  onPress={() => router.dismissTo('/')}
-                />
-              )}
+              <Button
+                label="Cancelar"
+                variant="ghost"
+                size="md"
+                block
+                loading={stopSession.isPending}
+                onPress={stop}
+              />
             </View>
           </>
         ) : isPending ? (

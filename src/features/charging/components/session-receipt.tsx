@@ -1,214 +1,493 @@
-import { CircleAlert, CircleCheck } from 'lucide-react-native';
-import { StyleSheet, Text, View } from 'react-native';
-import Animated, { ZoomIn } from 'react-native-reanimated';
+import { Share2 } from 'lucide-react-native';
+import { Fragment, useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedProps,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Circle, Line, Path, Polyline } from 'react-native-svg';
 
-import { Card, SectionTitle } from '@/components/ui/card';
-import { FadeInItem } from '@/components/ui/fade-in-item';
-import { Icon } from '@/components/ui/icon';
-import { InfoBanner } from '@/components/ui/info-banner';
-import { ListRow } from '@/components/ui/list-row';
-import { colors, fonts, motion, radii, spacing } from '@/constants/theme';
-import type { ChargingSession } from '@/features/charging/api/charging-api';
+import { Button } from '@/components/ui/button';
+import { Rise } from '@/components/ui/rise';
+import { colors, fonts, motion, palette, radii, spacing } from '@/constants/theme';
+import type { ChargingSessionDetail } from '@/features/charging/api/charging-api';
 import {
+  formatAmount,
   formatCents,
   formatDate,
   formatDemandFactor,
   formatDemandSource,
-  formatLimit,
   formatPowerValue,
   formatPricePerKwh,
   formatSessionCode,
   formatTime,
   paymentStatusLabels,
-  regimeLabels,
+  splitChargePointName,
 } from '@/features/charging/charging-format';
-import { formatDuration, getChargingSeconds } from '@/features/charging/session-timing';
+import { getChargingSeconds } from '@/features/charging/session-timing';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { formatEnergy } from '@/utils/format-energy';
 
-export type SessionReceiptProps = {
-  session: ChargingSession;
-};
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedPath = Animated.createAnimatedComponent(Path);
 
-export function SessionReceipt({ session }: SessionReceiptProps) {
-  const isInterrupted = session.status === 'INTERRUPTED';
-  const isPrivate = session.regime === 'PRIVATE';
-  const endedAt = session.endedAt ?? session.chargingEndedAt;
-  const chargingSeconds = getChargingSeconds(session, Date.parse(endedAt ?? session.startedAt));
-  const averagePowerKw = chargingSeconds > 0 ? session.energyKwh / (chargingSeconds / 3600) : 0;
+const BADGE_SIZE = 64;
+const RING_LENGTH = 2 * Math.PI * 30;
+const CHECK_LENGTH = 36;
+export const CHECK_DURATION = 600;
+const SPARK_HEIGHT = 56;
+
+function ReceiptCheck({ warning }: { warning: boolean }) {
+  const reduceMotion = useReduceMotion();
+  const disc = useSharedValue(reduceMotion ? 1 : 0);
+  const ring = useSharedValue(reduceMotion ? 1 : 0);
+  const check = useSharedValue(reduceMotion ? 1 : 0);
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    disc.set(withTiming(1, { duration: motion.duration.slow, easing: motion.easing.out }));
+    ring.set(withTiming(1, { duration: CHECK_DURATION, easing: motion.easing.plug }));
+    check.set(withDelay(CHECK_DURATION * 0.5, withTiming(1, { duration: CHECK_DURATION, easing: motion.easing.plug })));
+  }, [reduceMotion, disc, ring, check]);
+
+  const discStyle = useAnimatedStyle(() => ({ opacity: disc.get(), transform: [{ scale: 0.6 + disc.get() * 0.4 }] }));
+  const ringProps = useAnimatedProps(() => ({ strokeDashoffset: RING_LENGTH * (1 - ring.get()) }));
+  const checkProps = useAnimatedProps(() => ({ strokeDashoffset: CHECK_LENGTH * (1 - check.get()) }));
+  const tint = warning ? colors.warningTint : colors.energyTint;
+  const stroke = warning ? colors.warning : colors.energy;
+  const ink = warning ? colors.warningText : colors.energyText;
 
   return (
-    <>
-      <View style={styles.header}>
-        <Animated.View
-          entering={ZoomIn.duration(motion.duration.slow).easing(motion.easing.sheet)}
-          testID="receipt-badge"
-          style={[styles.badge, isInterrupted && styles.badgeWarning]}
-        >
-          <Icon
-            icon={isInterrupted ? CircleAlert : CircleCheck}
-            size={30}
-            color={isInterrupted ? colors.statusIdle : colors.statusCharging}
-          />
-        </Animated.View>
-        <FadeInItem style={styles.totalBlock}>
-          <Text style={styles.totalLabel}>
-            {isInterrupted
-              ? 'Recarga interrompida'
-              : isPrivate
-                ? 'Vai para o rateio da unidade'
-                : session.payment?.status === 'CAPTURED'
-                  ? 'Cobrado no cartão'
-                  : 'Total da recarga'}
-          </Text>
-          <Text accessibilityLabel={`Total ${formatCents(session.totalCents)}`} style={styles.total}>
-            {formatCents(session.totalCents)}
-          </Text>
-          <Text style={styles.code}>{formatSessionCode(session.id)}</Text>
-        </FadeInItem>
+    <Animated.View
+      testID="receipt-badge"
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={warning ? 'Recarga interrompida' : 'Recarga encerrada com sucesso'}
+      style={[styles.badge, discStyle]}
+    >
+      <Svg width={BADGE_SIZE} height={BADGE_SIZE} viewBox="0 0 72 72">
+        <Circle cx={36} cy={36} r={36} fill={tint} />
+        <AnimatedCircle
+          cx={36}
+          cy={36}
+          r={30}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={4}
+          strokeLinecap="round"
+          strokeDasharray={`${RING_LENGTH}`}
+          animatedProps={ringProps}
+          transform="rotate(-90 36 36)"
+        />
+        <AnimatedPath
+          d={warning ? 'M36 22 L36 40 M36 49 L36 50' : 'M24 37 L32 45 L48 28'}
+          fill="none"
+          stroke={ink}
+          strokeWidth={4.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray={`${CHECK_LENGTH}`}
+          animatedProps={checkProps}
+        />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+export function getPowerSpark(session: ChargingSessionDetail, width: number) {
+  const readings = session.readings;
+  if (readings.length < 2 || width <= 0) return null;
+  const times = readings.map((reading) => Date.parse(reading.at));
+  const start = times[0];
+  const span = Math.max(1, times[times.length - 1] - start);
+  const peak = Math.max(...readings.map((reading) => reading.powerKw));
+  if (peak <= 0) return null;
+  const points = readings
+    .map((reading, index) => {
+      const x = ((times[index] - start) / span) * width;
+      const y = SPARK_HEIGHT - (reading.powerKw / peak) * (SPARK_HEIGHT * 0.8);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(' ');
+  return { points, peak, peakY: SPARK_HEIGHT * 0.2 };
+}
+
+function PowerSpark({ session, averageKw }: { session: ChargingSessionDetail; averageKw: number }) {
+  const [width, setWidth] = useState(0);
+  const spark = getPowerSpark(session, width);
+  const first = session.readings[0];
+  const last = session.readings[session.readings.length - 1];
+
+  if (session.readings.length < 2) return null;
+
+  return (
+    <View style={styles.spark} testID="receipt-power-spark">
+      <View style={styles.sparkLabels}>
+        <Text style={styles.cellLabel}>Potência ao longo da sessão</Text>
+        {spark ? <Text style={styles.cellLabel}>{`pico ${formatPowerValue(spark.peak)} kW`}</Text> : null}
       </View>
-
-      <FadeInItem index={1}>
-        <Card padding={0}>
-          <ListRow
-            label="Energia medida"
-            value={`${formatEnergy(session.energyKwh)} · ${formatCents(session.energyCostCents)}`}
-            hint={`${formatPricePerKwh(session.lockedRateCents)} · tarifa travada no início`}
-          />
-          <ListRow
-            label="Fator de demanda"
-            value={formatDemandFactor(session.demandFactor)}
-            hint={`${formatDemandSource(session.demandFactorSource, session.demandModelVersion)} · ${
-              isPrivate ? 'informativo no condomínio' : 'aplicado sobre a tarifa base'
-            }`}
-          />
-          <ListRow
-            label="Taxa de ocupação"
-            value={session.idleFeeCents > 0 ? formatCents(session.idleFeeCents) : '—'}
-            hint={
-              session.idleFeeCents > 0
-                ? `${session.idleMinutes} min × ${formatCents(session.idleFeeCentsPerMinute)}${
-                    session.idleFeeCents >= session.idleFeeCapCents ? ' · teto atingido' : ''
-                  }`
-                : 'Veículo retirado dentro da tolerância'
-            }
-          />
-          <ListRow label="Total" value={formatCents(session.totalCents)} divider={false} />
-        </Card>
-      </FadeInItem>
-
-      {session.payment ? (
-        <FadeInItem index={2} style={styles.section}>
-          <SectionTitle>Pagamento no cartão</SectionTitle>
-          <Card padding={0}>
-            <ListRow
-              label="Pré-autorização"
-              value={formatCents(session.payment.authorizedCents)}
-              hint="Valor reservado no início da recarga"
+      <View
+        onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel={`Potência entre ${formatTime(first.at)} e ${formatTime(last.at)}`}
+        style={styles.sparkCanvas}
+      >
+        {spark ? (
+          <Svg width={width} height={SPARK_HEIGHT}>
+            <Line x1={0} y1={spark.peakY} x2={width} y2={spark.peakY} stroke={colors.borderSubtle} strokeDasharray="3 4" />
+            <Line x1={0} y1={SPARK_HEIGHT} x2={width} y2={SPARK_HEIGHT} stroke={colors.hairline} />
+            <Polyline
+              points={spark.points}
+              fill="none"
+              stroke={colors.energy}
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
-            <ListRow
-              label={session.payment.status === 'CAPTURED' ? 'Cobrado' : 'Situação'}
-              value={
-                session.payment.capturedCents !== null
-                  ? formatCents(session.payment.capturedCents)
-                  : paymentStatusLabels[session.payment.status]
-              }
-              hint={
-                session.payment.status === 'CAPTURED'
-                  ? 'O restante da pré-autorização volta ao limite do cartão'
-                  : session.payment.status === 'CANCELED'
-                    ? 'A pré-autorização foi liberada sem cobrança'
-                    : undefined
-              }
-              divider={false}
-            />
-          </Card>
-        </FadeInItem>
-      ) : null}
+          </Svg>
+        ) : null}
+      </View>
+      <View style={styles.sparkLabels}>
+        <Text style={styles.cellLabel}>{formatTime(first.at)}</Text>
+        <Text style={styles.cellLabel}>{`média ${formatPowerValue(averageKw)} kW`}</Text>
+        <Text style={styles.cellLabel}>{formatTime(last.at)}</Text>
+      </View>
+    </View>
+  );
+}
 
-      <FadeInItem index={3}>
+type Row = { label: string; hint?: string; value: string };
+
+function formatSessionDay(iso: string, now: number) {
+  const day = new Date(iso).toDateString() === new Date(now).toDateString() ? 'hoje' : formatDate(iso);
+  return `${day}, ${formatTime(iso)}`;
+}
+
+function formatShortDuration(totalSeconds: number) {
+  const minutes = Math.round(totalSeconds / 60);
+  const hours = Math.floor(minutes / 60);
+  if (hours === 0) return `${minutes} min`;
+  return `${hours}h${String(minutes % 60).padStart(2, '0')}`;
+}
+
+export function getReceiptRows(session: ChargingSessionDetail): Row[] {
+  const isPrivate = session.regime === 'PRIVATE';
+  const rows: Row[] = [
+    {
+      label: 'Energia',
+      hint: `${formatEnergy(session.energyKwh)} × ${formatPricePerKwh(session.lockedRateCents)}`,
+      value: formatCents(session.energyCostCents),
+    },
+    {
+      label: 'Ocupação',
+      hint:
+        session.idleFeeCents > 0
+          ? `${session.idleMinutes} min × ${formatCents(session.idleFeeCentsPerMinute)}${
+              session.idleFeeCents >= session.idleFeeCapCents ? ' · teto atingido' : ''
+            }`
+          : 'Retirado dentro da tolerância',
+      value: formatCents(session.idleFeeCents),
+    },
+  ];
+  if (session.payment) {
+    const captured = session.payment.capturedCents;
+    rows.push({
+      label: captured === null ? 'Cartão' : 'Cobrado no cartão',
+      hint:
+        session.payment.status === 'CAPTURED'
+          ? `Pré-autorização de ${formatCents(session.payment.authorizedCents)} · o restante volta ao limite do cartão`
+          : session.payment.status === 'CANCELED'
+            ? 'A pré-autorização foi liberada sem cobrança'
+            : `Pré-autorização de ${formatCents(session.payment.authorizedCents)}`,
+      value: captured === null ? paymentStatusLabels[session.payment.status] : formatCents(captured),
+    });
+  } else {
+    rows.push({
+      label: 'Forma',
+      value: isPrivate
+        ? `Rateio mensal da unidade ${session.unitLabel ?? ''}`.trim()
+        : 'Cobrança no cartão',
+    });
+  }
+  return rows;
+}
+
+export type SessionReceiptProps = {
+  session: ChargingSessionDetail;
+  now: number;
+  onShare: () => void;
+  onDone: () => void;
+};
+
+export function SessionReceipt({ session, now, onShare, onDone }: SessionReceiptProps) {
+  const insets = useSafeAreaInsets();
+  const isInterrupted = session.status === 'INTERRUPTED';
+  const endedAt = session.endedAt ?? session.chargingEndedAt ?? session.startedAt;
+  const chargingSeconds = getChargingSeconds(session, Date.parse(endedAt));
+  const averageKw = chargingSeconds > 0 ? session.energyKwh / (chargingSeconds / 3600) : 0;
+  const { spot } = splitChargePointName(session.chargePoint.name);
+  const rows = getReceiptRows(session);
+  const totalSeconds = Math.max(0, (Date.parse(endedAt) - Date.parse(session.startedAt)) / 1000);
+
+  return (
+    <View style={[styles.screen, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.md }]}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.hero}>
+          <ReceiptCheck warning={isInterrupted} />
+          <Rise index={1} style={styles.heroTexts}>
+            <Text accessibilityRole="header" style={styles.title}>
+              {isInterrupted ? 'Recarga interrompida' : 'Recarga encerrada'}
+            </Text>
+            <Text style={styles.subtitle}>
+              {`${session.chargePoint.code} · ${spot} · ${formatSessionDay(endedAt, now)}`}
+            </Text>
+          </Rise>
+          <Rise index={2} style={styles.totalRow}>
+            <Text style={styles.totalCurrency}>R$</Text>
+            <Text accessibilityLabel={`Total ${formatCents(session.totalCents)}`} style={styles.total}>
+              {formatAmount(session.totalCents)}
+            </Text>
+          </Rise>
+        </View>
+
+        <Rise index={3} style={styles.card}>
+          {rows.map((row, index) => (
+            <Fragment key={row.label}>
+              {index > 0 ? <View style={styles.divider} /> : null}
+              <View style={styles.row}>
+                <View style={styles.rowTexts}>
+                  <Text style={styles.rowLabel}>{row.label}</Text>
+                  {row.hint ? <Text style={styles.rowHint}>{row.hint}</Text> : null}
+                </View>
+                <Text style={styles.rowValue}>{row.value}</Text>
+              </View>
+            </Fragment>
+          ))}
+        </Rise>
+
+        <Rise index={4} style={[styles.card, styles.detailsCard]}>
+          <View style={styles.grid}>
+            <Cell label="Início" value={formatTime(session.startedAt)} />
+            <Cell label="Fim" value={formatTime(endedAt)} />
+            <Cell label="Tempo" value={formatShortDuration(totalSeconds)} />
+            <Cell label="Potência média" value={formatPowerValue(averageKw)} unit="kW" />
+            <Cell
+              label={`Tarifa travada às ${formatTime(session.startedAt)}`}
+              value={formatAmount(session.lockedRateCents)}
+              prefix="R$"
+              unit="/kWh"
+              wide
+            />
+            <Cell
+              label={`Fator · ${formatDemandSource(session.demandFactorSource, session.demandModelVersion)}`}
+              value={formatDemandFactor(session.demandFactor)}
+              wide
+            />
+            <Cell label="Código" value={formatSessionCode(session.id)} />
+          </View>
+          <PowerSpark session={session} averageKw={averageKw} />
+        </Rise>
         {isInterrupted ? (
-          <InfoBanner tone="warning" title="Sessão interrompida">
+          <Text style={styles.note}>
             A recarga foi interrompida antes do fim. A cobrança considera apenas a energia medida até a desconexão.
-          </InfoBanner>
-        ) : (
-          <InfoBanner tone={isPrivate ? 'success' : 'info'} title={isPrivate ? 'Condomínio' : 'Rede comercial'}>
-            {isPrivate
-              ? 'Energia a custo, sem margem. O consumo e a taxa de ocupação entram no rateio da sua unidade.'
-              : 'Tarifa dinâmica aplicada e travada no início da sessão. Só a energia consumida e a taxa de ocupação são cobradas no cartão.'}
-          </InfoBanner>
-        )}
-      </FadeInItem>
+          </Text>
+        ) : null}
+      </ScrollView>
+      <Rise index={5} style={styles.footer}>
+        <Button
+          label="Compartilhar recibo"
+          icon={Share2}
+          variant="secondary"
+          size="lg"
+          onPress={onShare}
+          style={styles.share}
+        />
+        <Button label="Voltar ao início" size="lg" block haptic onPress={onDone} style={styles.flex} />
+      </Rise>
+    </View>
+  );
+}
 
-      <FadeInItem index={4} style={styles.section}>
-        <SectionTitle>Detalhes</SectionTitle>
-        <Card padding={0}>
-          <ListRow label="Ponto" value={session.chargePoint.name} hint={session.chargePoint.code} />
-          <ListRow label="Data" value={formatDate(session.startedAt)} />
-          <ListRow
-            label="Início · fim"
-            value={
-              endedAt ? `${formatTime(session.startedAt)} · ${formatTime(endedAt)}` : formatTime(session.startedAt)
-            }
-          />
-          <ListRow
-            label="Tempo de recarga"
-            value={formatDuration(chargingSeconds)}
-            hint={averagePowerKw > 0 ? `Potência média de ${formatPowerValue(averagePowerKw)} kW` : undefined}
-          />
-          <ListRow label="Limite" value={formatLimit(session.limit)} />
-          <ListRow
-            label="Regime"
-            value={regimeLabels[session.regime]}
-            hint={session.unitLabel ? `Unidade ${session.unitLabel}` : undefined}
-            divider={false}
-          />
-        </Card>
-      </FadeInItem>
-    </>
+type CellProps = { label: string; value: string; unit?: string; prefix?: string; wide?: boolean };
+
+function Cell({ label, value, unit, prefix, wide = false }: CellProps) {
+  return (
+    <View style={[styles.cell, wide && styles.cellWide]}>
+      <Text style={styles.cellLabel}>{label}</Text>
+      <View style={styles.cellValueRow}>
+        {prefix ? <Text style={styles.cellUnit}>{prefix}</Text> : null}
+        <Text style={styles.cellValue}>{value}</Text>
+        {unit ? <Text style={styles.cellUnit}>{unit}</Text> : null}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
+  screen: {
+    flex: 1,
+    backgroundColor: colors.bgBase,
+  },
+  flex: {
+    flex: 1,
+  },
+  content: {
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+  },
+  hero: {
     alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.lg,
+    gap: 10,
   },
   badge: {
-    width: 60,
-    height: 60,
-    borderRadius: radii.xl,
+    width: BADGE_SIZE,
+    height: BADGE_SIZE,
+  },
+  heroTexts: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-    backgroundColor: colors.statusChargingBg,
+    gap: 2,
   },
-  badgeWarning: {
-    backgroundColor: colors.statusIdleBg,
+  title: {
+    fontSize: 24,
+    lineHeight: 28,
+    fontFamily: fonts.bold,
+    letterSpacing: -0.5,
+    color: colors.textTitle,
   },
-  totalBlock: {
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  totalLabel: {
+  subtitle: {
     fontSize: 14,
-    fontFamily: fonts.semibold,
+    fontFamily: fonts.medium,
+    color: colors.textMuted,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+  },
+  totalCurrency: {
+    fontSize: 20,
+    fontFamily: fonts.bold,
     color: colors.textMuted,
   },
   total: {
-    fontSize: 40,
-    lineHeight: 46,
-    fontFamily: fonts.extrabold,
-    letterSpacing: -0.8,
+    fontSize: 56,
+    lineHeight: 60,
+    fontFamily: fonts.bold,
+    letterSpacing: -2.8,
     color: colors.textTitle,
     fontVariant: ['tabular-nums'],
   },
-  code: {
-    fontSize: 12,
-    fontFamily: fonts.mono,
-    color: colors.textSubtle,
+  card: {
+    paddingHorizontal: 18,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.xxl - 4,
+    backgroundColor: colors.surfaceCard,
   },
-  section: {
+  detailsCard: {
+    gap: spacing.md,
+    paddingVertical: spacing.lg,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  rowTexts: {
+    flexShrink: 1,
+    gap: 1,
+  },
+  rowLabel: {
+    fontSize: 15,
+    fontFamily: fonts.bold,
+    color: colors.textTitle,
+  },
+  rowHint: {
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: colors.textMuted,
+  },
+  rowValue: {
+    fontSize: 15,
+    fontFamily: fonts.bold,
+    color: colors.textTitle,
+    textAlign: 'right',
+    flexShrink: 1,
+    fontVariant: ['tabular-nums'],
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.hairline,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: spacing.md,
+  },
+  cell: {
+    width: '33.33%',
+    gap: 2,
+    paddingRight: spacing.sm,
+  },
+  cellWide: {
+    width: '66.66%',
+  },
+  cellLabel: {
+    fontSize: 12,
+    fontFamily: fonts.semibold,
+    color: colors.textMuted,
+  },
+  cellValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 3,
+  },
+  cellValue: {
+    fontSize: 16,
+    fontFamily: fonts.bold,
+    color: colors.textTitle,
+    fontVariant: ['tabular-nums'],
+  },
+  cellUnit: {
+    fontSize: 12,
+    fontFamily: fonts.bold,
+    color: colors.textMuted,
+  },
+  spark: {
+    gap: 6,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  sparkLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  sparkCanvas: {
+    height: SPARK_HEIGHT,
+  },
+  note: {
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: fonts.medium,
+    color: colors.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: spacing.sm,
+  },
+  footer: {
+    flexDirection: 'row',
     gap: 10,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  share: {
+    backgroundColor: palette.white,
   },
 });
