@@ -21,6 +21,7 @@ import { isSessionOpen } from '@/features/charging/session-timing';
 export const activeSessionQueryKey = ['sessions', 'active'] as const;
 export const chargingSessionQueryKey = (sessionId: string) => ['sessions', 'detail', sessionId] as const;
 export const sessionsQueryKey = ['sessions'] as const;
+export const paymentSheetQueryKey = (sessionId: string) => ['sessions', 'payment-sheet', sessionId] as const;
 
 export const SESSION_POLL_INTERVAL = 2_000;
 const ACTIVE_SESSION_IDLE_INTERVAL = 30_000;
@@ -65,6 +66,7 @@ export function useStartSession() {
     onSuccess: (session) => {
       queryClient.setQueryData(chargingSessionQueryKey(session.id), mergeIntoDetail(session, undefined));
       queryClient.setQueryData(activeSessionQueryKey, session);
+      if (session.paymentSheet) queryClient.setQueryData(paymentSheetQueryKey(session.id), session.paymentSheet);
       queryClient.invalidateQueries({ queryKey: chargePointsQueryKey });
       void syncSessionReminders(session);
     },
@@ -109,7 +111,9 @@ export function usePayForSession() {
 
   return useMutation({
     mutationFn: async ({ sessionId, sheet }: PayForSessionInput) => {
-      const params = sheet ?? (await createSessionPaymentSheet(sessionId));
+      const cached = queryClient.getQueryData<PaymentSheetParams>(paymentSheetQueryKey(sessionId));
+      queryClient.removeQueries({ queryKey: paymentSheetQueryKey(sessionId), exact: true });
+      const params = sheet ?? cached ?? (await createSessionPaymentSheet(sessionId));
       const result = await presentCardPayment(params);
       if (result === 'canceled') return null;
       return confirmSessionPayment(sessionId);
