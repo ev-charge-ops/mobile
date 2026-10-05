@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { ChargePointCard } from '@/features/charging/components/charge-point-card';
 import { buildChargePoint } from '@/features/charging/testing/fixtures';
@@ -9,7 +9,7 @@ describe('<ChargePointCard />', () => {
     await render(<ChargePointCard chargePoint={buildChargePoint()} distanceMeters={1_234} onPress={onPress} />);
 
     const card = screen.getByRole('button', { name: 'Garagem L1 · Vaga 12, Livre, a 1,2 km' });
-    expect(within(screen.getByTestId('distance-tag')).getByText('1,2 km')).toBeOnTheScreen();
+    expect(screen.getByTestId('distance-tag')).toHaveTextContent('1,2 km');
 
     await fireEvent.press(card);
     expect(onPress).toHaveBeenCalled();
