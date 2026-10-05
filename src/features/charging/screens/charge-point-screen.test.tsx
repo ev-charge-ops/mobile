@@ -329,42 +329,25 @@ describe('<ChargePointScreen />', () => {
     expect(await screen.findByRole('button', { name: 'Reservado para a fila' })).toBeDisabled();
   });
 
-  it('takes the card pre-authorization before charging at a commercial point', async () => {
+  it('opens the card payment step before the Stripe sheet at a commercial point', async () => {
     api.getChargePoint.mockResolvedValue(buildCommercialChargePoint());
     api.startSession.mockResolvedValue({
       ...buildSession({ id: 'session-5', status: 'AWAITING_PAYMENT', regime: 'COMMERCIAL', payment: paymentFixture }),
       paymentSheet: sheetFixture,
     });
-    cardPayment.presentCardPayment.mockResolvedValue('completed');
-    api.confirmSessionPayment.mockResolvedValue(buildSession({ id: 'session-5', status: 'PENDING' }));
 
     await renderWithProviders(<ChargePointScreen chargePointId="cp-3" />);
     await fireEvent.press(await screen.findByRole('button', { name: 'Iniciar recarga' }));
     expect(screen.getByText(/com pré-autorização no cartão/)).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Continuar para pagamento' }));
 
-    await waitFor(() => expect(api.confirmSessionPayment).toHaveBeenCalledWith('session-5'));
-    expect(cardPayment.presentCardPayment).toHaveBeenCalledWith(sheetFixture);
-    expect(api.createSessionPaymentSheet).not.toHaveBeenCalled();
-    expect(router.replace).toHaveBeenCalledWith({
-      pathname: '/sessions/[sessionId]',
-      params: { sessionId: 'session-5' },
-    });
-  });
-
-  it('keeps the session awaiting payment when the driver closes the payment sheet', async () => {
-    api.getChargePoint.mockResolvedValue(buildCommercialChargePoint());
-    api.startSession.mockResolvedValue({
-      ...buildSession({ id: 'session-5', status: 'AWAITING_PAYMENT', regime: 'COMMERCIAL', payment: paymentFixture }),
-      paymentSheet: sheetFixture,
-    });
-    cardPayment.presentCardPayment.mockResolvedValue('canceled');
-
-    await renderWithProviders(<ChargePointScreen chargePointId="cp-3" />);
-    await fireEvent.press(await screen.findByRole('button', { name: 'Iniciar recarga' }));
-    await fireEvent.press(screen.getByRole('button', { name: 'Continuar para pagamento' }));
-
-    await waitFor(() => expect(cardPayment.presentCardPayment).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith({
+        pathname: '/sessions/[sessionId]',
+        params: { sessionId: 'session-5' },
+      }),
+    );
+    expect(cardPayment.presentCardPayment).not.toHaveBeenCalled();
     expect(api.confirmSessionPayment).not.toHaveBeenCalled();
   });
 });
