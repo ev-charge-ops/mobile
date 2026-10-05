@@ -7,7 +7,7 @@ import { clearReturnTarget, setReturnTarget } from '@/features/auth/session/retu
 import { createSessionValue, renderWithProviders, testUser } from '@/features/auth/testing/render-with-providers';
 
 jest.mock('expo-router', () => ({
-  router: { replace: jest.fn(), push: jest.fn() },
+  router: { replace: jest.fn(), push: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => false) },
   useLocalSearchParams: jest.fn(),
   Link: jest.requireActual('react-native').Text,
 }));
@@ -24,8 +24,8 @@ const authSession: authApi.AuthSession = { user: testUser, accessToken: 'access'
 
 async function requestCode() {
   await fireEvent.changeText(screen.getByLabelText('E-mail'), 'ana@example.com');
-  await fireEvent.press(screen.getByRole('button', { name: 'Enviar código' }));
-  await screen.findByText('Digite o código');
+  await fireEvent.press(screen.getByRole('button', { name: 'Enviar link e código' }));
+  await screen.findByText('Verifique seu e-mail');
 }
 
 beforeEach(() => {
@@ -87,7 +87,7 @@ describe('<EmailLoginScreen />', () => {
     await renderWithProviders(<EmailLoginScreen />);
     await requestCode();
 
-    expect(screen.getByRole('button', { name: 'Reenviar código em 30 s' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Reenviar código em 0:30' })).toBeDisabled();
 
     await act(async () => {
       jest.advanceTimersByTime(30_000);
@@ -104,7 +104,7 @@ describe('<EmailLoginScreen />', () => {
 
     await renderWithProviders(<EmailLoginScreen />);
     await fireEvent.changeText(screen.getByLabelText('E-mail'), 'ana@example.com');
-    await fireEvent.press(screen.getByRole('button', { name: 'Enviar código' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Enviar link e código' }));
 
     expect(await screen.findByText('Muitas tentativas. Tente novamente em 50 s.')).toBeOnTheScreen();
   });
@@ -131,6 +131,18 @@ describe('<EmailLoginScreen />', () => {
 
     expect(await screen.findByText(/link de acesso é inválido/)).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Entrar com código' }));
-    expect(screen.getByRole('button', { name: 'Enviar código' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Enviar link e código' })).toBeOnTheScreen();
+  });
+
+  it('goes back to the email step keeping the address', async () => {
+    api.requestEmailLogin.mockResolvedValue();
+
+    await renderWithProviders(<EmailLoginScreen />);
+    await requestCode();
+    expect(screen.getByText('ana@example.com')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Trocar e-mail' }));
+
+    expect(await screen.findByRole('header', { name: 'Entrar sem senha' })).toBeOnTheScreen();
+    expect(screen.getByLabelText('E-mail')).toHaveDisplayValue('ana@example.com');
   });
 });
