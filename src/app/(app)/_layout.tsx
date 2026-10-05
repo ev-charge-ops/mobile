@@ -30,6 +30,8 @@ function SignedInServices() {
   return null;
 }
 
+const pushTransition = { animation: 'slide_from_right', animationDuration: motion.duration.slow } as const;
+
 export default function AppLayout() {
   const consentsQuery = useMyConsents();
   const logout = useLogout();
@@ -66,8 +68,8 @@ export default function AppLayout() {
           }}
         />
         <Stack.Screen name="sessions/[sessionId]" />
-        <Stack.Screen name="notifications" />
-        <Stack.Screen name="privacy" />
+        <Stack.Screen name="notifications" options={pushTransition} />
+        <Stack.Screen name="privacy" options={pushTransition} />
         <Stack.Screen name="profile" />
         <Stack.Screen name="change-password" />
       </Stack>
