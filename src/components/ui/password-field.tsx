@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Lock } from 'lucide-react-native';
+import { Eye, EyeOff, Lock, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
@@ -7,7 +7,9 @@ import { PressableScale } from '@/components/ui/pressable-scale';
 import { TextField, type TextFieldProps } from '@/components/ui/text-field';
 import { colors } from '@/constants/theme';
 
-export type PasswordFieldProps = Omit<TextFieldProps, 'secureTextEntry' | 'trailing'>;
+export type PasswordFieldProps = Omit<TextFieldProps, 'secureTextEntry' | 'trailing' | 'icon'> & {
+  icon?: LucideIcon | null;
+};
 
 export function PasswordField({ icon = Lock, ...props }: PasswordFieldProps) {
   const [visible, setVisible] = useState(false);
@@ -16,7 +18,7 @@ export function PasswordField({ icon = Lock, ...props }: PasswordFieldProps) {
   return (
     <TextField
       {...props}
-      icon={icon}
+      icon={icon ?? undefined}
       secureTextEntry={!visible}
       autoCorrect={false}
       trailing={
