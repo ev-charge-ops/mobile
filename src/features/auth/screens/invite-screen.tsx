@@ -1,11 +1,13 @@
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { ArrowRight, Check, LogIn, LogOut, RotateCw } from 'lucide-react-native';
+import { ArrowRight, LogOut, MailCheck, MailX, RotateCw, WifiOff } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
+import { InfoBanner } from '@/components/ui/info-banner';
+import { Rise } from '@/components/ui/rise';
 import { useToast } from '@/components/ui/toast';
-import { colors, spacing } from '@/constants/theme';
+import { colors, fonts } from '@/constants/theme';
 import type { AuthUser, InvitePreview } from '@/features/auth/api/auth-api';
 import { useAcceptInvite, useAcceptInviteAsCurrentUser, useInvitePreview } from '@/features/auth/api/use-invite';
 import { useLogout } from '@/features/auth/api/use-logout';
@@ -15,10 +17,20 @@ import {
   isInviteEmailMismatch,
   type InviteUnavailableReason,
 } from '@/features/auth/auth-errors';
-import { AuthLayout } from '@/features/auth/components/auth-layout';
+import {
+  AuthBackButton,
+  AuthBarTitle,
+  AuthFooterLink,
+  AuthHeading,
+  AuthIconTile,
+  AuthScreen,
+  authTextStyles,
+} from '@/features/auth/components/auth-screen';
+import { AuthTextButton } from '@/features/auth/components/auth-text-button';
+import { BrandTile } from '@/features/auth/components/brand-tile';
 import { FormError } from '@/features/auth/components/form-error';
 import { InviteAccountForm } from '@/features/auth/components/invite-account-form';
-import { InviteDetails } from '@/features/auth/components/invite-details';
+import { InviteCard, InviteIncluded } from '@/features/auth/components/invite-card';
 import { OAuthButtons } from '@/features/auth/components/oauth-buttons';
 import { clearReturnTarget, setReturnTarget } from '@/features/auth/session/return-target';
 import { useSession } from '@/features/auth/session/session-context';
@@ -64,6 +76,7 @@ export function InviteScreen({ onAccepted }: InviteScreenProps) {
   const acceptAsCurrentUser = useAcceptInviteAsCurrentUser(token);
   const [unavailableReason, setUnavailableReason] = useState<InviteUnavailableReason | null>(null);
   const [hasEmailMismatch, setHasEmailMismatch] = useState(false);
+  const [isChoosingAccount, setIsChoosingAccount] = useState(false);
   const toast = useToast();
   const isCreatingAccount = createAccount.isPending || createAccount.isSuccess;
   const isAuthenticated = status === 'authenticated' && user !== null && !isCreatingAccount;
@@ -76,9 +89,15 @@ export function InviteScreen({ onAccepted }: InviteScreenProps) {
 
   if (preview.isPending) {
     return (
-      <AuthLayout title="Carregando convite" subtitle="Aguarde só um instante.">
-        <ActivityIndicator accessibilityLabel="Carregando convite" color={colors.accent} size="large" />
-      </AuthLayout>
+      <AuthScreen header={<InviteHeader />}>
+        <AuthHeading title="Carregando convite" subtitle="Aguarde só um instante." />
+        <ActivityIndicator
+          accessibilityLabel="Carregando convite"
+          color={colors.accent}
+          size="large"
+          style={styles.spinner}
+        />
+      </AuthScreen>
     );
   }
 
@@ -86,12 +105,20 @@ export function InviteScreen({ onAccepted }: InviteScreenProps) {
     const reason = getInviteUnavailableReason(preview.error);
     if (reason) return <InviteUnavailable reason={reason} />;
     return (
-      <AuthLayout title="Não foi possível carregar o convite" subtitle="Verifique sua conexão e tente novamente.">
-        <View style={styles.stack}>
+      <AuthScreen
+        header={<InviteHeader />}
+        footer={
+          <Rise index={3}>
+            <Button label="Tentar novamente" icon={RotateCw} size="lg" block haptic onPress={() => preview.refetch()} />
+          </Rise>
+        }
+      >
+        <AuthIconTile icon={WifiOff} tone="critical" />
+        <AuthHeading title="Não foi possível carregar o convite" subtitle="Verifique sua conexão e tente novamente." />
+        <Rise index={2}>
           <FormError message={getAcceptInviteErrorMessage(preview.error)} />
-          <Button label="Tentar novamente" icon={RotateCw} size="lg" block onPress={() => preview.refetch()} />
-        </View>
-      </AuthLayout>
+        </Rise>
+      </AuthScreen>
     );
   }
 
@@ -133,10 +160,41 @@ export function InviteScreen({ onAccepted }: InviteScreenProps) {
     );
   }
 
+  const goToLogin = () => {
+    setReturnTarget(inviteHref(token));
+    router.push('/login');
+  };
+
+  if (!isChoosingAccount) {
+    return (
+      <InviteOverview
+        invite={invite}
+        onAccept={() => setIsChoosingAccount(true)}
+        onDecline={() => router.replace('/')}
+      />
+    );
+  }
+
   return (
-    <AuthLayout title="Você foi convidado" subtitle="Crie sua conta para participar do condomínio no EV ChargeOps.">
-      <InviteDetails invite={invite} />
+    <AuthScreen
+      header={
+        <>
+          <AuthBackButton onPress={() => setIsChoosingAccount(false)} />
+          <AuthBarTitle>{invite.organizationName}</AuthBarTitle>
+        </>
+      }
+      footer={<AuthFooterLink index={8} text="Já tem uma conta?" linkLabel="Já tenho conta" onPress={goToLogin} />}
+    >
+      <AuthHeading
+        title="Crie sua conta"
+        subtitle={
+          <>
+            Para aceitar o convite com <Text style={authTextStyles.strong}>{invite.email}</Text>.
+          </>
+        }
+      />
       <InviteAccountForm
+        riseIndex={2}
         onSubmit={({ name, password }) => {
           clearReturnTarget();
           createAccount.mutate({ name, password }, { onSuccess: complete, onError: handleAcceptError });
@@ -144,23 +202,58 @@ export function InviteScreen({ onAccepted }: InviteScreenProps) {
         isSubmitting={isCreatingAccount}
         errorMessage={createAccount.isError ? getAcceptInviteErrorMessage(createAccount.error) : null}
       />
-      <Button
-        label="Já tenho conta"
-        icon={LogIn}
-        variant="outline"
-        size="lg"
-        block
-        onPress={() => {
-          setReturnTarget(inviteHref(token));
-          router.push('/login');
-        }}
-      />
-      <OAuthButtons
-        onSignedIn={(session) => {
-          if (isSameEmail(session.user.email, invite.email)) acceptAsSignedInUser();
-        }}
-      />
-    </AuthLayout>
+      <Rise index={6}>
+        <OAuthButtons
+          onSignedIn={(session) => {
+            if (isSameEmail(session.user.email, invite.email)) acceptAsSignedInUser();
+          }}
+        />
+      </Rise>
+    </AuthScreen>
+  );
+}
+
+function InviteHeader() {
+  return (
+    <View style={styles.inviteHeader}>
+      <Text accessibilityRole="header" style={styles.inviteHeaderTitle}>
+        Convite do condomínio
+      </Text>
+      <BrandTile size={36} />
+    </View>
+  );
+}
+
+type InviteOverviewProps = {
+  invite: InvitePreview;
+  onAccept: () => void;
+  onDecline: () => void;
+  isAccepting?: boolean;
+  errorMessage?: string | null;
+};
+
+function InviteOverview({ invite, onAccept, onDecline, isAccepting = false, errorMessage }: InviteOverviewProps) {
+  return (
+    <AuthScreen
+      header={<InviteHeader />}
+      footer={
+        <View style={styles.actions}>
+          {errorMessage ? <FormError message={errorMessage} /> : null}
+          <Rise index={7}>
+            <Button label="Aceitar convite" size="lg" block haptic loading={isAccepting} onPress={onAccept} />
+          </Rise>
+          <Rise index={8}>
+            <AuthTextButton label="Agora não" onPress={onDecline} />
+          </Rise>
+        </View>
+      }
+    >
+      <InviteCard invite={invite} />
+      <InviteIncluded invite={invite} />
+      <Rise index={5}>
+        <InfoBanner>Grupo A · uso condominial. Energia repassada a custo, conforme ANEEL RN 1.000/2021.</InfoBanner>
+      </Rise>
+    </AuthScreen>
   );
 }
 
@@ -191,52 +284,92 @@ function SignedInInvite({
 
   if (hasEmailMismatch) {
     return (
-      <AuthLayout
-        title="Convite para outro e-mail"
-        subtitle={`Este convite foi enviado para ${invite.email}, mas você entrou como ${user.email}. Entre com a conta do e-mail convidado para aceitar.`}
+      <AuthScreen
+        header={<InviteHeader />}
+        footer={
+          <View style={styles.actions}>
+            <Rise index={6}>
+              <Button
+                label="Sair e entrar com outra conta"
+                icon={LogOut}
+                size="lg"
+                block
+                haptic
+                loading={logoutMutation.isPending}
+                onPress={async () => {
+                  setReturnTarget(inviteHref(token));
+                  await logoutMutation.mutateAsync();
+                  router.push('/login');
+                }}
+              />
+            </Rise>
+            <Rise index={7}>
+              <AuthTextButton label="Ir para o início" onPress={() => router.replace('/')} />
+            </Rise>
+          </View>
+        }
       >
-        <InviteDetails invite={invite} />
-        <Button
-          label="Sair e entrar com outra conta"
-          icon={LogOut}
-          size="lg"
-          block
-          loading={logoutMutation.isPending}
-          onPress={async () => {
-            setReturnTarget(inviteHref(token));
-            await logoutMutation.mutateAsync();
-            router.push('/login');
-          }}
-        />
-        <Button label="Ir para o início" icon={ArrowRight} variant="ghost" block onPress={() => router.replace('/')} />
-      </AuthLayout>
+        <InviteCard invite={invite} />
+        <Rise index={3}>
+          <InfoBanner tone="warning" title="Convite para outro e-mail">
+            {`Este convite foi enviado para ${invite.email}, mas você entrou como ${user.email}. Entre com a conta do e-mail convidado para aceitar.`}
+          </InfoBanner>
+        </Rise>
+      </AuthScreen>
     );
   }
 
   return (
-    <AuthLayout title="Você foi convidado" subtitle={`Aceite o convite para participar de ${invite.organizationName}.`}>
-      <InviteDetails invite={invite} />
-      <View style={styles.stack}>
-        {errorMessage ? <FormError message={errorMessage} /> : null}
-        <Button label="Aceitar convite" icon={Check} size="lg" block loading={isAccepting} onPress={onAccept} />
-        <Button label="Agora não" variant="ghost" block onPress={() => router.replace('/')} />
-      </View>
-    </AuthLayout>
+    <InviteOverview
+      invite={invite}
+      onAccept={onAccept}
+      onDecline={() => router.replace('/')}
+      isAccepting={isAccepting}
+      errorMessage={errorMessage}
+    />
   );
 }
 
 function InviteUnavailable({ reason }: { reason: InviteUnavailableReason }) {
   const { title, subtitle } = unavailableCopy[reason];
+  const accepted = reason === 'ACCEPTED';
 
   return (
-    <AuthLayout title={title} subtitle={subtitle}>
-      <Button label="Ir para o início" icon={ArrowRight} size="lg" block onPress={() => router.replace('/')} />
-    </AuthLayout>
+    <AuthScreen
+      header={<InviteHeader />}
+      footer={
+        <Rise index={3}>
+          <Button label="Ir para o início" icon={ArrowRight} size="lg" block haptic onPress={() => router.replace('/')} />
+        </Rise>
+      }
+    >
+      <AuthIconTile icon={accepted ? MailCheck : MailX} tone={accepted ? 'energy' : 'critical'} />
+      <AuthHeading title={title} subtitle={subtitle} />
+    </AuthScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  stack: {
-    gap: spacing.lg,
+  spinner: {
+    marginTop: 24,
+  },
+  inviteHeader: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingLeft: 4,
+  },
+  inviteHeaderTitle: {
+    flex: 1,
+    fontSize: 24,
+    lineHeight: 30,
+    fontFamily: fonts.bold,
+    letterSpacing: -0.6,
+    color: colors.textTitle,
+  },
+  actions: {
+    gap: 4,
   },
 });

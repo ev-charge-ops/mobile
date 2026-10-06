@@ -1,18 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Controller, useForm, useWatch } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { InfoBanner } from '@/components/ui/info-banner';
-import { PasswordField } from '@/components/ui/password-field';
 import { Rise } from '@/components/ui/rise';
 import { TextField } from '@/components/ui/text-field';
 import { registerSchema, type RegisterValues } from '@/features/auth/auth-schemas';
-import { FieldLabel } from '@/features/auth/components/field-label';
 import { FormError } from '@/features/auth/components/form-error';
-import { PasswordStrengthLabel, PasswordStrengthMeter } from '@/features/auth/components/password-strength-meter';
+import { NewPasswordFields } from '@/features/auth/components/new-password-fields';
 import { TermsCheckbox } from '@/features/auth/components/terms-checkbox';
-import { getPasswordStrength } from '@/features/auth/password-strength';
 
 export type RegisterFormProps = {
   onSubmit: (values: RegisterValues) => void;
@@ -26,8 +23,6 @@ export function RegisterForm({ onSubmit, isSubmitting = false, errorMessage, ris
     resolver: zodResolver(registerSchema),
     defaultValues: { name: '', email: '', password: '', confirmPassword: '', acceptTerms: false },
   });
-  const password = useWatch({ control, name: 'password' });
-  const strength = getPasswordStrength(password);
 
   const submit = handleSubmit(onSubmit);
 
@@ -73,49 +68,13 @@ export function RegisterForm({ onSubmit, isSubmitting = false, errorMessage, ris
           )}
         />
       </Rise>
-      <Rise index={riseIndex + 2}>
-        <FieldLabel label="Senha" trailing={<PasswordStrengthLabel strength={strength} />} />
-        <Controller
-          control={control}
-          name="password"
-          render={({ field, fieldState }) => (
-            <PasswordField
-              icon={null}
-              accessibilityLabel="Senha"
-              placeholder="Crie uma senha"
-              autoComplete="new-password"
-              textContentType="newPassword"
-              returnKeyType="next"
-              value={field.value}
-              onChangeText={field.onChange}
-              onBlur={field.onBlur}
-              error={fieldState.error?.message}
-            />
-          )}
-        />
-        <PasswordStrengthMeter strength={strength} />
-      </Rise>
-      <Rise index={riseIndex + 3}>
-        <Controller
-          control={control}
-          name="confirmPassword"
-          render={({ field, fieldState }) => (
-            <PasswordField
-              icon={null}
-              label="Confirmar senha"
-              placeholder="Repita a senha"
-              autoComplete="new-password"
-              textContentType="newPassword"
-              returnKeyType="go"
-              value={field.value}
-              onChangeText={field.onChange}
-              onBlur={field.onBlur}
-              onSubmitEditing={submit}
-              error={fieldState.error?.message}
-            />
-          )}
-        />
-      </Rise>
+      <NewPasswordFields
+        control={control}
+        passwordLabel="Senha"
+        confirmLabel="Confirmar senha"
+        onSubmitEditing={submit}
+        riseIndex={riseIndex + 2}
+      />
       <Rise index={riseIndex + 4}>
         <Controller
           control={control}

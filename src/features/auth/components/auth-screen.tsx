@@ -37,6 +37,14 @@ export function AuthBackButton({ onPress, label = 'Voltar' }: AuthBackButtonProp
   return <IconButton icon={ChevronLeft} tone="surface" accessibilityLabel={label} onPress={onPress} />;
 }
 
+export function AuthBarTitle({ children }: { children: string }) {
+  return (
+    <Text numberOfLines={1} style={styles.barTitle}>
+      {children}
+    </Text>
+  );
+}
+
 export type AuthIconTileTone = 'default' | 'energy' | 'critical';
 
 export function AuthIconTile({ icon, tone = 'default', index = 0 }: { icon: LucideIcon; tone?: AuthIconTileTone; index?: number }) {
@@ -139,6 +147,13 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 20,
     paddingTop: 24,
+  },
+  barTitle: {
+    flex: 1,
+    fontSize: 17,
+    lineHeight: 22,
+    fontFamily: fonts.bold,
+    color: colors.textTitle,
   },
   heading: {
     gap: 4,
