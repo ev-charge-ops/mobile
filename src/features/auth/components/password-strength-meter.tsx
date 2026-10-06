@@ -24,28 +24,85 @@ export function PasswordStrengthLabel({ strength }: { strength: PasswordStrength
   );
 }
 
-export function PasswordStrengthMeter({ strength }: { strength: PasswordStrength }) {
+function StrengthSegments({ strength, height = 6 }: { strength: PasswordStrength; height?: number }) {
   const color = getSegmentColor(strength.score);
 
   return (
+    <View
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Força da senha"
+      accessibilityValue={{ min: 0, max: SEGMENTS, now: strength.score, text: strength.label || undefined }}
+      style={styles.segments}
+    >
+      {Array.from({ length: SEGMENTS }, (_, index) => (
+        <View key={index} style={[styles.track, { height }]}>
+          <Segment filled={index < strength.score} delay={index * motion.revealStagger} color={color} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export function PasswordStrengthMeter({ strength }: { strength: PasswordStrength }) {
+  return (
     <View style={styles.container}>
-      <View
-        accessible
-        accessibilityRole="progressbar"
-        accessibilityLabel="Força da senha"
-        accessibilityValue={{ min: 0, max: SEGMENTS, now: strength.score, text: strength.label || undefined }}
-        style={styles.segments}
-      >
-        {Array.from({ length: SEGMENTS }, (_, index) => (
-          <View key={index} style={styles.track}>
-            <Segment filled={index < strength.score} delay={index * motion.revealStagger} color={color} />
-          </View>
-        ))}
-      </View>
+      <StrengthSegments strength={strength} />
       <View style={styles.rules}>
         <PasswordRule met={strength.hasMinLength} label="8+ caracteres" />
         <PasswordRule met={strength.hasNumber} label="Um número" />
       </View>
+    </View>
+  );
+}
+
+export type PasswordChecklistRule = {
+  label: string;
+  met: boolean;
+};
+
+export function PasswordStrengthCard({
+  strength,
+  rules,
+}: {
+  strength: PasswordStrength;
+  rules: PasswordChecklistRule[];
+}) {
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardMeter}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Força da senha</Text>
+          <Text
+            accessibilityLiveRegion="polite"
+            style={[styles.cardStrength, { color: strength.score >= 3 ? colors.energyText : colors.textMuted }]}
+          >
+            {strength.label}
+          </Text>
+        </View>
+        <StrengthSegments strength={strength} height={8} />
+      </View>
+      <View style={styles.cardDivider} />
+      <View style={styles.checklist}>
+        {rules.map((rule) => (
+          <ChecklistRule key={rule.label} rule={rule} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function ChecklistRule({ rule }: { rule: PasswordChecklistRule }) {
+  return (
+    <View
+      accessible
+      accessibilityLabel={`${rule.label}${rule.met ? ', atendido' : ', pendente'}`}
+      style={styles.checklistRow}
+    >
+      <View style={[styles.checkCircle, rule.met && styles.checkCircleMet]}>
+        {rule.met ? <Icon icon={Check} size={14} strokeWidth={3} color={colors.energyText} /> : null}
+      </View>
+      <Text style={[styles.checklistLabel, rule.met && styles.checklistLabelMet]}>{rule.label}</Text>
     </View>
   );
 }
@@ -130,6 +187,64 @@ const styles = StyleSheet.create({
   },
   ruleLabelMet: {
     color: colors.energyText,
+  },
+  card: {
+    gap: 14,
+    padding: 16,
+    borderRadius: 24,
+    borderCurve: 'continuous',
+    backgroundColor: colors.surfaceCard,
+  },
+  cardMeter: {
+    gap: 8,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  cardTitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: fonts.bold,
+    color: colors.textTitle,
+  },
+  cardStrength: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: fonts.bold,
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: colors.hairline,
+  },
+  checklist: {
+    gap: 10,
+  },
+  checklistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  checkCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.hairline,
+  },
+  checkCircleMet: {
+    backgroundColor: colors.energyTint,
+  },
+  checklistLabel: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: fonts.semibold,
+    color: colors.textMuted,
+  },
+  checklistLabelMet: {
+    color: colors.textTitle,
   },
   strengthLabel: {
     fontSize: 13,
