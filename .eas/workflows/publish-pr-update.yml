@@ -1,0 +1,14 @@
+# Publishes an over-the-air update per pull request so reviewers can open it from the preview build.
+name: Publish PR preview update
+
+on:
+  pull_request:
+    branches: ['main']
+
+jobs:
+  publish_update:
+    name: Publish preview update
+    type: update
+    params:
+      branch: ${{ github.head_ref || github.ref_name }}
+      platform: android
