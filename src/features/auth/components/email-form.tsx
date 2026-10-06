@@ -1,17 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Mail, type LucideIcon } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
-import { spacing } from '@/constants/theme';
 import { emailSchema, type EmailValues } from '@/features/auth/auth-schemas';
 import { FormError } from '@/features/auth/components/form-error';
 
 export type EmailFormProps = {
   submitLabel: string;
-  submitIcon: LucideIcon;
+  submitIcon?: LucideIcon;
+  defaultEmail?: string;
   onSubmit: (values: EmailValues) => void;
   isSubmitting?: boolean;
   errorMessage?: string | null;
@@ -20,13 +20,14 @@ export type EmailFormProps = {
 export function EmailForm({
   submitLabel,
   submitIcon,
+  defaultEmail = '',
   onSubmit,
   isSubmitting = false,
   errorMessage,
 }: EmailFormProps) {
   const { control, handleSubmit } = useForm<EmailValues>({
     resolver: zodResolver(emailSchema),
-    defaultValues: { email: '' },
+    defaultValues: { email: defaultEmail },
   });
 
   const submit = handleSubmit(onSubmit);
@@ -39,7 +40,6 @@ export function EmailForm({
         render={({ field, fieldState }) => (
           <TextField
             label="E-mail"
-            icon={Mail}
             placeholder="voce@exemplo.com"
             keyboardType="email-address"
             autoComplete="email"
@@ -54,13 +54,16 @@ export function EmailForm({
         )}
       />
       {errorMessage ? <FormError message={errorMessage} /> : null}
-      <Button label={submitLabel} icon={submitIcon} size="lg" block loading={isSubmitting} onPress={submit} />
+      <Button label={submitLabel} icon={submitIcon} size="lg" block haptic loading={isSubmitting} onPress={submit} style={styles.submit} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   form: {
-    gap: spacing.lg,
+    gap: 12,
+  },
+  submit: {
+    marginTop: 8,
   },
 });

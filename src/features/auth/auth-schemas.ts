@@ -14,6 +14,7 @@ export const registerSchema = z
     email,
     password: newPassword,
     confirmPassword: z.string().min(1, 'Confirme sua senha'),
+    acceptTerms: z.boolean().refine((accepted) => accepted, 'Aceite os termos para continuar'),
   })
   .refine((values) => values.password === values.confirmPassword, {
     message: 'As senhas não coincidem',
