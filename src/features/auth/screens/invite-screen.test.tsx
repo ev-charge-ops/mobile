@@ -49,6 +49,12 @@ function signedInAs(user: authApi.AuthUser) {
   return createSessionValue({ status: 'authenticated', user });
 }
 
+async function openAccountStep() {
+  await screen.findByText('Residencial Aclimação');
+  await fireEvent.press(screen.getByRole('button', { name: 'Aceitar convite' }));
+  await screen.findByRole('header', { name: 'Crie sua conta' });
+}
+
 async function fillAccountForm() {
   await fireEvent.changeText(screen.getByLabelText('Nome'), 'Ana Souza');
   await fireEvent.changeText(screen.getByLabelText('Senha'), 'secret-123');
@@ -69,9 +75,22 @@ describe('<InviteScreen />', () => {
     await renderWithProviders(<InviteScreen />);
 
     expect(await screen.findByText('Residencial Aclimação')).toBeOnTheScreen();
-    expect(screen.getByText('B · 42')).toBeOnTheScreen();
+    expect(screen.getByText('Unidade B · 42')).toBeOnTheScreen();
     expect(screen.getByText('ana@example.com')).toBeOnTheScreen();
+    expect(screen.getByText('O que está incluído')).toBeOnTheScreen();
+    expect(screen.getByText(/Aceite até \d{2} de outubro/)).toBeOnTheScreen();
+    expect(screen.getByTestId('invite-ring')).toBeOnTheScreen();
     expect(api.getInvitePreview.mock.calls[0][0]).toBe('invite-token');
+  });
+
+  it('leaves without accepting', async () => {
+    await renderWithProviders(<InviteScreen />);
+    await screen.findByText('Residencial Aclimação');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Agora não' }));
+
+    expect(router.replace).toHaveBeenCalledWith('/');
+    expect(api.acceptInvite).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -113,7 +132,7 @@ describe('<InviteScreen />', () => {
       const onAccepted = jest.fn();
 
       await renderWithProviders(<InviteScreen onAccepted={onAccepted} />, session);
-      await screen.findByText('Residencial Aclimação');
+      await openAccountStep();
       await fillAccountForm();
 
       await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/'));
@@ -125,7 +144,7 @@ describe('<InviteScreen />', () => {
 
     it('validates the password confirmation', async () => {
       await renderWithProviders(<InviteScreen />);
-      await screen.findByText('Residencial Aclimação');
+      await openAccountStep();
 
       await fireEvent.changeText(screen.getByLabelText('Nome'), 'Ana Souza');
       await fireEvent.changeText(screen.getByLabelText('Senha'), 'secret-123');
@@ -140,7 +159,7 @@ describe('<InviteScreen />', () => {
       api.acceptInvite.mockRejectedValue(new authApi.AuthApiError(409, null, 'EMAIL_ALREADY_REGISTERED'));
 
       await renderWithProviders(<InviteScreen />);
-      await screen.findByText('Residencial Aclimação');
+      await openAccountStep();
       await fillAccountForm();
 
       expect(await screen.findByText(/Este e-mail já tem uma conta/)).toBeOnTheScreen();
@@ -151,7 +170,7 @@ describe('<InviteScreen />', () => {
       api.acceptInvite.mockRejectedValue(new authApi.AuthApiError(410, null, 'INVITE_EXPIRED'));
 
       await renderWithProviders(<InviteScreen />);
-      await screen.findByText('Residencial Aclimação');
+      await openAccountStep();
       await fillAccountForm();
 
       expect(await screen.findByText('Convite expirado')).toBeOnTheScreen();
@@ -159,9 +178,9 @@ describe('<InviteScreen />', () => {
 
     it('goes to login keeping the invite as the return target', async () => {
       await renderWithProviders(<InviteScreen />);
-      await screen.findByText('Residencial Aclimação');
+      await openAccountStep();
 
-      await fireEvent.press(screen.getByRole('button', { name: 'Já tenho conta' }));
+      await fireEvent.press(screen.getByRole('link', { name: 'Já tenho conta' }));
 
       expect(router.push).toHaveBeenCalledWith('/login');
       expect(takeReturnTarget()).toEqual({ pathname: '/invite', params: { token: 'invite-token' } });
@@ -175,7 +194,7 @@ describe('<InviteScreen />', () => {
       const session = createSessionValue();
 
       await renderWithProviders(<InviteScreen />, session);
-      await screen.findByText('Residencial Aclimação');
+      await openAccountStep();
       await fireEvent.press(screen.getByRole('button', { name: 'Continuar com o Google' }));
 
       await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/'));
@@ -190,7 +209,7 @@ describe('<InviteScreen />', () => {
       const session = createSessionValue();
 
       await renderWithProviders(<InviteScreen />, session);
-      await screen.findByText('Residencial Aclimação');
+      await openAccountStep();
       await fireEvent.press(screen.getByRole('button', { name: 'Continuar com o Google' }));
 
       await waitFor(() => expect(session.startSession).toHaveBeenCalled());
