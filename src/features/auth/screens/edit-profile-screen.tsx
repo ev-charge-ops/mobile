@@ -1,23 +1,31 @@
-import { ScrollView, StyleSheet, Text } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, Text } from 'react-native';
 
-import { AppBar } from '@/components/ui/app-bar';
-import { FadeInItem } from '@/components/ui/fade-in-item';
+import { Rise } from '@/components/ui/rise';
 import { useToast } from '@/components/ui/toast';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts } from '@/constants/theme';
 import type { AuthUser } from '@/features/auth/api/auth-api';
 import { useUpdateProfile } from '@/features/auth/api/use-update-profile';
 import { getUpdateProfileErrorMessage } from '@/features/auth/auth-errors';
 import type { ProfileValues } from '@/features/auth/auth-schemas';
+import { AuthBackButton, AuthBarTitle, AuthScreen } from '@/features/auth/components/auth-screen';
 import { ProfileForm } from '@/features/auth/components/profile-form';
 
 export type EditProfileScreenProps = {
   user: AuthUser;
+  membership?: string | null;
   onBack: () => void;
   onDone: () => void;
 };
 
-export function EditProfileScreen({ user, onBack, onDone }: EditProfileScreenProps) {
+export function getProfileInitials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return '?';
+  const first = words[0].charAt(0);
+  const last = words.length > 1 ? words[words.length - 1].charAt(0) : '';
+  return `${first}${last}`.toLocaleUpperCase('pt-BR');
+}
+
+export function EditProfileScreen({ user, membership, onBack, onDone }: EditProfileScreenProps) {
   const updateProfile = useUpdateProfile();
   const toast = useToast();
 
@@ -26,48 +34,56 @@ export function EditProfileScreen({ user, onBack, onDone }: EditProfileScreenPro
       { name },
       {
         onSuccess: () => {
-          toast.show('Dados atualizados');
+          toast.show('Alterações salvas');
           onDone();
         },
       },
     );
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
-      <AppBar title="Dados pessoais" onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <FadeInItem>
-          <Text style={styles.subtitle}>Seu nome aparece no app, nos recibos e para o gestor do condomínio.</Text>
-        </FadeInItem>
-        <FadeInItem index={1}>
-          <ProfileForm
-            name={user.name}
-            email={user.email}
-            onSubmit={save}
-            isSubmitting={updateProfile.isPending}
-            errorMessage={updateProfile.isError ? getUpdateProfileErrorMessage(updateProfile.error) : null}
-          />
-        </FadeInItem>
-      </ScrollView>
-    </SafeAreaView>
+    <AuthScreen
+      header={
+        <>
+          <AuthBackButton onPress={onBack} />
+          <AuthBarTitle size="large">Perfil</AuthBarTitle>
+        </>
+      }
+    >
+      <Rise index={1} style={styles.avatar}>
+        <Text accessibilityLabel={`Iniciais de ${user.name}`} style={styles.initials}>
+          {getProfileInitials(user.name)}
+        </Text>
+      </Rise>
+      <ProfileForm
+        name={user.name}
+        email={user.email}
+        emailVerified={user.emailVerified}
+        membership={membership}
+        onSubmit={save}
+        isSubmitting={updateProfile.isPending}
+        errorMessage={updateProfile.isError ? getUpdateProfileErrorMessage(updateProfile.error) : null}
+      />
+    </AuthScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.bgBase,
+  avatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+    marginBottom: 14,
+    backgroundColor: colors.surfaceInverse,
   },
-  content: {
-    gap: spacing.xl,
-    paddingHorizontal: spacing.gutter,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.massive,
-  },
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 21,
-    fontFamily: fonts.medium,
-    color: colors.textSubtle,
+  initials: {
+    fontSize: 32,
+    lineHeight: 38,
+    fontFamily: fonts.bold,
+    letterSpacing: -0.64,
+    color: colors.textOnInverse,
   },
 });

@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 
 import * as authApi from '@/features/auth/api/auth-api';
 import { meQueryKey } from '@/features/auth/api/use-me';
-import { EditProfileScreen } from '@/features/auth/screens/edit-profile-screen';
+import { EditProfileScreen, getProfileInitials } from '@/features/auth/screens/edit-profile-screen';
 import {
   createSessionValue,
   createTestQueryClient,
@@ -17,11 +17,11 @@ jest.mock('@/features/auth/api/auth-api', () => {
 
 const api = jest.mocked(authApi);
 
-async function renderScreen(onDone = jest.fn()) {
+async function renderScreen(onDone = jest.fn(), membership: string | null = null) {
   const queryClient = createTestQueryClient();
   queryClient.setQueryData(meQueryKey, testUser);
   await renderWithProviders(
-    <EditProfileScreen user={testUser} onBack={jest.fn()} onDone={onDone} />,
+    <EditProfileScreen user={testUser} membership={membership} onBack={jest.fn()} onDone={onDone} />,
     createSessionValue({ status: 'authenticated', user: testUser }),
     queryClient,
   );
@@ -30,6 +30,14 @@ async function renderScreen(onDone = jest.fn()) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+});
+
+describe('getProfileInitials', () => {
+  it('uses the first and last names', () => {
+    expect(getProfileInitials('Motorista Demo')).toBe('MD');
+    expect(getProfileInitials(' ana ')).toBe('A');
+    expect(getProfileInitials('')).toBe('?');
+  });
 });
 
 describe('<EditProfileScreen />', () => {
@@ -41,6 +49,16 @@ describe('<EditProfileScreen />', () => {
     expect(screen.getByDisplayValue('ana@example.com')).toBeOnTheScreen();
     expect(screen.getByText(/ainda não pode ser alterado/)).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Salvar alterações' })).toBeDisabled();
+  });
+
+  it('shows the initials, the email status and the unit', async () => {
+    await renderScreen(jest.fn(), 'Unidade B · 42 · Residencial Aclimação');
+
+    expect(screen.getByRole('header', { name: 'Perfil' })).toBeOnTheScreen();
+    expect(screen.getByText('A')).toBeOnTheScreen();
+    expect(screen.getByText('não verificado')).toBeOnTheScreen();
+    expect(screen.getByText('Unidade B · 42 · Residencial Aclimação')).toBeOnTheScreen();
+    expect(screen.getByText('Para trocar de unidade, fale com o síndico.')).toBeOnTheScreen();
   });
 
   it('validates the name before saving', async () => {
@@ -63,7 +81,7 @@ describe('<EditProfileScreen />', () => {
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
     expect(api.updateMyProfile.mock.calls[0][0]).toEqual({ name: 'Ana Souza' });
     expect(queryClient.getQueryData(meQueryKey)).toEqual({ ...testUser, name: 'Ana Souza' });
-    expect(screen.getByText('Dados atualizados')).toBeOnTheScreen();
+    expect(screen.getByText('Alterações salvas')).toBeOnTheScreen();
   });
 
   it('shows the error when saving fails', async () => {
