@@ -108,7 +108,17 @@ function RoundAction({ icon, label, onPress }: { icon: LucideIcon; label: string
   );
 }
 
-function WhitePill({ label, onPress, loading }: { label: string; onPress: () => void; loading?: boolean }) {
+function WhitePill({
+  label,
+  onPress,
+  loading,
+  grow,
+}: {
+  label: string;
+  onPress: () => void;
+  loading?: boolean;
+  grow?: boolean;
+}) {
   return (
     <Button
       label={label}
@@ -118,7 +128,7 @@ function WhitePill({ label, onPress, loading }: { label: string; onPress: () => 
       haptic="impactMedium"
       loading={loading}
       onPress={onPress}
-      style={styles.flex}
+      style={grow ? styles.flex : undefined}
     />
   );
 }
@@ -278,7 +288,7 @@ function ActiveView({ session, now, readAt, justPlugged, isStopping, onBack, onS
       <Rise index={4} style={styles.footer}>
         <RoundAction icon={SlidersHorizontal} label="Ajustar limite" onPress={() => setSheet('limit')} />
         <RoundAction icon={Bell} label="Lembrete" onPress={() => setSheet('reminders')} />
-        <WhitePill label="Encerrar recarga" loading={isStopping} onPress={onStop} />
+        <WhitePill label="Encerrar recarga" loading={isStopping} onPress={onStop} grow />
       </Rise>
       <LimitSheet session={session} visible={sheet === 'limit'} onClose={() => setSheet(null)} />
       <RemindersSheet session={session} now={now} visible={sheet === 'reminders'} onClose={() => setSheet(null)} />
