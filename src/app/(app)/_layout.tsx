@@ -67,7 +67,7 @@ export default function AppLayout() {
             contentStyle: { backgroundColor: 'transparent' },
           }}
         />
-        <Stack.Screen name="sessions/[sessionId]" />
+        <Stack.Screen name="sessions/[sessionId]" options={pushTransition} />
         <Stack.Screen name="notifications" options={pushTransition} />
         <Stack.Screen name="privacy" options={pushTransition} />
         <Stack.Screen name="profile" />
