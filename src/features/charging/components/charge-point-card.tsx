@@ -14,6 +14,7 @@ import {
   regimeLabels,
 } from '@/features/charging/charging-format';
 import { DemandBadge } from '@/features/charging/components/demand-badge';
+import { QueueLengthTag } from '@/features/charging/components/queue-length-tag';
 
 export type ChargePointCardProps = {
   chargePoint: ChargePoint;
@@ -33,7 +34,7 @@ export function ChargePointCard({ chargePoint, onPress }: ChargePointCardProps) 
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={`${chargePoint.name}, ${chargePointStatusLabels[chargePoint.status]}`}
+      accessibilityLabel={`${chargePoint.name}, ${chargePointStatusLabels[chargePoint.status]}${chargePoint.queueLength > 0 ? `, ${chargePoint.queueLength} na fila` : ''}`}
       onPress={onPress}
       scaleTo={0.98}
       style={styles.card}
@@ -64,6 +65,7 @@ export function ChargePointCard({ chargePoint, onPress }: ChargePointCardProps) 
           status={chargePointStatusPill[chargePoint.status]}
           label={chargePointStatusLabels[chargePoint.status]}
         />
+        <QueueLengthTag queueLength={chargePoint.queueLength} />
         <Text style={styles.metaText}>
           {formatPower(chargePoint.maxPowerKw)} · {regimeLabels[chargePoint.type]}
         </Text>

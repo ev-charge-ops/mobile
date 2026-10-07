@@ -15,6 +15,7 @@ export type ChargingLimitInput = components['schemas']['ChargingLimitRequestDto'
 export type StartedSession = components['schemas']['StartSessionResponseDto'];
 export type PaymentSheetParams = components['schemas']['PaymentSheetDto'];
 export type SessionPayment = components['schemas']['SessionPaymentDto'];
+export type QueueEntry = components['schemas']['QueueEntryResponseDto'];
 
 export class ChargingApiError extends Error {
   constructor(
@@ -81,4 +82,18 @@ export function createSessionPaymentSheet(sessionId: string) {
 
 export function confirmSessionPayment(sessionId: string) {
   return unwrap(apiClient.POST('/sessions/{sessionId}/payment/confirm', { params: { path: { sessionId } } }));
+}
+
+export function joinQueue(chargePointId: string) {
+  return unwrap(apiClient.POST('/charge-points/{chargePointId}/queue', { params: { path: { chargePointId } } }));
+}
+
+export async function leaveQueue(chargePointId: string) {
+  let result: ApiResult<unknown>;
+  try {
+    result = await apiClient.DELETE('/charge-points/{chargePointId}/queue', { params: { path: { chargePointId } } });
+  } catch {
+    throw new ChargingApiError(null);
+  }
+  if (!result.response.ok) throw new ChargingApiError(result.response.status, getErrorCode(result.error));
 }
