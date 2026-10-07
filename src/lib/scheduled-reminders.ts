@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 
-import { isPushSupported } from '@/lib/push-notifications';
+import { DEFAULT_CHANNEL_ID, ensureAndroidChannel, isPushSupported } from '@/lib/push-notifications';
 
 export type Reminder = {
   identifier: string;
@@ -10,9 +10,15 @@ export type Reminder = {
   data?: Record<string, unknown>;
 };
 
+export const RESCHEDULE_TOLERANCE_MS = 30_000;
+
 function readFireAt(request: Notifications.NotificationRequest) {
   const fireAt = request.content.data?.fireAt;
-  return typeof fireAt === 'string' ? fireAt : null;
+  return typeof fireAt === 'string' ? Date.parse(fireAt) : Number.NaN;
+}
+
+function isStillOnTime(request: Notifications.NotificationRequest, reminder: Reminder) {
+  return Math.abs(readFireAt(request) - Date.parse(reminder.fireAt)) <= RESCHEDULE_TOLERANCE_MS;
 }
 
 export async function syncScheduledReminders(prefix: string, reminders: Reminder[], now = Date.now()) {
@@ -26,23 +32,31 @@ export async function syncScheduledReminders(prefix: string, reminders: Reminder
   for (const request of scheduled) {
     if (!request.identifier.startsWith(prefix)) continue;
     const reminder = wanted.get(request.identifier);
-    if (reminder && readFireAt(request) === reminder.fireAt) {
+    if (reminder && isStillOnTime(request, reminder)) {
       kept.add(request.identifier);
       continue;
     }
     await Notifications.cancelScheduledNotificationAsync(request.identifier);
   }
 
-  for (const reminder of upcoming) {
-    if (kept.has(reminder.identifier)) continue;
+  const pending = upcoming.filter((reminder) => !kept.has(reminder.identifier));
+  if (pending.length === 0) return;
+
+  await ensureAndroidChannel().catch(() => undefined);
+  for (const reminder of pending) {
     await Notifications.scheduleNotificationAsync({
       identifier: reminder.identifier,
       content: {
         title: reminder.title,
         body: reminder.body,
+        sound: 'default',
         data: { ...reminder.data, fireAt: reminder.fireAt },
       },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(reminder.fireAt) },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: new Date(reminder.fireAt),
+        channelId: DEFAULT_CHANNEL_ID,
+      },
     });
   }
 }

@@ -15,6 +15,7 @@ import {
 } from '@/features/charging/api/charging-api';
 import { chargePointsQueryKey, shouldRetryChargingRequest } from '@/features/charging/api/use-charge-points';
 import { presentCardPayment } from '@/features/charging/payments/card-payment';
+import { syncSessionReminders } from '@/features/charging/session-reminder-sync';
 import { isSessionOpen } from '@/features/charging/session-timing';
 
 export const activeSessionQueryKey = ['sessions', 'active'] as const;
@@ -65,6 +66,7 @@ export function useStartSession() {
       queryClient.setQueryData(chargingSessionQueryKey(session.id), mergeIntoDetail(session, undefined));
       queryClient.setQueryData(activeSessionQueryKey, session);
       queryClient.invalidateQueries({ queryKey: chargePointsQueryKey });
+      void syncSessionReminders(session);
     },
   });
 }
@@ -80,6 +82,7 @@ export function useStopSession(sessionId: string) {
       );
       queryClient.setQueryData(activeSessionQueryKey, null);
       queryClient.invalidateQueries({ queryKey: chargePointsQueryKey });
+      void syncSessionReminders(session);
       queryClient.invalidateQueries({ queryKey: sessionsQueryKey, exact: false, refetchType: 'none' });
     },
   });
@@ -117,6 +120,7 @@ export function usePayForSession() {
         mergeIntoDetail(session, previous),
       );
       queryClient.setQueryData(activeSessionQueryKey, isSessionOpen(session.status) ? session : null);
+      void syncSessionReminders(session);
     },
   });
 }

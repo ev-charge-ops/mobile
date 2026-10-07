@@ -33,6 +33,19 @@ export function getNotificationHref(type: unknown, data: Record<string, unknown>
   return null;
 }
 
+const sessionAlertKinds: Record<string, string> = {
+  CHARGING_COMPLETE: 'complete',
+  IDLE_FEE_STARTED: 'idle',
+};
+
+export function getSessionAlertKey(data: Record<string, unknown> | null | undefined) {
+  const sessionId = readString(data, 'sessionId');
+  const type = readString(data, 'type');
+  if (!sessionId || !type) return null;
+  const kind = type === 'SESSION_REMINDER' ? readString(data, 'reminder') : sessionAlertKinds[type];
+  return kind ? `${sessionId}:${kind}` : null;
+}
+
 export function getPushNotificationId(data: Record<string, unknown> | null | undefined) {
   return readString(data, 'notificationId');
 }
