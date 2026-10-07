@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ToastProvider } from '@/components/ui/toast';
 import { colors } from '@/constants/theme';
+import { SessionProvider } from '@/features/auth/session/session-provider';
 import { queryClient, subscribeToAppFocus } from '@/lib/react-query';
 
 export function AppProviders({ children }: PropsWithChildren) {
@@ -15,7 +16,9 @@ export function AppProviders({ children }: PropsWithChildren) {
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <ToastProvider>{children}</ToastProvider>
+          <SessionProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </SessionProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
