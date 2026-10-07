@@ -95,6 +95,7 @@
           "locationWhenInUsePermission": "O EV ChargeOps usa sua localização para mostrar os pontos de recarga mais próximos.",
           "locationAlwaysAndWhenInUsePermission": false,
           "locationAlwaysPermission": false,
+          "motionUsagePermission": false,
           "isIosBackgroundLocationEnabled": false,
           "isAndroidBackgroundLocationEnabled": false
         }
