@@ -1,6 +1,7 @@
 import { useLogin } from '@/features/auth/api/use-login';
 import { getLoginErrorMessage } from '@/features/auth/auth-errors';
 import { AuthLayout } from '@/features/auth/components/auth-layout';
+import { AuthLink } from '@/features/auth/components/auth-link';
 import { LoginForm } from '@/features/auth/components/login-form';
 
 export function LoginScreen() {
@@ -19,6 +20,7 @@ export function LoginScreen() {
         isSubmitting={loginMutation.isPending}
         errorMessage={loginMutation.isError ? getLoginErrorMessage(loginMutation.error) : null}
       />
+      <AuthLink href="/forgot-password" label="Esqueci minha senha" />
     </AuthLayout>
   );
 }
