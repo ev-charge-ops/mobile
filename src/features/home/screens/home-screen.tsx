@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { LogOut, Palette, ShieldCheck, Zap } from 'lucide-react-native';
+import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -21,15 +22,17 @@ export type HomeScreenProps = {
   user: User;
   onSignOut: () => void;
   isSigningOut?: boolean;
+  banner?: ReactNode;
 };
 
-export function HomeScreen({ user, onSignOut, isSigningOut = false }: HomeScreenProps) {
+export function HomeScreen({ user, onSignOut, isSigningOut = false, banner }: HomeScreenProps) {
   const isManager = user.role === 'MANAGER';
 
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
       <AppBar variant="large" title={`Olá, ${user.name}`} subtitle={user.email} />
       <ScrollView contentContainerStyle={styles.content}>
+        {banner}
         <Card style={styles.stack}>
           <StatusPill
             status={isManager ? 'info' : 'available'}
