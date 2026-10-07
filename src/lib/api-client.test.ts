@@ -12,13 +12,38 @@ type TestPaths = {
   };
 };
 
-function setup(handlers: AuthTokenHandlers | null, responses: number[]) {
+class NativeFetchResponse {
+  readonly headers = new Headers({ 'Content-Type': 'application/json' });
+  readonly statusText = '';
+
+  constructor(
+    private readonly body: string,
+    readonly status: number,
+  ) {}
+
+  get ok() {
+    return this.status >= 200 && this.status < 300;
+  }
+
+  get [Symbol.toStringTag]() {
+    return 'Response';
+  }
+
+  async text() {
+    return this.body;
+  }
+
+  async json() {
+    return JSON.parse(this.body);
+  }
+}
+
+function setup(handlers: AuthTokenHandlers | null, responses: number[], { native = false } = {}) {
   const fetchMock = jest.fn(async (request: Request) => {
     const status = responses.shift() ?? 200;
-    return new Response(JSON.stringify({ id: '1', auth: request.headers.get('Authorization') }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const body = JSON.stringify({ id: '1', auth: request.headers.get('Authorization') });
+    if (native) return new NativeFetchResponse(body, status) as unknown as Response;
+    return new Response(body, { status, headers: { 'Content-Type': 'application/json' } });
   });
   const client = createClient<TestPaths>({ baseUrl: 'https://api.test', fetch: fetchMock });
   client.use(createAuthMiddleware(() => handlers));
@@ -69,5 +94,44 @@ describe('createAuthMiddleware', () => {
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(response.status).toBe(401);
+  });
+
+  describe('with a native fetch whose responses are not global Response instances', () => {
+    it('returns the response data', async () => {
+      const { client } = setup({ getAccessToken: () => 'token-1', refreshAccessToken: jest.fn() }, [200], {
+        native: true,
+      });
+
+      const { data, response } = await client.GET('/me');
+
+      expect(response.status).toBe(200);
+      expect(data).toEqual({ id: '1', auth: 'Bearer token-1' });
+    });
+
+    it('returns the error response when the refresh fails', async () => {
+      const onUnauthorized = jest.fn();
+      const { client } = setup(
+        { getAccessToken: () => 'token-1', refreshAccessToken: jest.fn().mockResolvedValue(null), onUnauthorized },
+        [401],
+        { native: true },
+      );
+
+      const { response } = await client.GET('/me');
+
+      expect(onUnauthorized).toHaveBeenCalledTimes(1);
+      expect(response.status).toBe(401);
+    });
+
+    it('returns the retried response after refreshing the token', async () => {
+      const refreshAccessToken = jest.fn().mockResolvedValue('token-2');
+      const { client } = setup({ getAccessToken: () => 'token-1', refreshAccessToken }, [401, 200], {
+        native: true,
+      });
+
+      const { data, response } = await client.GET('/me');
+
+      expect(response.status).toBe(200);
+      expect(data).toEqual({ id: '1', auth: 'Bearer token-2' });
+    });
   });
 });
