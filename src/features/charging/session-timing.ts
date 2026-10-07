@@ -1,6 +1,6 @@
 import type { ChargingSession, ChargingSessionStatus } from '@/features/charging/api/charging-api';
 
-const openStatuses: readonly ChargingSessionStatus[] = ['PENDING', 'ACTIVE', 'GRACE', 'IDLE'];
+const openStatuses: readonly ChargingSessionStatus[] = ['AWAITING_PAYMENT', 'PENDING', 'ACTIVE', 'GRACE', 'IDLE'];
 
 export function isSessionOpen(status: ChargingSessionStatus) {
   return openStatuses.includes(status);

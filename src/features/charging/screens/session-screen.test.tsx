@@ -129,4 +129,35 @@ describe('<SessionScreen />', () => {
 
     await waitFor(() => expect(screen.getByText('Esta recarga não foi encontrada.')).toBeOnTheScreen());
   });
+
+  it('lets the driver cancel a session awaiting card payment', async () => {
+    api.getSession.mockResolvedValue(
+      buildSession({
+        status: 'AWAITING_PAYMENT',
+        regime: 'COMMERCIAL',
+        energyKwh: 0,
+        payment: {
+          paymentIntentId: 'pi_1',
+          status: 'PENDING_AUTHORIZATION',
+          currency: 'BRL',
+          authorizedCents: 20040,
+          capturedCents: null,
+          failureCode: null,
+          authorizedAt: null,
+          capturedAt: null,
+          canceledAt: null,
+        },
+      }),
+    );
+    api.stopSession.mockResolvedValue(buildClosedSession({ status: 'INTERRUPTED', regime: 'COMMERCIAL' }));
+
+    await renderWithProviders(<SessionScreen sessionId="session-1" />);
+
+    expect(await screen.findByRole('header', { name: 'Pagamento pendente' })).toBeOnTheScreen();
+    expect(screen.getByText(`R$${NBSP}200,40`)).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Cancelar recarga' }));
+
+    expect(api.stopSession).toHaveBeenCalledWith('session-1');
+    expect(await screen.findByText('Recarga interrompida')).toBeOnTheScreen();
+  });
 });

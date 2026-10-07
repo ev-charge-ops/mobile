@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { BatteryCharging, ChevronRight, Clock, TriangleAlert, type LucideIcon } from 'lucide-react-native';
+import { BatteryCharging, ChevronRight, Clock, CreditCard, TriangleAlert, type LucideIcon } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
@@ -15,6 +15,7 @@ import { formatEnergy } from '@/utils/format-energy';
 type StatusCopy = { label: string; status: 'charging' | 'idle' | 'fault' | 'info'; icon: LucideIcon; hint: string };
 
 const statusCopy: Partial<Record<ChargingSession['status'], StatusCopy>> = {
+  AWAITING_PAYMENT: { label: 'Pagamento', status: 'info', icon: CreditCard, hint: 'Aguardando a pré-autorização' },
   PENDING: { label: 'Liberando', status: 'info', icon: Clock, hint: 'Aguardando o carregador' },
   ACTIVE: { label: 'Carregando', status: 'charging', icon: BatteryCharging, hint: 'Recarga em andamento' },
   GRACE: { label: 'Tolerância', status: 'idle', icon: Clock, hint: 'Carga concluída · retire o veículo' },

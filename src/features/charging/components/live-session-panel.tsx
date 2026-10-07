@@ -1,4 +1,4 @@
-import { BatteryCharging, Clock, Hourglass, TriangleAlert } from 'lucide-react-native';
+import { BatteryCharging, Clock, CreditCard, Hourglass, TriangleAlert } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
@@ -34,6 +34,7 @@ export type LiveSessionPanelProps = {
 };
 
 export function LiveSessionPanel({ session, now }: LiveSessionPanelProps) {
+  if (session.status === 'AWAITING_PAYMENT') return <PaymentPendingPanel session={session} />;
   if (session.status === 'GRACE') return <GracePanel session={session} now={now} />;
   if (session.status === 'IDLE') return <IdlePanel session={session} now={now} />;
   return <ChargingPanel session={session} now={now} />;
@@ -98,6 +99,26 @@ function ChargingPanel({ session, now }: LiveSessionPanelProps) {
           preço por kWh não muda.
         </InfoBanner>
       ) : null}
+      <SessionFacts session={session} />
+    </>
+  );
+}
+
+function PaymentPendingPanel({ session }: { session: ChargingSession }) {
+  return (
+    <>
+      <SessionHero
+        value={formatCents(session.payment?.authorizedCents ?? 0)}
+        label="Pré-autorização no cartão"
+        pillLabel="Aguardando pagamento"
+        pillIcon={CreditCard}
+        color={colors.statusInfo}
+        backgroundColor={colors.statusInfoBg}
+      />
+      <InfoBanner tone="info" title="Pagamento pendente">
+        O carregador é liberado depois que o cartão autoriza a pré-autorização. Esta versão do app ainda não aceita
+        cartão: cancele a recarga e atualize o app para pagar em pontos comerciais.
+      </InfoBanner>
       <SessionFacts session={session} />
     </>
   );
