@@ -15,6 +15,7 @@ const MIN_DELTA = 0.008;
 const BOUNDS_PADDING = 1.6;
 const FOCUS_DELTA = 0.011;
 const USER_DELTA = 0.008;
+const AREA_DELTA = 0.034;
 const PREVIEW_OFFSET_RATIO = 0.15;
 
 export function getRegionForCoordinates(coordinates: Coordinates[]): Region {
@@ -52,5 +53,14 @@ export function getUserRegion(coordinates: Coordinates): Region {
     longitude: coordinates.longitude,
     latitudeDelta: USER_DELTA,
     longitudeDelta: USER_DELTA,
+  };
+}
+
+export function getAreaRegion(coordinates: Coordinates): Region {
+  return {
+    latitude: coordinates.latitude - AREA_DELTA * PREVIEW_OFFSET_RATIO,
+    longitude: coordinates.longitude,
+    latitudeDelta: AREA_DELTA,
+    longitudeDelta: AREA_DELTA,
   };
 }

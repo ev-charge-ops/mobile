@@ -76,20 +76,42 @@ export function ChargePointMarker({ chargePoint, isSelected, onPress }: ChargePo
 export type UserLocationMarkerProps = {
   latitude: number;
   longitude: number;
+  label?: string | null;
 };
 
-export function UserLocationMarker({ latitude, longitude }: UserLocationMarkerProps) {
+export function UserLocationMarker({ latitude, longitude, label }: UserLocationMarkerProps) {
+  const [tracksViewChanges, setTracksViewChanges] = useState(Boolean(label));
+
+  useEffect(() => {
+    if (!tracksViewChanges) return;
+    const timeout = setTimeout(() => setTracksViewChanges(false), SNAPSHOT_DURATION);
+    return () => clearTimeout(timeout);
+  }, [tracksViewChanges]);
+
+  const dot = (
+    <View style={styles.userHalo}>
+      <View style={styles.userDot} />
+    </View>
+  );
+
   return (
     <Marker
       testID="user-location-marker"
       coordinate={{ latitude, longitude }}
-      anchor={{ x: 0.5, y: 0.5 }}
-      tracksViewChanges={false}
+      anchor={label ? { x: 0.5, y: 0.75 } : { x: 0.5, y: 0.5 }}
+      tracksViewChanges={tracksViewChanges}
       zIndex={0}
     >
-      <View style={styles.userHalo}>
-        <View style={styles.userDot} />
-      </View>
+      {label ? (
+        <View style={styles.userWrap}>
+          <View style={styles.userLabel}>
+            <Text style={styles.userLabelText}>{label}</Text>
+          </View>
+          {dot}
+        </View>
+      ) : (
+        dot
+      )}
     </Marker>
   );
 }
@@ -144,6 +166,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.45,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
+  },
+  userWrap: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  userLabel: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radii.pill,
+    backgroundColor: colors.statusInfo,
+  },
+  userLabelText: {
+    fontSize: 11,
+    fontFamily: fonts.extrabold,
+    color: colors.textTitle,
   },
   userHalo: {
     width: 40,
