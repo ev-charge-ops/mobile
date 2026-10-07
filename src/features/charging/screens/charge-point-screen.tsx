@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { PlugZap, RotateCw } from 'lucide-react-native';
-import type { ReactNode } from 'react';
+import { PlugZap, RotateCw, Zap } from 'lucide-react-native';
+import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -28,51 +28,85 @@ import {
   regimeLabels,
 } from '@/features/charging/charging-format';
 import { DemandBadge } from '@/features/charging/components/demand-badge';
+import { StartChargingSheet } from '@/features/charging/components/start-charging-sheet';
 
 const ESTIMATE_ENERGY_KWH = 20;
 
 export type ChargePointScreenProps = {
   chargePointId: string;
-  renderFooter?: (chargePoint: ChargePoint) => ReactNode;
 };
 
-export function ChargePointScreen({ chargePointId, renderFooter }: ChargePointScreenProps) {
+const unavailableLabels: Record<ChargePoint['status'], string> = {
+  AVAILABLE: 'Iniciar recarga',
+  CHARGING: 'Ponto em uso',
+  IDLE: 'Ponto ocupado',
+  OFFLINE: 'Carregador offline',
+};
+
+export function ChargePointScreen({ chargePointId }: ChargePointScreenProps) {
   const { data: chargePoint, isPending, isError, error, refetch, isRefetching } = useChargePoint(chargePointId);
+  const [isConfirming, setConfirming] = useState(false);
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
-      <AppBar title="Ponto de recarga" onBack={() => router.back()} />
-      {chargePoint ? (
-        <>
-          <ScrollView contentContainerStyle={styles.content}>
-            <ChargePointDetails chargePoint={chargePoint} />
-          </ScrollView>
-          {renderFooter?.(chargePoint)}
-        </>
-      ) : isPending ? (
-        <View style={styles.centered}>
-          <ActivityIndicator accessibilityLabel="Carregando ponto de recarga" color={colors.accent} size="large" />
-        </View>
-      ) : (
-        <View style={[styles.content, styles.stack]}>
-          <Card style={styles.stack}>
-            <Text style={typography.body}>
-              {isError && error instanceof ChargingApiError && error.status === 404
-                ? 'Este ponto de recarga não existe ou não está disponível para você.'
-                : 'Não foi possível carregar o ponto de recarga.'}
-            </Text>
-            <Button
-              label="Tentar novamente"
-              icon={RotateCw}
-              variant="secondary"
-              size="sm"
-              loading={isRefetching}
-              onPress={() => refetch()}
-            />
-          </Card>
-        </View>
-      )}
-    </SafeAreaView>
+    <View style={styles.screen}>
+      <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
+        <AppBar title="Ponto de recarga" onBack={() => router.back()} />
+        {chargePoint ? (
+          <>
+            <ScrollView contentContainerStyle={styles.content}>
+              <ChargePointDetails chargePoint={chargePoint} />
+            </ScrollView>
+            <StartFooter chargePoint={chargePoint} onStart={() => setConfirming(true)} />
+          </>
+        ) : isPending ? (
+          <View style={styles.centered}>
+            <ActivityIndicator accessibilityLabel="Carregando ponto de recarga" color={colors.accent} size="large" />
+          </View>
+        ) : (
+          <View style={[styles.content, styles.stack]}>
+            <Card style={styles.stack}>
+              <Text style={typography.body}>
+                {isError && error instanceof ChargingApiError && error.status === 404
+                  ? 'Este ponto de recarga não existe ou não está disponível para você.'
+                  : 'Não foi possível carregar o ponto de recarga.'}
+              </Text>
+              <Button
+                label="Tentar novamente"
+                icon={RotateCw}
+                variant="secondary"
+                size="sm"
+                loading={isRefetching}
+                onPress={() => refetch()}
+              />
+            </Card>
+          </View>
+        )}
+      </SafeAreaView>
+      {chargePoint?.pricing ? (
+        <StartChargingSheet
+          chargePoint={chargePoint}
+          pricing={chargePoint.pricing}
+          visible={isConfirming}
+          onClose={() => setConfirming(false)}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+function StartFooter({ chargePoint, onStart }: { chargePoint: ChargePoint; onStart: () => void }) {
+  const canStart = chargePoint.status === 'AVAILABLE' && chargePoint.pricing !== null;
+  const label = chargePoint.pricing ? unavailableLabels[chargePoint.status] : 'Tarifa não configurada';
+
+  return (
+    <View style={styles.footer}>
+      <Button label={label} icon={Zap} size="lg" block disabled={!canStart} onPress={onStart} />
+      <Text style={styles.footnote}>
+        {chargePoint.type === 'PRIVATE'
+          ? 'Sem cartão · o consumo entra no rateio da sua unidade'
+          : 'Preço travado no início · cobrança ao encerrar a recarga'}
+      </Text>
+    </View>
   );
 }
 
@@ -185,8 +219,8 @@ function RegimeBanner({ type, pricing }: { type: ChargePoint['type']; pricing: C
   if (type === 'PRIVATE') {
     return (
       <InfoBanner tone="success" title="Condomínio · energia a custo">
-        A energia é repassada pela tarifa da concessionária, sem margem. O fator de demanda indica horários disputados
-        e não altera o preço do kWh.
+        A energia é repassada pela tarifa da concessionária, sem margem. O fator de demanda indica horários disputados e
+        não altera o preço do kWh.
       </InfoBanner>
     );
   }
@@ -270,6 +304,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.semibold,
     color: colors.textMuted,
+  },
+  footer: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.gutter,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.surfaceSheet,
+  },
+  footnote: {
+    fontSize: 11,
+    fontFamily: fonts.medium,
+    color: colors.textSubtle,
+    textAlign: 'center',
   },
   estimateValue: {
     fontSize: 20,
