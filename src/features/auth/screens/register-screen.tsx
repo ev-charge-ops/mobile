@@ -1,6 +1,7 @@
 import { useRegister } from '@/features/auth/api/use-register';
 import { getRegisterErrorMessage } from '@/features/auth/auth-errors';
 import { AuthLayout } from '@/features/auth/components/auth-layout';
+import { OAuthButtons } from '@/features/auth/components/oauth-buttons';
 import { RegisterForm } from '@/features/auth/components/register-form';
 
 export function RegisterScreen() {
@@ -19,6 +20,7 @@ export function RegisterScreen() {
         isSubmitting={registerMutation.isPending}
         errorMessage={registerMutation.isError ? getRegisterErrorMessage(registerMutation.error) : null}
       />
+      <OAuthButtons />
     </AuthLayout>
   );
 }
