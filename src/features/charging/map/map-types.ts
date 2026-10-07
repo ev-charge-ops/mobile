@@ -13,6 +13,7 @@ export type ChargePointsMapProps = {
   chargePoints: ChargePoint[];
   selectedId: string | null;
   userCoordinates: Coordinates | null;
+  userLabel?: string | null;
   initialRegion: Region;
   padding: EdgePadding;
   onSelect: (chargePoint: ChargePoint) => void;

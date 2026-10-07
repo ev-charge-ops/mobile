@@ -13,6 +13,7 @@ export function ChargePointsMap({
   chargePoints,
   selectedId,
   userCoordinates,
+  userLabel,
   initialRegion,
   padding,
   onSelect,
@@ -38,7 +39,7 @@ export function ChargePointsMap({
       showsMyLocationButton={false}
       toolbarEnabled={false}
     >
-      {userCoordinates ? <UserLocationMarker {...userCoordinates} /> : null}
+      {userCoordinates ? <UserLocationMarker {...userCoordinates} label={userLabel} /> : null}
       {chargePoints.map((chargePoint) => (
         <ChargePointMarker
           key={chargePoint.id}
