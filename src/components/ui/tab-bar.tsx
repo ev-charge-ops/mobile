@@ -2,7 +2,7 @@ import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import type { LucideIcon } from 'lucide-react-native';
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,7 +16,20 @@ export type TabBarItem = {
   icon: LucideIcon;
   badge?: boolean;
   badgeLabel?: string;
+  badgeCount?: number;
+  badgeCountLabel?: (count: number) => string;
 };
+
+export function formatBadgeCount(count: number) {
+  return count > 99 ? '99+' : String(count);
+}
+
+function getAccessibilityLabel(item: TabBarItem) {
+  const parts = [item.label];
+  if (item.badge && item.badgeLabel) parts.push(item.badgeLabel);
+  if (item.badgeCount && item.badgeCount > 0) parts.push(item.badgeCountLabel?.(item.badgeCount) ?? String(item.badgeCount));
+  return parts.join(', ');
+}
 
 export type TabBarProps = BottomTabBarProps & {
   items: TabBarItem[];
@@ -96,7 +109,8 @@ function TabBarButton({ item, isActive, onPress, onLongPress }: TabBarButtonProp
     transform: [{ scale: progress.get() }],
   }));
 
-  const accessibilityLabel = item.badge && item.badgeLabel ? `${item.label}, ${item.badgeLabel}` : item.label;
+  const accessibilityLabel = getAccessibilityLabel(item);
+  const count = item.badgeCount ?? 0;
 
   return (
     <Pressable
@@ -110,6 +124,11 @@ function TabBarButton({ item, isActive, onPress, onLongPress }: TabBarButtonProp
       <Animated.View style={iconStyle}>
         <Icon icon={item.icon} size={22} color={isActive ? colors.accentOnQuiet : colors.textSubtle} />
         {item.badge ? <View testID={`tab-badge-${item.name}`} style={styles.badge} /> : null}
+        {count > 0 ? (
+          <View testID={`tab-count-${item.name}`} style={styles.count}>
+            <Text style={styles.countLabel}>{formatBadgeCount(count)}</Text>
+          </View>
+        ) : null}
       </Animated.View>
       <Animated.Text style={[styles.label, labelStyle]}>{item.label}</Animated.Text>
       <Animated.View style={[styles.dot, dotStyle]} />
@@ -166,5 +185,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.statusCharging,
     borderWidth: 1.5,
     borderColor: colors.bgBase,
+  },
+  count: {
+    position: 'absolute',
+    top: -5,
+    left: 14,
+    minWidth: 17,
+    height: 17,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent,
+    borderWidth: 1.5,
+    borderColor: colors.bgBase,
+  },
+  countLabel: {
+    fontSize: 10,
+    lineHeight: 12,
+    fontFamily: fonts.extrabold,
+    color: colors.textOnAccent,
+    fontVariant: ['tabular-nums'],
   },
 });

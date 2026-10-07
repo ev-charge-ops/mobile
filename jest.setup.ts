@@ -62,3 +62,22 @@ jest.mock('expo-location', () => ({
   getLastKnownPositionAsync: jest.fn().mockResolvedValue(null),
   getCurrentPositionAsync: jest.fn().mockResolvedValue(null),
 }));
+
+jest.mock('expo-notifications', () => ({
+  DEFAULT_ACTION_IDENTIFIER: 'expo.modules.notifications.actions.DEFAULT',
+  AndroidImportance: { HIGH: 4 },
+  SchedulableTriggerInputTypes: { DATE: 'date' },
+  setNotificationHandler: jest.fn(),
+  setNotificationChannelAsync: jest.fn().mockResolvedValue(null),
+  getPermissionsAsync: jest.fn().mockResolvedValue({ granted: false, canAskAgain: false }),
+  requestPermissionsAsync: jest.fn().mockResolvedValue({ granted: false, canAskAgain: false }),
+  getExpoPushTokenAsync: jest.fn().mockResolvedValue({ type: 'expo', data: 'ExponentPushToken[test]' }),
+  getLastNotificationResponse: jest.fn().mockReturnValue(null),
+  clearLastNotificationResponseAsync: jest.fn().mockResolvedValue(undefined),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getAllScheduledNotificationsAsync: jest.fn().mockResolvedValue([]),
+  scheduleNotificationAsync: jest.fn().mockResolvedValue('scheduled'),
+  cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
+  cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
+}));
