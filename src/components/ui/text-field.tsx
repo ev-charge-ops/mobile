@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { StyleSheet, Text, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -12,6 +12,7 @@ export type TextFieldProps = Omit<TextInputProps, 'style'> & {
   icon?: LucideIcon;
   hint?: string;
   error?: string;
+  trailing?: ReactNode;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -21,6 +22,7 @@ export function TextField({
   icon,
   hint,
   error,
+  trailing,
   style,
   onFocus,
   onBlur,
@@ -70,6 +72,7 @@ export function TextField({
             onBlur?.(event);
           }}
         />
+        {trailing}
       </Animated.View>
       {error ? (
         <Text accessibilityLiveRegion="polite" style={[styles.helper, styles.error]}>

@@ -10,6 +10,8 @@ export type AppleLoginInput = components['schemas']['AppleLoginDto'];
 export type VerifyEmailLoginInput = { email: string; code: string } | { token: string };
 export type InvitePreview = components['schemas']['InvitePreviewDto'];
 export type AcceptInviteInput = components['schemas']['AcceptInviteDto'];
+export type UpdateProfileInput = components['schemas']['UpdateMyProfileDto'];
+export type ChangePasswordInput = components['schemas']['ChangeMyPasswordDto'];
 
 export class AuthApiError extends Error {
   constructor(
@@ -82,6 +84,14 @@ export function logout(refreshToken: string) {
 
 export function getMe() {
   return unwrap(apiClient.GET('/auth/me'));
+}
+
+export function updateMyProfile(body: UpdateProfileInput) {
+  return unwrap(apiClient.PATCH('/me', { body }));
+}
+
+export function changeMyPassword(body: ChangePasswordInput) {
+  return unwrap(apiClient.POST('/me/password', { body }));
 }
 
 export function forgotPassword(email: string) {

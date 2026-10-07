@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { LockKeyhole, LogOut, Palette, ShieldCheck, Zap } from 'lucide-react-native';
+import { KeyRound, LockKeyhole, LogOut, ShieldCheck, UserRound, Zap } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -59,6 +59,18 @@ export function AccountScreen({ user, onSignOut, isSigningOut = false, banner }:
         <OrganizationsCard />
         <Card padding={0}>
           <ListRow
+            icon={UserRound}
+            label="Dados pessoais"
+            hint="Nome e e-mail da conta"
+            onPress={() => router.push('/profile')}
+          />
+          <ListRow
+            icon={KeyRound}
+            label={user.hasPassword ? 'Alterar senha' : 'Criar senha'}
+            hint={user.hasPassword ? 'Encerra a sessão nos outros aparelhos' : 'Entre também com e-mail e senha'}
+            onPress={() => router.push('/change-password')}
+          />
+          <ListRow
             icon={LockKeyhole}
             label="Privacidade e dados"
             hint="Consentimentos, exportação e exclusão da conta"
@@ -66,16 +78,7 @@ export function AccountScreen({ user, onSignOut, isSigningOut = false, banner }:
             onPress={() => router.push('/privacy')}
           />
         </Card>
-        <View style={styles.stack}>
-          <Button
-            label="Ver design system"
-            variant="secondary"
-            icon={Palette}
-            block
-            onPress={() => router.push('/showcase')}
-          />
-          <Button label="Sair" variant="outline" icon={LogOut} block loading={isSigningOut} onPress={onSignOut} />
-        </View>
+        <Button label="Sair" variant="outline" icon={LogOut} block loading={isSigningOut} onPress={onSignOut} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -128,8 +131,5 @@ const styles = StyleSheet.create({
   role: {
     alignSelf: 'flex-start',
     marginTop: spacing.xs,
-  },
-  stack: {
-    gap: spacing.md,
   },
 });
