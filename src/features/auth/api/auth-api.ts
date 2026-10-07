@@ -8,11 +8,14 @@ export type RegisterInput = components['schemas']['RegisterDto'];
 export type ResetPasswordInput = components['schemas']['ResetPasswordDto'];
 export type AppleLoginInput = components['schemas']['AppleLoginDto'];
 export type VerifyEmailLoginInput = { email: string; code: string } | { token: string };
+export type InvitePreview = components['schemas']['InvitePreviewDto'];
+export type AcceptInviteInput = components['schemas']['AcceptInviteDto'];
 
 export class AuthApiError extends Error {
   constructor(
     readonly status: number | null,
     readonly retryAfterSeconds: number | null = null,
+    readonly code: string | null = null,
   ) {
     super(status ? `Auth request failed with status ${status}` : 'Auth request failed without a response');
     this.name = 'AuthApiError';
@@ -28,30 +31,37 @@ export function parseRetryAfter(value: string | null, now = Date.now()) {
   return Math.max(0, Math.ceil((date - now) / 1000));
 }
 
-function toApiError(response: Response) {
-  const retryAfter = response.status === 429 ? parseRetryAfter(response.headers.get('Retry-After')) : null;
-  return new AuthApiError(response.status, retryAfter);
+function getErrorCode(body: unknown) {
+  if (typeof body !== 'object' || body === null || !('code' in body)) return null;
+  return typeof body.code === 'string' ? body.code : null;
 }
 
-async function unwrap<T>(request: Promise<{ data?: T; response: Response }>): Promise<T> {
-  let result: { data?: T; response: Response };
+function toApiError(response: Response, body: unknown) {
+  const retryAfter = response.status === 429 ? parseRetryAfter(response.headers.get('Retry-After')) : null;
+  return new AuthApiError(response.status, retryAfter, getErrorCode(body));
+}
+
+type ApiResult<T> = { data?: T; error?: unknown; response: Response };
+
+async function unwrap<T>(request: Promise<ApiResult<T>>): Promise<T> {
+  let result: ApiResult<T>;
   try {
     result = await request;
   } catch {
     throw new AuthApiError(null);
   }
-  if (!result.response.ok || result.data === undefined) throw toApiError(result.response);
+  if (!result.response.ok || result.data === undefined) throw toApiError(result.response, result.error);
   return result.data;
 }
 
-async function send(request: Promise<{ response: Response }>): Promise<void> {
-  let response: Response;
+async function send(request: Promise<ApiResult<unknown>>): Promise<void> {
+  let result: ApiResult<unknown>;
   try {
-    ({ response } = await request);
+    result = await request;
   } catch {
     throw new AuthApiError(null);
   }
-  if (!response.ok) throw toApiError(response);
+  if (!result.response.ok) throw toApiError(result.response, result.error);
 }
 
 export function login(body: LoginInput) {
@@ -104,4 +114,16 @@ export function loginWithGoogle(idToken: string) {
 
 export function loginWithApple(body: AppleLoginInput) {
   return unwrap(publicApiClient.POST('/auth/oauth/apple', { body }));
+}
+
+export function getInvitePreview(token: string) {
+  return unwrap(publicApiClient.GET('/invites/{token}', { params: { path: { token } } }));
+}
+
+export function acceptInvite(token: string, body: AcceptInviteInput) {
+  return unwrap(publicApiClient.POST('/invites/{token}/accept', { params: { path: { token } }, body }));
+}
+
+export function acceptInviteAsCurrentUser(token: string) {
+  return send(apiClient.POST('/invites/{token}/accept-authenticated', { params: { path: { token } } }));
 }

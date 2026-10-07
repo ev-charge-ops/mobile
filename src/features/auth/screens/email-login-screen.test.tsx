@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import * as authApi from '@/features/auth/api/auth-api';
 import { EmailLoginScreen } from '@/features/auth/screens/email-login-screen';
+import { clearReturnTarget, setReturnTarget } from '@/features/auth/session/return-target';
 import { createSessionValue, renderWithProviders, testUser } from '@/features/auth/testing/render-with-providers';
 
 jest.mock('expo-router', () => ({
@@ -34,6 +35,7 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.useRealTimers();
+  clearReturnTarget();
 });
 
 describe('<EmailLoginScreen />', () => {
@@ -50,6 +52,20 @@ describe('<EmailLoginScreen />', () => {
     expect(api.requestEmailLogin.mock.calls[0][0]).toBe('ana@example.com');
     expect(api.verifyEmailLogin.mock.calls[0][0]).toEqual({ email: 'ana@example.com', code: '042817' });
     expect(session.startSession).toHaveBeenCalledWith(authSession);
+  });
+
+  it('does not go home when a return target is pending', async () => {
+    setReturnTarget({ pathname: '/verify-email', params: { token: 'verify-token' } });
+    api.requestEmailLogin.mockResolvedValue();
+    api.verifyEmailLogin.mockResolvedValue(authSession);
+    const session = createSessionValue();
+
+    await renderWithProviders(<EmailLoginScreen />, session);
+    await requestCode();
+    await fireEvent.changeText(screen.getByLabelText('Código'), '042817');
+
+    await waitFor(() => expect(session.startSession).toHaveBeenCalledWith(authSession));
+    expect(router.replace).not.toHaveBeenCalled();
   });
 
   it('shows an error for an invalid code', async () => {

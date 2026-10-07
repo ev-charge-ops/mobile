@@ -5,16 +5,21 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { colors, radii, spacing, typography } from '@/constants/theme';
+import type { AuthSession } from '@/features/auth/api/auth-api';
 import { useAppleLogin, useGoogleLogin } from '@/features/auth/api/use-oauth-login';
 import { getOAuthLoginErrorMessage, type OAuthProvider } from '@/features/auth/auth-errors';
 import { isAppleSignInAvailable } from '@/features/auth/oauth/apple-sign-in';
 import { isGoogleSignInAvailable } from '@/features/auth/oauth/google-sign-in';
 
-export function OAuthButtons() {
+export type OAuthButtonsProps = {
+  onSignedIn?: (session: AuthSession) => void;
+};
+
+export function OAuthButtons({ onSignedIn }: OAuthButtonsProps = {}) {
   const [isAppleAvailable, setIsAppleAvailable] = useState(false);
   const [isGoogleAvailable] = useState(isGoogleSignInAvailable);
-  const googleLogin = useGoogleLogin();
-  const appleLogin = useAppleLogin();
+  const googleLogin = useGoogleLogin({ onSignedIn });
+  const appleLogin = useAppleLogin({ onSignedIn });
   const toast = useToast();
   const isBusy = googleLogin.isPending || appleLogin.isPending;
 
