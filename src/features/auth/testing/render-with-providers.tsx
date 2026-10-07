@@ -19,6 +19,9 @@ export const testUser: AuthUser = {
   role: 'DRIVER',
   emailVerified: false,
   hasPassword: true,
+  paymentMode: 'TEST',
+  locationMode: 'DEMO',
+  autoRefund: false,
 };
 
 export function createSessionValue(overrides: Partial<SessionContextValue> = {}): SessionContextValue {

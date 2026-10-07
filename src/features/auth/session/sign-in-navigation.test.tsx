@@ -43,7 +43,7 @@ jest.mock('@/features/home/components/home-charge-card', () => {
   };
 });
 
-const user = { id: 'u1', name: 'Ana', email: 'ana@example.com', role: 'DRIVER', emailVerified: true, hasPassword: true };
+const user = { id: 'u1', name: 'Ana', email: 'ana@example.com', role: 'DRIVER', emailVerified: true, hasPassword: true, paymentMode: 'TEST', locationMode: 'DEMO', autoRefund: false };
 const openSession = {
   id: 'session-1',
   status: 'ACTIVE',

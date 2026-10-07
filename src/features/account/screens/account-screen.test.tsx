@@ -20,6 +20,9 @@ const user: AccountScreenProps['user'] = {
   role: 'DRIVER',
   emailVerified: true,
   hasPassword: true,
+  paymentMode: 'TEST',
+  locationMode: 'DEMO',
+  autoRefund: false,
 };
 
 async function renderScreen(
