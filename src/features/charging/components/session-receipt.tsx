@@ -303,11 +303,11 @@ export function SessionReceipt({ session, now, onShare, onDone }: SessionReceipt
           label="Compartilhar recibo"
           icon={Share2}
           variant="secondary"
-          size="lg"
+          size="md"
           onPress={onShare}
           style={styles.share}
         />
-        <Button label="Voltar ao início" size="lg" block haptic onPress={onDone} style={styles.flex} />
+        <Button label="Voltar ao início" size="lg" block haptic onPress={onDone} style={styles.done} />
       </Rise>
     </View>
   );
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     color: colors.textTitle,
     textAlign: 'right',
-    flexShrink: 1,
+    flexShrink: 0,
     fontVariant: ['tabular-nums'],
   },
   divider: {
@@ -488,6 +488,12 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   share: {
+    height: 56,
+    paddingHorizontal: 18,
     backgroundColor: palette.white,
+  },
+  done: {
+    flex: 1,
+    minWidth: 132,
   },
 });
