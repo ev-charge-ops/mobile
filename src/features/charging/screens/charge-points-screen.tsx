@@ -16,6 +16,7 @@ import { useToast } from '@/components/ui/toast';
 import { colors, motion, radii, spacing, typography } from '@/constants/theme';
 import type { ChargePoint } from '@/features/charging/api/charging-api';
 import { useChargePoints } from '@/features/charging/api/use-charge-points';
+import { getDistanceMeters, rankChargePointsByDistance } from '@/features/charging/charge-point-distance';
 import { filterChargePoints, type ChargePointFilter } from '@/features/charging/charge-point-filters';
 import { ChargePointCard } from '@/features/charging/components/charge-point-card';
 import { ChargePointFilterChips } from '@/features/charging/components/charge-point-filter-chips';
@@ -62,7 +63,10 @@ export function ChargePointsScreen({ subtitle, accountAction }: ChargePointsScre
   const chargePoints = data ?? noChargePoints;
   const visible = filterChargePoints(chargePoints, filter, query);
   const selected = visible.find((chargePoint) => chargePoint.id === selectedId) ?? visible[0] ?? null;
-  const location = useMapCenter({ enabled: mode === 'map', chargePoints: data, isLoading: isPending });
+  const location = useMapCenter({ enabled: true, chargePoints: data, isLoading: isPending });
+  const reference = location.coordinates;
+  const ranked = rankChargePointsByDistance(visible, reference);
+  const selectedDistance = selected && reference ? getDistanceMeters(reference, selected) : null;
   const isDemoCenter = location.source === 'demo';
 
   const hasLocationSettled = location.status === 'denied' || location.status === 'unavailable';
@@ -195,7 +199,7 @@ export function ChargePointsScreen({ subtitle, accountAction }: ChargePointsScre
                 key={selected.id}
                 entering={FadeInUp.duration(motion.duration.sheet).easing(motion.easing.sheet)}
               >
-                <ChargePointPreview chargePoint={selected} />
+                <ChargePointPreview chargePoint={selected} distanceMeters={selectedDistance} />
               </Animated.View>
             ) : (
               emptyCard
@@ -224,9 +228,13 @@ export function ChargePointsScreen({ subtitle, accountAction }: ChargePointsScre
           ) : visible.length === 0 ? (
             emptyCard
           ) : (
-            visible.map((chargePoint, index) => (
+            ranked.map(({ chargePoint, distanceMeters }, index) => (
               <Animated.View key={chargePoint.id} entering={enter(index + 1)}>
-                <ChargePointCard chargePoint={chargePoint} onPress={() => openChargePoint(chargePoint.id)} />
+                <ChargePointCard
+                  chargePoint={chargePoint}
+                  distanceMeters={distanceMeters}
+                  onPress={() => openChargePoint(chargePoint.id)}
+                />
               </Animated.View>
             ))
           )}
