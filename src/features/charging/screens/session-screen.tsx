@@ -17,6 +17,7 @@ import { formatCents } from '@/features/charging/charging-format';
 import { LiveSessionPanel } from '@/features/charging/components/live-session-panel';
 import { SessionReceipt } from '@/features/charging/components/session-receipt';
 import { isSessionOpen } from '@/features/charging/session-timing';
+import { useSessionHaptics } from '@/features/charging/use-session-haptics';
 import { useNow } from '@/hooks/use-now';
 import { formatEnergy } from '@/utils/format-energy';
 
@@ -47,6 +48,7 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
   const [isConfirmingStop, setConfirmingStop] = useState(false);
   const isOpen = session ? isSessionOpen(session.status) : false;
   const now = useNow(1000, isOpen);
+  useSessionHaptics(session?.status);
 
   const stop = () => {
     setConfirmingStop(false);
@@ -83,7 +85,16 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
               {isOpen ? <LiveSessionPanel session={session} now={now} /> : <SessionReceipt session={session} />}
             </ScrollView>
             <View style={styles.footer}>
-              {session.status === 'ACTIVE' || session.status === 'PENDING' ? (
+              {session.status === 'PENDING' ? (
+                <Button
+                  label="Cancelar"
+                  variant="ghost"
+                  size="md"
+                  block
+                  loading={stopSession.isPending}
+                  onPress={stop}
+                />
+              ) : session.status === 'ACTIVE' ? (
                 <Button
                   label="Encerrar recarga"
                   icon={Square}
@@ -122,6 +133,7 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
                   variant={session.status === 'IDLE' ? 'danger' : 'primary'}
                   size="lg"
                   block
+                  haptic="impactMedium"
                   loading={stopSession.isPending}
                   onPress={stop}
                 />
@@ -164,7 +176,15 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
               ? `A cobrança considera a energia entregue até agora: ${formatEnergy(session.energyKwh)} · ${formatCents(session.energyCostCents)}.`
               : 'A cobrança considera a energia entregue até agora.'}
           </Text>
-          <Button label="Encerrar agora" icon={Square} variant="danger" size="lg" block onPress={stop} />
+          <Button
+            label="Encerrar agora"
+            icon={Square}
+            variant="danger"
+            size="lg"
+            block
+            haptic="impactMedium"
+            onPress={stop}
+          />
           <Button
             label="Continuar carregando"
             variant="ghost"
