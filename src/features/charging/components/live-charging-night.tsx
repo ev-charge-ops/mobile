@@ -58,6 +58,8 @@ export const STATE_CROSSFADE_DURATION = 400;
 
 const GRACE_RING_SIZE = 280;
 const GRACE_RING_RADIUS = 120;
+const ACTIVE_CAR_DIAMETER = 250;
+const GRACE_CAR_DIAMETER = 228;
 
 type NightSession = ChargingSessionDetail;
 
@@ -256,7 +258,7 @@ function ActiveView({ session, now, readAt, justPlugged, isStopping, onBack, onS
             }
             testID="charge-ring"
           >
-            <CarTopTile plugged animatePlug={justPlugged} />
+            <CarTopTile plugged animatePlug={justPlugged} diameter={ACTIVE_CAR_DIAMETER} />
           </ChargeRing>
         </View>
         <Rise index={1} style={styles.hero}>
@@ -337,7 +339,7 @@ function GraceView({ session, now, isStopping, onBack, onStop }: LiveChargingNig
             trackColor={nightColors.surfaceInset}
             accessibilityLabel="Tempo de tolerância restante"
           >
-            <CarTopTile plugged tone="grace" />
+            <CarTopTile plugged tone="grace" diameter={GRACE_CAR_DIAMETER} />
           </ChargeRing>
           <View style={styles.graceCenter}>
             <Text style={styles.eyebrow}>Sem multa por</Text>
@@ -405,7 +407,17 @@ function IdleView({ session, now, isStopping, onBack, onStop }: LiveChargingNigh
       />
       <ScrollView contentContainerStyle={[styles.body, styles.idleBody]} showsVerticalScrollIndicator={false}>
         <View style={styles.idleCar}>
-          <CarTopTile plugged tone="idle" />
+          <ChargeRing
+            progress={1}
+            size={GRACE_RING_SIZE}
+            radius={GRACE_RING_RADIUS}
+            strokeWidth={12}
+            color={palette.red500}
+            trackColor={nightColors.surfaceInset}
+            accessibilityLabel="Multa de ocupação em curso"
+          >
+            <CarTopTile plugged tone="idle" diameter={GRACE_CAR_DIAMETER} />
+          </ChargeRing>
         </View>
         <Rise style={styles.alert}>
           <View style={styles.alertIcon}>
