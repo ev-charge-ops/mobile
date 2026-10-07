@@ -1,8 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   getActiveSession,
   getSession,
+  listMySessions,
   startSession,
   stopSession,
   type ChargingSession,
@@ -68,5 +69,19 @@ export function useStopSession(sessionId: string) {
       queryClient.invalidateQueries({ queryKey: chargePointsQueryKey });
       queryClient.invalidateQueries({ queryKey: sessionsQueryKey, exact: false, refetchType: 'none' });
     },
+  });
+}
+
+const HISTORY_PAGE_SIZE = 20;
+
+export const sessionHistoryQueryKey = ['sessions', 'history'] as const;
+
+export function useSessionHistory() {
+  return useInfiniteQuery({
+    queryKey: sessionHistoryQueryKey,
+    queryFn: ({ pageParam }) => listMySessions(pageParam, HISTORY_PAGE_SIZE),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.page * lastPage.pageSize < lastPage.total ? lastPage.page + 1 : undefined,
   });
 }
