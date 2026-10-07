@@ -28,6 +28,14 @@ const apple = jest.mocked(appleSignIn);
 
 const authSession: authApi.AuthSession = { user: testUser, accessToken: 'access', refreshToken: 'refresh' };
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   google.isGoogleSignInAvailable.mockReturnValue(true);
@@ -120,5 +128,52 @@ describe('<OAuthButtons />', () => {
     await fireEvent.press(await screen.findByRole('button', { name: 'Continuar com a Apple' }));
 
     expect(await screen.findByText('Não foi possível entrar com a Apple. Tente novamente.')).toBeOnTheScreen();
+  });
+
+  it('renders google before apple with the provider logos', async () => {
+    apple.isAppleSignInAvailable.mockResolvedValue(true);
+
+    await renderWithProviders(<OAuthButtons />);
+
+    await screen.findByRole('button', { name: 'Continuar com a Apple' });
+    const labels = screen.getAllByRole('button').map((button) => button.props.accessibilityLabel);
+    expect(labels).toEqual(['Continuar com o Google', 'Continuar com a Apple']);
+    expect(screen.getByTestId('google-logo')).toBeOnTheScreen();
+    expect(screen.getByTestId('apple-logo')).toBeOnTheScreen();
+  });
+
+  it('disables apple while a google sign-in is in progress', async () => {
+    apple.isAppleSignInAvailable.mockResolvedValue(true);
+    const pending = deferred<googleSignIn.GoogleSignInResult>();
+    google.signInWithGoogle.mockReturnValue(pending.promise);
+
+    await renderWithProviders(<OAuthButtons />);
+    const appleButton = await screen.findByRole('button', { name: 'Continuar com a Apple' });
+    await fireEvent.press(screen.getByRole('button', { name: 'Continuar com o Google' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar com o Google' })).toBeBusy());
+    expect(appleButton).toBeDisabled();
+    await fireEvent.press(appleButton);
+    expect(apple.signInWithApple).not.toHaveBeenCalled();
+
+    pending.resolve({ type: 'cancelled' });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar com a Apple' })).toBeEnabled());
+  });
+
+  it('disables google while an apple sign-in is in progress', async () => {
+    apple.isAppleSignInAvailable.mockResolvedValue(true);
+    const pending = deferred<appleSignIn.AppleSignInResult>();
+    apple.signInWithApple.mockReturnValue(pending.promise);
+
+    await renderWithProviders(<OAuthButtons />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Continuar com a Apple' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar com a Apple' })).toBeBusy());
+    expect(screen.getByRole('button', { name: 'Continuar com o Google' })).toBeDisabled();
+
+    pending.resolve({ type: 'cancelled' });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar com o Google' })).toBeEnabled());
+    expect(api.loginWithApple).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).not.toBeOnTheScreen();
   });
 });
