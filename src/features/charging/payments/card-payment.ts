@@ -5,6 +5,7 @@ import * as Linking from 'expo-linking';
 import { env } from '@/config/env';
 import { colors, palette } from '@/constants/theme';
 import type { PaymentSheetParams } from '@/features/charging/api/charging-api';
+import { toOpaqueHex } from '@/features/charging/payments/opaque-hex';
 
 export type CardPaymentResult = 'completed' | 'canceled';
 
@@ -39,8 +40,8 @@ export async function presentCardPayment(sheet: PaymentSheetParams): Promise<Car
         primary: colors.accent,
         background: colors.surfaceSheet,
         componentBackground: colors.surfaceInset,
-        componentBorder: colors.borderSubtle,
-        componentDivider: colors.hairline,
+        componentBorder: toOpaqueHex(colors.borderSubtle, colors.surfaceSheet),
+        componentDivider: toOpaqueHex(colors.hairline, colors.surfaceSheet),
         primaryText: colors.textTitle,
         secondaryText: colors.textMuted,
         componentText: colors.textTitle,
