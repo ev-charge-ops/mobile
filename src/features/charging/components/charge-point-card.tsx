@@ -6,6 +6,7 @@ import { PressableScale } from '@/components/ui/pressable-scale';
 import { StatusPill } from '@/components/ui/status-pill';
 import { colors, fonts, radii, spacing } from '@/constants/theme';
 import type { ChargePoint } from '@/features/charging/api/charging-api';
+import { formatDistance } from '@/features/charging/charge-point-distance';
 import {
   chargePointStatusLabels,
   chargePointStatusPill,
@@ -14,10 +15,12 @@ import {
   regimeLabels,
 } from '@/features/charging/charging-format';
 import { DemandBadge } from '@/features/charging/components/demand-badge';
+import { DistanceTag } from '@/features/charging/components/distance-tag';
 import { QueueLengthTag } from '@/features/charging/components/queue-length-tag';
 
 export type ChargePointCardProps = {
   chargePoint: ChargePoint;
+  distanceMeters?: number | null;
   onPress: () => void;
 };
 
@@ -28,13 +31,13 @@ const statusIconColors: Record<ChargePoint['status'], string> = {
   OFFLINE: colors.statusOffline,
 };
 
-export function ChargePointCard({ chargePoint, onPress }: ChargePointCardProps) {
+export function ChargePointCard({ chargePoint, distanceMeters, onPress }: ChargePointCardProps) {
   const { pricing } = chargePoint;
 
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={`${chargePoint.name}, ${chargePointStatusLabels[chargePoint.status]}${chargePoint.queueLength > 0 ? `, ${chargePoint.queueLength} na fila` : ''}`}
+      accessibilityLabel={`${chargePoint.name}, ${chargePointStatusLabels[chargePoint.status]}${chargePoint.queueLength > 0 ? `, ${chargePoint.queueLength} na fila` : ''}${distanceMeters == null ? '' : `, a ${formatDistance(distanceMeters)}`}`}
       onPress={onPress}
       scaleTo={0.98}
       style={styles.card}
@@ -48,6 +51,7 @@ export function ChargePointCard({ chargePoint, onPress }: ChargePointCardProps) 
           <Text style={styles.location}>
             {chargePoint.organizationName} · {chargePoint.code}
           </Text>
+          <DistanceTag distanceMeters={distanceMeters} />
         </View>
         <View style={styles.price}>
           {pricing ? (
