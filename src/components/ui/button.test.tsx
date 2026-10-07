@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { Zap } from 'lucide-react-native';
+import { View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 
@@ -33,5 +34,17 @@ describe('<Button />', () => {
 
     expect(onPress).not.toHaveBeenCalled();
     expect(button).toBeBusy();
+  });
+
+  it('renders a leading icon element', async () => {
+    await render(<Button label="Continuar" leadingIcon={<View testID="leading-icon" />} />);
+
+    expect(screen.getByTestId('leading-icon')).toBeOnTheScreen();
+  });
+
+  it('replaces the leading icon with a spinner while loading', async () => {
+    await render(<Button label="Continuar" loading leadingIcon={<View testID="leading-icon" />} />);
+
+    expect(screen.queryByTestId('leading-icon')).not.toBeOnTheScreen();
   });
 });
