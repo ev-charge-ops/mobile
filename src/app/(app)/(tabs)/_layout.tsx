@@ -7,10 +7,12 @@ import { colors } from '@/constants/theme';
 import { useMe } from '@/features/auth/api/use-me';
 import { SignedInErrorScreen } from '@/features/auth/screens/signed-in-error-screen';
 import { useHasActiveSession } from '@/features/charging/api/use-charging-sessions';
+import { useUnreadNotificationsCount } from '@/features/notifications/api/use-notifications';
 
 export default function TabsLayout() {
   const meQuery = useMe();
   const hasActiveSession = useHasActiveSession();
+  const unreadCount = useUnreadNotificationsCount();
 
   if (!meQuery.data) {
     if (meQuery.isError) {
@@ -29,7 +31,13 @@ export default function TabsLayout() {
     { name: 'index', label: 'Buscar', icon: MapPin },
     { name: 'charging', label: 'Recarga', icon: Zap, badge: hasActiveSession, badgeLabel: 'sessão em andamento' },
     { name: 'history', label: 'Histórico', icon: Receipt },
-    { name: 'notifications', label: 'Avisos', icon: Bell },
+    {
+      name: 'notifications',
+      label: 'Avisos',
+      icon: Bell,
+      badgeCount: unreadCount,
+      badgeCountLabel: (count) => (count === 1 ? '1 aviso não lido' : `${count} avisos não lidos`),
+    },
   ];
 
   return (
