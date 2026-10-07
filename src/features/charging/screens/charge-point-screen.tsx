@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { PlugZap, RotateCw, Zap } from 'lucide-react-native';
 import { useState } from 'react';
@@ -31,6 +32,8 @@ import { DemandBadge } from '@/features/charging/components/demand-badge';
 import { StartChargingSheet } from '@/features/charging/components/start-charging-sheet';
 
 const ESTIMATE_ENERGY_KWH = 20;
+
+const heroGlow = ['rgba(232,18,31,0.12)', 'transparent'] as const;
 
 export type ChargePointScreenProps = {
   chargePointId: string;
@@ -117,6 +120,13 @@ function ChargePointDetails({ chargePoint }: { chargePoint: ChargePoint }) {
   return (
     <>
       <View style={styles.hero}>
+        <LinearGradient
+          colors={heroGlow}
+          start={{ x: 0.9, y: 0 }}
+          end={{ x: 0.2, y: 0.9 }}
+          style={styles.heroGlow}
+          testID="charge-point-hero-glow"
+        />
         <View style={styles.heroIcon}>
           <Icon icon={PlugZap} size={32} color={colors.textDisabled} />
         </View>
@@ -262,6 +272,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     backgroundColor: colors.surfaceCard,
     overflow: 'hidden',
+  },
+  heroGlow: {
+    ...StyleSheet.absoluteFill,
+    pointerEvents: 'none',
   },
   heroIcon: {
     position: 'absolute',
