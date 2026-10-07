@@ -169,11 +169,19 @@ function formatSessionDay(iso: string, now: number) {
   return `${day}, ${formatTime(iso)}`;
 }
 
-function formatShortDuration(totalSeconds: number) {
+export function formatShortDuration(totalSeconds: number) {
   const minutes = Math.round(totalSeconds / 60);
   const hours = Math.floor(minutes / 60);
   if (hours === 0) return `${minutes} min`;
   return `${hours}h${String(minutes % 60).padStart(2, '0')}`;
+}
+
+export function getReceiptTiming(session: ChargingSessionDetail) {
+  const endedAt = session.endedAt ?? session.chargingEndedAt ?? session.startedAt;
+  const chargingSeconds = getChargingSeconds(session, Date.parse(endedAt));
+  const averageKw = chargingSeconds > 0 ? session.energyKwh / (chargingSeconds / 3600) : 0;
+  const totalSeconds = Math.max(0, (Date.parse(endedAt) - Date.parse(session.startedAt)) / 1000);
+  return { endedAt, averageKw, totalSeconds };
 }
 
 export function getReceiptRows(session: ChargingSessionDetail): Row[] {
@@ -222,18 +230,16 @@ export type SessionReceiptProps = {
   session: ChargingSessionDetail;
   now: number;
   onShare: () => void;
+  isSharing?: boolean;
   onDone: () => void;
 };
 
-export function SessionReceipt({ session, now, onShare, onDone }: SessionReceiptProps) {
+export function SessionReceipt({ session, now, onShare, isSharing = false, onDone }: SessionReceiptProps) {
   const insets = useSafeAreaInsets();
   const isInterrupted = session.status === 'INTERRUPTED';
-  const endedAt = session.endedAt ?? session.chargingEndedAt ?? session.startedAt;
-  const chargingSeconds = getChargingSeconds(session, Date.parse(endedAt));
-  const averageKw = chargingSeconds > 0 ? session.energyKwh / (chargingSeconds / 3600) : 0;
+  const { endedAt, averageKw, totalSeconds } = getReceiptTiming(session);
   const { spot } = splitChargePointName(session.chargePoint.name);
   const rows = getReceiptRows(session);
-  const totalSeconds = Math.max(0, (Date.parse(endedAt) - Date.parse(session.startedAt)) / 1000);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.md }]}>
@@ -305,6 +311,7 @@ export function SessionReceipt({ session, now, onShare, onDone }: SessionReceipt
           accessibilityLabel="Compartilhar recibo"
           tone="surface"
           size={56}
+          loading={isSharing}
           onPress={onShare}
         />
         <Button label="Voltar ao início" size="lg" block haptic onPress={onDone} style={styles.done} />
