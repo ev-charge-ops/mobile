@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { PressableScale } from '@/components/ui/pressable-scale';
@@ -15,6 +15,7 @@ export type IconButtonProps = {
   scheme?: ColorScheme;
   size?: number;
   badge?: boolean;
+  loading?: boolean;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
@@ -40,6 +41,7 @@ export function IconButton({
   scheme = 'light',
   size = 44,
   badge = false,
+  loading = false,
   style,
   testID,
 }: IconButtonProps) {
@@ -51,6 +53,8 @@ export function IconButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
+      disabled={loading}
+      accessibilityState={{ disabled: loading, busy: loading }}
       scaleTo={0.92}
       hitSlop={4}
       testID={testID}
@@ -60,7 +64,11 @@ export function IconButton({
         style,
       ]}
     >
-      <Icon icon={icon} size={20} color={toneStyle.color} />
+      {loading ? (
+        <ActivityIndicator size="small" color={toneStyle.color} />
+      ) : (
+        <Icon icon={icon} size={20} color={toneStyle.color} />
+      )}
       {badge ? (
         <View
           testID={testID ? `${testID}-badge` : 'icon-button-badge'}
