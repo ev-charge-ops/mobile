@@ -1,13 +1,13 @@
-import * as AppleAuthentication from 'expo-apple-authentication';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
-import { colors, radii, spacing, typography } from '@/constants/theme';
+import { colors, spacing, typography } from '@/constants/theme';
 import type { AuthSession } from '@/features/auth/api/auth-api';
 import { useAppleLogin, useGoogleLogin } from '@/features/auth/api/use-oauth-login';
 import { getOAuthLoginErrorMessage, type OAuthProvider } from '@/features/auth/auth-errors';
+import { AppleLogo, GoogleLogo } from '@/features/auth/components/oauth-logos';
 import { isAppleSignInAvailable } from '@/features/auth/oauth/apple-sign-in';
 import { isGoogleSignInAvailable } from '@/features/auth/oauth/google-sign-in';
 
@@ -21,7 +21,6 @@ export function OAuthButtons({ onSignedIn }: OAuthButtonsProps = {}) {
   const googleLogin = useGoogleLogin({ onSignedIn });
   const appleLogin = useAppleLogin({ onSignedIn });
   const toast = useToast();
-  const isBusy = googleLogin.isPending || appleLogin.isPending;
 
   useEffect(() => {
     let active = true;
@@ -45,27 +44,28 @@ export function OAuthButtons({ onSignedIn }: OAuthButtonsProps = {}) {
         <Text style={styles.dividerLabel}>ou</Text>
         <View style={styles.line} />
       </View>
-      {isAppleAvailable ? (
-        <AppleAuthentication.AppleAuthenticationButton
-          accessibilityLabel="Continuar com a Apple"
-          buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-          cornerRadius={radii.card}
-          style={styles.appleButton}
-          onPress={() => {
-            if (!isBusy) appleLogin.mutate(undefined, { onError: showError('apple') });
-          }}
-        />
-      ) : null}
       {isGoogleAvailable ? (
         <Button
           label="Continuar com o Google"
-          variant="secondary"
+          variant="outline"
           size="lg"
           block
+          leadingIcon={<GoogleLogo />}
           loading={googleLogin.isPending}
           disabled={appleLogin.isPending}
           onPress={() => googleLogin.mutate(undefined, { onError: showError('google') })}
+        />
+      ) : null}
+      {isAppleAvailable ? (
+        <Button
+          label="Continuar com a Apple"
+          variant="outline"
+          size="lg"
+          block
+          leadingIcon={<AppleLogo color={googleLogin.isPending ? colors.textDisabled : colors.textTitle} />}
+          loading={appleLogin.isPending}
+          disabled={googleLogin.isPending}
+          onPress={() => appleLogin.mutate(undefined, { onError: showError('apple') })}
         />
       ) : null}
     </View>
@@ -89,9 +89,5 @@ const styles = StyleSheet.create({
   dividerLabel: {
     ...typography.label,
     color: colors.textSubtle,
-  },
-  appleButton: {
-    width: '100%',
-    height: 52,
   },
 });
