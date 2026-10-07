@@ -18,3 +18,47 @@ jest.mock('expo-apple-authentication', () => {
       createElement(Pressable, { accessibilityRole: 'button', ...props }),
   };
 });
+
+jest.mock('react-native-maps', () => {
+  const { Component, createElement } = jest.requireActual<typeof import('react')>('react');
+  const { Pressable, View } = jest.requireActual<typeof import('react-native')>('react-native');
+
+  const animateToRegion = jest.fn();
+  const fitToCoordinates = jest.fn();
+
+  class MockMapView extends Component<Record<string, unknown> & { children?: unknown }> {
+    animateToRegion(...args: unknown[]) {
+      animateToRegion(...args);
+    }
+
+    fitToCoordinates(...args: unknown[]) {
+      fitToCoordinates(...args);
+    }
+
+    render() {
+      return createElement(View, { testID: 'map-view' }, this.props.children as never);
+    }
+  }
+
+  const Marker = ({ children, onPress, testID }: { children?: unknown; onPress?: () => void; testID?: string }) =>
+    createElement(Pressable, { testID, onPress, accessibilityRole: 'button' }, children as never);
+
+  return {
+    __esModule: true,
+    default: MockMapView,
+    Marker,
+    PROVIDER_GOOGLE: 'google',
+    PROVIDER_DEFAULT: undefined,
+    mockAnimateToRegion: animateToRegion,
+    mockFitToCoordinates: fitToCoordinates,
+  };
+});
+
+jest.mock('expo-location', () => ({
+  Accuracy: { Lowest: 1, Low: 2, Balanced: 3, High: 4, Highest: 5, BestForNavigation: 6 },
+  PermissionStatus: { GRANTED: 'granted', DENIED: 'denied', UNDETERMINED: 'undetermined' },
+  requestForegroundPermissionsAsync: jest.fn().mockResolvedValue({ status: 'denied', granted: false }),
+  getForegroundPermissionsAsync: jest.fn().mockResolvedValue({ status: 'denied', granted: false }),
+  getLastKnownPositionAsync: jest.fn().mockResolvedValue(null),
+  getCurrentPositionAsync: jest.fn().mockResolvedValue(null),
+}));
