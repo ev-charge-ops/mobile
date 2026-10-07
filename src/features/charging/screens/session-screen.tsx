@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { House, LogOut, RotateCw, Square, X } from 'lucide-react-native';
+import { CreditCard, House, LogOut, RotateCw, Square, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,8 +11,8 @@ import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { colors, fonts, spacing, typography } from '@/constants/theme';
 import { ChargingApiError, type ChargingSession } from '@/features/charging/api/charging-api';
-import { useChargingSession, useStopSession } from '@/features/charging/api/use-charging-sessions';
-import { getStopSessionErrorMessage } from '@/features/charging/charging-errors';
+import { useChargingSession, usePayForSession, useStopSession } from '@/features/charging/api/use-charging-sessions';
+import { getCardPaymentErrorMessage, getStopSessionErrorMessage } from '@/features/charging/charging-errors';
 import { formatCents } from '@/features/charging/charging-format';
 import { LiveSessionPanel } from '@/features/charging/components/live-session-panel';
 import { SessionReceipt } from '@/features/charging/components/session-receipt';
@@ -42,6 +42,7 @@ function goBack() {
 export function SessionScreen({ sessionId }: SessionScreenProps) {
   const { data: session, isPending, error, refetch, isRefetching } = useChargingSession(sessionId);
   const stopSession = useStopSession(sessionId);
+  const payForSession = usePayForSession();
   const toast = useToast();
   const [isConfirmingStop, setConfirmingStop] = useState(false);
   const isOpen = session ? isSessionOpen(session.status) : false;
@@ -56,6 +57,20 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
         if (stopError instanceof ChargingApiError && stopError.code === 'SESSION_ALREADY_ENDED') refetch();
       },
     });
+  };
+
+  const pay = () => {
+    payForSession.mutate(
+      { sessionId },
+      {
+        onSuccess: (paid) => {
+          if (!paid) return;
+          if (paid.status === 'AWAITING_PAYMENT') toast.show('O cartão não autorizou o pagamento.', { tone: 'error' });
+          else toast.show('Pagamento autorizado. Carregador liberado!');
+        },
+        onError: (payError) => toast.show(getCardPaymentErrorMessage(payError), { tone: 'error' }),
+      },
+    );
   };
 
   return (
@@ -79,15 +94,27 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
                   onPress={() => setConfirmingStop(true)}
                 />
               ) : session.status === 'AWAITING_PAYMENT' ? (
-                <Button
-                  label="Cancelar recarga"
-                  icon={X}
-                  variant="outline"
-                  size="lg"
-                  block
-                  loading={stopSession.isPending}
-                  onPress={stop}
-                />
+                <View style={styles.stack}>
+                  <Button
+                    label="Pagar com cartão"
+                    icon={CreditCard}
+                    size="lg"
+                    block
+                    loading={payForSession.isPending}
+                    disabled={stopSession.isPending}
+                    onPress={pay}
+                  />
+                  <Button
+                    label="Cancelar recarga"
+                    icon={X}
+                    variant="outline"
+                    size="lg"
+                    block
+                    loading={stopSession.isPending}
+                    disabled={payForSession.isPending}
+                    onPress={stop}
+                  />
+                </View>
               ) : isOpen ? (
                 <Button
                   label="Retirei o veículo · encerrar"
