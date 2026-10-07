@@ -31,6 +31,7 @@ import {
 } from '@/features/charging/map/map-region';
 import type { ChargePointsMapHandle } from '@/features/charging/map/map-types';
 import { useUserLocation } from '@/features/charging/map/use-user-location';
+import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 import { haptics } from '@/lib/haptics';
 
 type ViewMode = 'map' | 'list';
@@ -51,6 +52,8 @@ export function ChargePointsScreen({ subtitle, accountAction }: ChargePointsScre
   const tabBarHeight = useTabBarHeight();
   const toast = useToast();
   const { data, isPending, isError, refetch, isRefetching } = useChargePoints();
+  const { refreshing, onRefresh } = usePullToRefresh(refetch);
+  const showError = isError && !data;
   const [filter, setFilter] = useState<ChargePointFilter>('ALL');
   const [query, setQuery] = useState('');
   const [preferredMode, setPreferredMode] = useState<ViewMode>('map');
@@ -188,7 +191,7 @@ export function ChargePointsScreen({ subtitle, accountAction }: ChargePointsScre
             <View style={styles.grabber} />
             {isPending ? (
               <ActivityIndicator accessibilityLabel="Carregando pontos de recarga" color={colors.accent} />
-            ) : isError ? (
+            ) : showError ? (
               errorCard
             ) : selected ? (
               <Animated.View
@@ -207,7 +210,7 @@ export function ChargePointsScreen({ subtitle, accountAction }: ChargePointsScre
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={[styles.listContent, { paddingBottom: tabBarHeight + spacing.xxl }]}
           refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={colors.accent} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
           }
         >
           {hasMapFailed && isMapSupported ? (
@@ -219,7 +222,7 @@ export function ChargePointsScreen({ subtitle, accountAction }: ChargePointsScre
           <ChargePointFilterChips value={filter} onChange={setFilter} delay={40} />
           {isPending ? (
             <ActivityIndicator accessibilityLabel="Carregando pontos de recarga" color={colors.accent} />
-          ) : isError ? (
+          ) : showError ? (
             errorCard
           ) : visible.length === 0 ? (
             emptyCard
