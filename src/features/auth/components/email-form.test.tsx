@@ -1,11 +1,12 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { Send } from 'lucide-react-native';
 
-import { ForgotPasswordForm } from '@/features/auth/components/forgot-password-form';
+import { EmailForm } from '@/features/auth/components/email-form';
 
-describe('<ForgotPasswordForm />', () => {
+describe('<EmailForm />', () => {
   it('requires a valid email', async () => {
     const onSubmit = jest.fn();
-    await render(<ForgotPasswordForm onSubmit={onSubmit} />);
+    await render(<EmailForm submitLabel="Enviar link" submitIcon={Send} onSubmit={onSubmit} />);
 
     await fireEvent.changeText(screen.getByLabelText('E-mail'), 'ana');
     await fireEvent.press(screen.getByRole('button', { name: 'Enviar link' }));
@@ -16,7 +17,12 @@ describe('<ForgotPasswordForm />', () => {
 
   it('submits the trimmed email and shows server errors', async () => {
     const onSubmit = jest.fn();
-    await render(<ForgotPasswordForm onSubmit={onSubmit} errorMessage="Muitas tentativas. Tente novamente em 30 s." />);
+    await render(<EmailForm
+        submitLabel="Enviar link"
+        submitIcon={Send}
+        onSubmit={onSubmit}
+        errorMessage="Muitas tentativas. Tente novamente em 30 s."
+      />);
 
     await fireEvent.changeText(screen.getByLabelText('E-mail'), ' ana@example.com ');
     await fireEvent.press(screen.getByRole('button', { name: 'Enviar link' }));

@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { LogIn, RotateCw } from 'lucide-react-native';
+import { LogIn, RotateCw, Send } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { spacing } from '@/constants/theme';
 import { useForgotPassword } from '@/features/auth/api/use-forgot-password';
 import { getForgotPasswordErrorMessage } from '@/features/auth/auth-errors';
 import { AuthLayout } from '@/features/auth/components/auth-layout';
-import { ForgotPasswordForm } from '@/features/auth/components/forgot-password-form';
+import { EmailForm } from '@/features/auth/components/email-form';
 
 export function ForgotPasswordScreen() {
   const forgotPasswordMutation = useForgotPassword();
@@ -40,7 +40,9 @@ export function ForgotPasswordScreen() {
       footerLinkLabel="Entrar"
       footerHref="/login"
     >
-      <ForgotPasswordForm
+      <EmailForm
+        submitLabel="Enviar link"
+        submitIcon={Send}
         onSubmit={({ email }) => forgotPasswordMutation.mutate(email)}
         isSubmitting={forgotPasswordMutation.isPending}
         errorMessage={forgotPasswordMutation.isError ? getForgotPasswordErrorMessage(forgotPasswordMutation.error) : null}
