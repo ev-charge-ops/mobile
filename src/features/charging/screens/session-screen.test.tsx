@@ -75,6 +75,34 @@ describe('<SessionScreen />', () => {
     expect(api.getSession).toHaveBeenCalledWith('session-1');
   });
 
+  it('shows how much energy is left and the estimated end', async () => {
+    api.getSession.mockResolvedValue(
+      buildSession({ startedAt: secondsAgo(17), energyKwh: 5, targetEnergyKwh: 12, energyCostCents: 445 }),
+    );
+
+    await renderWithProviders(<SessionScreen sessionId="session-1" />);
+
+    expect(await screen.findByText('Faltam 7,00 kWh')).toBeOnTheScreen();
+    expect(screen.getByText('Término estimado')).toBeOnTheScreen();
+    expect(screen.getByText(/^~ \d\d:\d\d$/)).toBeOnTheScreen();
+    expect(screen.getByRole('progressbar', { name: 'Bateria do veículo' })).toHaveAccessibilityValue({ now: 45 });
+  });
+
+  it('walks through the release checklist while pending and can cancel', async () => {
+    api.getSession.mockResolvedValue(buildSession({ status: 'PENDING', energyKwh: 0 }));
+    api.stopSession.mockResolvedValue(buildClosedSession({ status: 'INTERRUPTED' }));
+
+    await renderWithProviders(<SessionScreen sessionId="session-1" />);
+
+    expect(await screen.findByText('Liberando o carregador')).toBeOnTheScreen();
+    expect(screen.getByText('Unidade validada')).toBeOnTheScreen();
+    expect(screen.getByText('Carregador liberado')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Em andamento')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(api.stopSession).toHaveBeenCalledWith('session-1');
+  });
+
   it('confirms before stopping and then shows the receipt', async () => {
     api.getSession.mockResolvedValue(buildSession({ startedAt: secondsAgo(17) }));
     api.stopSession.mockResolvedValue(buildClosedSession({ idleFeeCents: 0, idleMinutes: 0, totalCents: 178 }));
