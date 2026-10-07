@@ -12,7 +12,11 @@
       "bundleIdentifier": "io.softmoon.evchargeops",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "usesAppleSignIn": true,
+      "associatedDomains": [
+        "applinks:app.evchargeops.com.br"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +26,39 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "io.softmoon.evchargeops"
+      "package": "io.softmoon.evchargeops",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "app.evchargeops.com.br",
+              "pathPrefix": "/reset-password"
+            },
+            {
+              "scheme": "https",
+              "host": "app.evchargeops.com.br",
+              "pathPrefix": "/login/email"
+            },
+            {
+              "scheme": "https",
+              "host": "app.evchargeops.com.br",
+              "pathPrefix": "/verify-email"
+            },
+            {
+              "scheme": "https",
+              "host": "app.evchargeops.com.br",
+              "pathPrefix": "/invite"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "output": "static",
@@ -38,7 +74,14 @@
           "imageWidth": 76
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.396604379277-uf8a1ns9befs1k2f8ts3udap10q5mka0"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
