@@ -11,7 +11,8 @@
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "io.softmoon.evchargeops",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "O EV ChargeOps usa a câmera para ler os dados do cartão no pagamento das recargas."
       },
       "usesAppleSignIn": true,
       "associatedDomains": [
