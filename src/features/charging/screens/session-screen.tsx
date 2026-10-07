@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
-import { CreditCard, House, LogOut, RotateCw, Square, X } from 'lucide-react-native';
+import { CreditCard, House, LogOut, RotateCw, Share2, Square, X } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBar } from '@/components/ui/app-bar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { IconButton } from '@/components/ui/icon-button';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { colors, fonts, spacing, typography } from '@/constants/theme';
@@ -16,6 +17,7 @@ import { getCardPaymentErrorMessage, getStopSessionErrorMessage } from '@/featur
 import { formatCents } from '@/features/charging/charging-format';
 import { LiveSessionPanel } from '@/features/charging/components/live-session-panel';
 import { SessionReceipt } from '@/features/charging/components/session-receipt';
+import { buildReceiptShareText } from '@/features/charging/receipt-share';
 import { isSessionOpen } from '@/features/charging/session-timing';
 import { useSessionHaptics } from '@/features/charging/use-session-haptics';
 import { useNow } from '@/hooks/use-now';
@@ -61,6 +63,13 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
     });
   };
 
+  const shareReceipt = () => {
+    if (!session) return;
+    Share.share({ title: 'Recibo da recarga', message: buildReceiptShareText(session) }).catch(() =>
+      toast.show('Não foi possível compartilhar o recibo.', { tone: 'error' }),
+    );
+  };
+
   const pay = () => {
     payForSession.mutate(
       { sessionId },
@@ -78,7 +87,15 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
-        <AppBar title={session ? titles[session.status] : 'Recarga'} onBack={goBack} />
+        <AppBar
+          title={session ? titles[session.status] : 'Recarga'}
+          onBack={goBack}
+          actions={
+            session && !isOpen ? (
+              <IconButton icon={Share2} accessibilityLabel="Compartilhar recibo" onPress={shareReceipt} />
+            ) : undefined
+          }
+        />
         {session ? (
           <>
             <ScrollView contentContainerStyle={styles.content}>
@@ -138,7 +155,14 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
                   onPress={stop}
                 />
               ) : (
-                <Button label="Voltar ao início" icon={House} size="lg" block onPress={() => router.dismissTo('/')} />
+                <Button
+                  label="Voltar ao início"
+                  icon={House}
+                  size="lg"
+                  block
+                  haptic
+                  onPress={() => router.dismissTo('/')}
+                />
               )}
             </View>
           </>
