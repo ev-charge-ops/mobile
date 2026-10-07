@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { MetricTile } from '@/components/ui/metric-tile';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { StatusPill } from '@/components/ui/status-pill';
+import { useTabBarHeight } from '@/components/ui/tab-bar';
 import { colors, fonts, radii, spacing, typography } from '@/constants/theme';
 import type { ChargingSession } from '@/features/charging/api/charging-api';
 import { useSessionHistory } from '@/features/charging/api/use-charging-sessions';
@@ -34,18 +35,20 @@ function openSession(sessionId: string) {
 export function SessionHistoryScreen() {
   const { data, isPending, isError, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useSessionHistory();
+  const tabBarHeight = useTabBarHeight();
+  const contentStyle = [styles.content, { paddingBottom: tabBarHeight + spacing.xxl }];
   const sessions = data?.pages.flatMap((page) => page.items) ?? [];
   const total = data?.pages[0]?.total ?? 0;
 
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
-      <AppBar title="Histórico" subtitle={formatSessionCount(total)} onBack={() => router.back()} />
+      <AppBar variant="large" title="Histórico" subtitle={formatSessionCount(total)} />
       {isPending ? (
         <View style={styles.centered}>
           <ActivityIndicator accessibilityLabel="Carregando histórico" color={colors.accent} size="large" />
         </View>
       ) : isError ? (
-        <View style={styles.content}>
+        <View style={contentStyle}>
           <Card style={styles.stack}>
             <Text style={typography.body}>Não foi possível carregar o seu histórico.</Text>
             <Button
@@ -62,7 +65,7 @@ export function SessionHistoryScreen() {
         <FlatList
           data={sessions}
           keyExtractor={(session) => session.id}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={contentStyle}
           refreshControl={
             <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={colors.accent} />
           }
@@ -75,7 +78,7 @@ export function SessionHistoryScreen() {
                 label="Encontrar pontos de recarga"
                 icon={MapPin}
                 size="sm"
-                onPress={() => router.push('/charge-points')}
+                onPress={() => router.navigate('/')}
               />
             </Card>
           }
@@ -162,7 +165,6 @@ const styles = StyleSheet.create({
   content: {
     gap: spacing.md,
     paddingHorizontal: spacing.gutter,
-    paddingBottom: spacing.massive,
   },
   stack: {
     gap: spacing.md,
