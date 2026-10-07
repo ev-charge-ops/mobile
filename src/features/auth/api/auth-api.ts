@@ -6,6 +6,7 @@ export type AuthSession = components['schemas']['AuthResponseDto'];
 export type LoginInput = components['schemas']['LoginDto'];
 export type RegisterInput = components['schemas']['RegisterDto'];
 export type ResetPasswordInput = components['schemas']['ResetPasswordDto'];
+export type VerifyEmailLoginInput = { email: string; code: string } | { token: string };
 
 export class AuthApiError extends Error {
   constructor(
@@ -86,4 +87,12 @@ export function confirmEmailVerification(token: string) {
 
 export function resendEmailVerification() {
   return send(apiClient.POST('/auth/email-verification/resend'));
+}
+
+export function requestEmailLogin(email: string) {
+  return send(publicApiClient.POST('/auth/email-login/request', { body: { email } }));
+}
+
+export function verifyEmailLogin(body: VerifyEmailLoginInput) {
+  return unwrap(publicApiClient.POST('/auth/email-login/verify', { body }));
 }
