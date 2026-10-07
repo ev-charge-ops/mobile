@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { Bell, Lock, Mail, Play, Zap } from 'lucide-react-native';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -28,6 +29,7 @@ export function ShowcaseScreen() {
           variant="large"
           title="EV ChargeOps"
           subtitle="Design system"
+          onBack={() => router.back()}
           actions={
             <IconButton
               icon={Bell}
