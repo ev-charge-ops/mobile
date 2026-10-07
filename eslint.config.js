@@ -11,6 +11,10 @@ module.exports = defineConfig([
     ignores: ['dist/*', 'src/lib/api-schema.d.ts'],
   },
   {
+    files: ['src/features/auth/oauth/google-sign-in.ts'],
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
+  {
     files: ['src/**/*.{ts,tsx}'],
     plugins: { boundaries },
     settings: {
