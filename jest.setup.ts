@@ -105,3 +105,13 @@ jest.mock('expo-video', () => {
     VideoView: ({ testID }: { testID?: string }) => createElement(View, { testID }),
   };
 });
+
+jest.mock('react-native-view-shot', () => ({
+  captureRef: jest.fn().mockResolvedValue('/tmp/receipt.png'),
+  releaseCapture: jest.fn(),
+}));
+
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: jest.fn().mockResolvedValue(true),
+  shareAsync: jest.fn().mockResolvedValue(undefined),
+}));

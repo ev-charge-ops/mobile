@@ -1,7 +1,9 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import * as Sharing from 'expo-sharing';
 import * as StatusBar from 'expo-status-bar';
 import { Share } from 'react-native';
+import * as ViewShot from 'react-native-view-shot';
 
 import * as chargingApi from '@/features/charging/api/charging-api';
 import * as cardPaymentModule from '@/features/charging/payments/card-payment';
@@ -258,17 +260,70 @@ describe('<SessionScreen />', () => {
     expect(router.dismissTo).toHaveBeenCalledWith('/');
   });
 
-  it('shares a pt-BR summary of the receipt', async () => {
-    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
+  it('captures the receipt card and shares it as an image', async () => {
+    const share = jest.spyOn(Share, 'share');
     api.getSession.mockResolvedValue(buildClosedSession());
 
     await renderWithProviders(<SessionScreen sessionId="session-1" />);
     await fireEvent.press(await screen.findByRole('button', { name: 'Compartilhar recibo' }));
 
-    expect(share).toHaveBeenCalledWith({
-      title: 'Recibo da recarga',
-      message: expect.stringContaining(`Total: R$${NBSP}12,78`),
-    });
+    await waitFor(() =>
+      expect(Sharing.shareAsync).toHaveBeenCalledWith('file:///tmp/receipt.png', {
+        mimeType: 'image/png',
+        dialogTitle: 'Compartilhar recibo',
+        UTI: 'public.png',
+      }),
+    );
+    expect(ViewShot.captureRef).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ format: 'png', quality: 1, result: 'tmpfile' }),
+    );
+    expect(share).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Compartilhar recibo' })).toBeEnabled();
+  });
+
+  it('falls back to a pt-BR text summary when the image cannot be captured', async () => {
+    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
+    jest.mocked(ViewShot.captureRef).mockRejectedValueOnce(new Error('capture failed'));
+    api.getSession.mockResolvedValue(buildClosedSession());
+
+    await renderWithProviders(<SessionScreen sessionId="session-1" />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Compartilhar recibo' }));
+
+    await waitFor(() =>
+      expect(share).toHaveBeenCalledWith({
+        title: 'Recibo da recarga',
+        message: expect.stringContaining(`Total: R$${NBSP}12,78`),
+      }),
+    );
+    expect(Sharing.shareAsync).not.toHaveBeenCalled();
+  });
+
+  it('falls back to text when file sharing is not available', async () => {
+    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
+    jest.mocked(Sharing.isAvailableAsync).mockResolvedValueOnce(false);
+    api.getSession.mockResolvedValue(buildClosedSession());
+
+    await renderWithProviders(<SessionScreen sessionId="session-1" />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Compartilhar recibo' }));
+
+    await waitFor(() => expect(share).toHaveBeenCalled());
+    expect(ViewShot.captureRef).not.toHaveBeenCalled();
+  });
+
+  it('shows the share button as busy while capturing the receipt', async () => {
+    let finishCapture: (uri: string) => void = () => {};
+    jest
+      .mocked(ViewShot.captureRef)
+      .mockReturnValueOnce(new Promise<string>((resolve) => (finishCapture = resolve)));
+    api.getSession.mockResolvedValue(buildClosedSession());
+
+    await renderWithProviders(<SessionScreen sessionId="session-1" />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Compartilhar recibo' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Compartilhar recibo' })).toBeBusy());
+    await act(async () => finishCapture('/tmp/receipt.png'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Compartilhar recibo' })).not.toBeBusy());
   });
 
   it('does not offer sharing while the session is open', async () => {

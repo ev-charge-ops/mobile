@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { RotateCw, Unplug } from 'lucide-react-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -20,8 +20,10 @@ import { getCardPaymentErrorMessage, getStopSessionErrorMessage } from '@/featur
 import { formatCents } from '@/features/charging/charging-format';
 import { LiveChargingNight } from '@/features/charging/components/live-charging-night';
 import { PaymentView } from '@/features/charging/components/payment-view';
+import { ReceiptShareCard } from '@/features/charging/components/receipt-share-card';
 import { ReleasePanel } from '@/features/charging/components/release-panel';
 import { SessionReceipt } from '@/features/charging/components/session-receipt';
+import { shareReceiptImage } from '@/features/charging/receipt-image-share';
 import { buildReceiptShareText } from '@/features/charging/receipt-share';
 import { isSessionOpen } from '@/features/charging/session-timing';
 import { useSessionHaptics } from '@/features/charging/use-session-haptics';
@@ -72,6 +74,9 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
   const payForSession = usePayForSession();
   const toast = useToast();
   const [isConfirmingStop, setConfirmingStop] = useState(false);
+  const [isSharing, setSharing] = useState(false);
+  const [shareCardHeight, setShareCardHeight] = useState(0);
+  const shareCardRef = useRef<View>(null);
   const isOpen = session ? isSessionOpen(session.status) : false;
   const now = useNow(1000, isOpen);
   const isNight = isNightStatus(session?.status);
@@ -92,11 +97,17 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
     });
   };
 
-  const shareReceipt = () => {
-    if (!session) return;
-    Share.share({ title: 'Recibo da recarga', message: buildReceiptShareText(session) }).catch(() =>
-      toast.show('Não foi possível compartilhar o recibo.', { tone: 'error' }),
-    );
+  const shareReceipt = async () => {
+    if (!session || isSharing) return;
+    setSharing(true);
+    try {
+      const sharedImage = await shareReceiptImage(shareCardRef.current, shareCardHeight);
+      if (!sharedImage) await Share.share({ title: 'Recibo da recarga', message: buildReceiptShareText(session) });
+    } catch {
+      toast.show('Não foi possível compartilhar o recibo.', { tone: 'error' });
+    } finally {
+      setSharing(false);
+    }
   };
 
   const pay = () => {
@@ -181,7 +192,29 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
   }
 
   if (session && !isOpen) {
-    return <SessionReceipt session={session} now={now} onShare={shareReceipt} onDone={() => router.dismissTo('/')} />;
+    return (
+      <View style={styles.screen}>
+        <View
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={styles.shareCard}
+        >
+          <ReceiptShareCard
+            ref={shareCardRef}
+            session={session}
+            onLayout={(event) => setShareCardHeight(event.nativeEvent.layout.height)}
+          />
+        </View>
+        <SessionReceipt
+          session={session}
+          now={now}
+          isSharing={isSharing}
+          onShare={shareReceipt}
+          onDone={() => router.dismissTo('/')}
+        />
+      </View>
+    );
   }
 
   return (
@@ -237,6 +270,11 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.bgBase,
+  },
+  shareCard: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
   },
   night: {
     flex: 1,
