@@ -20,6 +20,7 @@ import { SessionReceipt } from '@/features/charging/components/session-receipt';
 import { buildReceiptShareText } from '@/features/charging/receipt-share';
 import { isSessionOpen } from '@/features/charging/session-timing';
 import { useSessionHaptics } from '@/features/charging/use-session-haptics';
+import { useSessionReminderSync } from '@/features/charging/use-session-reminders';
 import { useNow } from '@/hooks/use-now';
 import { formatEnergy } from '@/utils/format-energy';
 
@@ -51,6 +52,7 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
   const isOpen = session ? isSessionOpen(session.status) : false;
   const now = useNow(1000, isOpen);
   useSessionHaptics(session?.status);
+  useSessionReminderSync(session);
 
   const stop = () => {
     setConfirmingStop(false);
