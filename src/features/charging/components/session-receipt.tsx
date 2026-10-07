@@ -17,6 +17,7 @@ import {
   formatPricePerKwh,
   formatSessionCode,
   formatTime,
+  paymentStatusLabels,
   regimeLabels,
 } from '@/features/charging/charging-format';
 import { formatDuration, getChargingSeconds } from '@/features/charging/session-timing';
@@ -44,7 +45,13 @@ export function SessionReceipt({ session }: SessionReceiptProps) {
           />
         </View>
         <Text style={styles.totalLabel}>
-          {isInterrupted ? 'Recarga interrompida' : isPrivate ? 'Vai para o rateio da unidade' : 'Total da recarga'}
+          {isInterrupted
+            ? 'Recarga interrompida'
+            : isPrivate
+              ? 'Vai para o rateio da unidade'
+              : session.payment?.status === 'CAPTURED'
+                ? 'Cobrado no cartão'
+                : 'Total da recarga'}
         </Text>
         <Text accessibilityLabel={`Total ${formatCents(session.totalCents)}`} style={styles.total}>
           {formatCents(session.totalCents)}
@@ -79,6 +86,35 @@ export function SessionReceipt({ session }: SessionReceiptProps) {
         <ListRow label="Total" value={formatCents(session.totalCents)} divider={false} />
       </Card>
 
+      {session.payment ? (
+        <View style={styles.section}>
+          <SectionTitle>Pagamento no cartão</SectionTitle>
+          <Card padding={0}>
+            <ListRow
+              label="Pré-autorização"
+              value={formatCents(session.payment.authorizedCents)}
+              hint="Valor reservado no início da recarga"
+            />
+            <ListRow
+              label={session.payment.status === 'CAPTURED' ? 'Cobrado' : 'Situação'}
+              value={
+                session.payment.capturedCents !== null
+                  ? formatCents(session.payment.capturedCents)
+                  : paymentStatusLabels[session.payment.status]
+              }
+              hint={
+                session.payment.status === 'CAPTURED'
+                  ? 'O restante da pré-autorização volta ao limite do cartão'
+                  : session.payment.status === 'CANCELED'
+                    ? 'A pré-autorização foi liberada sem cobrança'
+                    : undefined
+              }
+              divider={false}
+            />
+          </Card>
+        </View>
+      ) : null}
+
       {isInterrupted ? (
         <InfoBanner tone="warning" title="Sessão interrompida">
           A recarga foi interrompida antes do fim. A cobrança considera apenas a energia medida até a desconexão.
@@ -87,7 +123,7 @@ export function SessionReceipt({ session }: SessionReceiptProps) {
         <InfoBanner tone={isPrivate ? 'success' : 'info'} title={isPrivate ? 'Condomínio' : 'Rede comercial'}>
           {isPrivate
             ? 'Energia a custo, sem margem. O consumo e a taxa de ocupação entram no rateio da sua unidade.'
-            : 'Tarifa dinâmica aplicada e travada no início da sessão.'}
+            : 'Tarifa dinâmica aplicada e travada no início da sessão. Só a energia consumida e a taxa de ocupação são cobradas no cartão.'}
         </InfoBanner>
       )}
 

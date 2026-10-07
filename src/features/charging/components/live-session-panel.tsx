@@ -16,6 +16,7 @@ import {
   formatLimit,
   formatPowerValue,
   formatPricePerKwh,
+  paymentStatusLabels,
 } from '@/features/charging/charging-format';
 import { SessionHero } from '@/features/charging/components/session-hero';
 import {
@@ -115,10 +116,16 @@ function PaymentPendingPanel({ session }: { session: ChargingSession }) {
         color={colors.statusInfo}
         backgroundColor={colors.statusInfoBg}
       />
-      <InfoBanner tone="info" title="Pagamento pendente">
-        O carregador é liberado depois que o cartão autoriza a pré-autorização. Esta versão do app ainda não aceita
-        cartão: cancele a recarga e atualize o app para pagar em pontos comerciais.
-      </InfoBanner>
+      {session.payment?.status === 'FAILED' ? (
+        <InfoBanner tone="danger" title="Cartão recusado">
+          O cartão não autorizou a pré-autorização. Tente de novo com outro cartão ou cancele a recarga.
+        </InfoBanner>
+      ) : (
+        <InfoBanner tone="info" title="Pagamento pendente">
+          O carregador é liberado assim que o cartão autoriza a pré-autorização. Ao encerrar, só o valor consumido é
+          cobrado e o restante é liberado.
+        </InfoBanner>
+      )}
       <SessionFacts session={session} />
     </>
   );
@@ -219,7 +226,19 @@ function SessionFacts({ session }: { session: ChargingSession }) {
         value={formatDemandFactor(session.demandFactor)}
         hint={formatDemandSource(session.demandFactorSource, session.demandModelVersion)}
       />
-      <ListRow label="Limite" value={formatLimit(session.limit)} divider={session.simulationSpeed > 1} />
+      <ListRow
+        label="Limite"
+        value={formatLimit(session.limit)}
+        divider={session.payment !== null || session.simulationSpeed > 1}
+      />
+      {session.payment ? (
+        <ListRow
+          label="Pré-autorização"
+          value={formatCents(session.payment.authorizedCents)}
+          hint={`${paymentStatusLabels[session.payment.status]} · só o consumido é cobrado`}
+          divider={session.simulationSpeed > 1}
+        />
+      ) : null}
       {session.simulationSpeed > 1 ? (
         <ListRow
           label="Simulação acelerada"

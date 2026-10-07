@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
 import * as chargingApi from '@/features/charging/api/charging-api';
+import * as cardPaymentModule from '@/features/charging/payments/card-payment';
 import { SessionScreen } from '@/features/charging/screens/session-screen';
 import { buildClosedSession, buildSession } from '@/features/charging/testing/session-fixtures';
 import { renderWithProviders } from '@/features/charging/testing/render-with-providers';
@@ -12,8 +13,41 @@ jest.mock('expo-router', () => ({
 
 jest.mock('@/features/charging/api/charging-api', () => {
   const actual = jest.requireActual('@/features/charging/api/charging-api');
-  return { ...actual, getSession: jest.fn(), stopSession: jest.fn() };
+  return {
+    ...actual,
+    getSession: jest.fn(),
+    stopSession: jest.fn(),
+    createSessionPaymentSheet: jest.fn(),
+    confirmSessionPayment: jest.fn(),
+  };
 });
+
+jest.mock('@/features/charging/payments/card-payment', () => {
+  const actual = jest.requireActual('@/features/charging/payments/card-payment');
+  return { ...actual, presentCardPayment: jest.fn() };
+});
+
+const cardPayment = jest.mocked(cardPaymentModule);
+
+const sheetFixture = {
+  paymentIntentClientSecret: 'pi_1_secret',
+  customerId: 'cus_1',
+  customerEphemeralKeySecret: 'ek_test_1',
+  publishableKey: null,
+  merchantDisplayName: 'EV ChargeOps',
+};
+
+const paymentFixture = {
+  paymentIntentId: 'pi_1',
+  status: 'PENDING_AUTHORIZATION' as const,
+  currency: 'BRL',
+  authorizedCents: 20040,
+  capturedCents: null,
+  failureCode: null,
+  authorizedAt: null,
+  capturedAt: null,
+  canceledAt: null,
+};
 
 const api = jest.mocked(chargingApi);
 
@@ -136,17 +170,7 @@ describe('<SessionScreen />', () => {
         status: 'AWAITING_PAYMENT',
         regime: 'COMMERCIAL',
         energyKwh: 0,
-        payment: {
-          paymentIntentId: 'pi_1',
-          status: 'PENDING_AUTHORIZATION',
-          currency: 'BRL',
-          authorizedCents: 20040,
-          capturedCents: null,
-          failureCode: null,
-          authorizedAt: null,
-          capturedAt: null,
-          canceledAt: null,
-        },
+        payment: paymentFixture,
       }),
     );
     api.stopSession.mockResolvedValue(buildClosedSession({ status: 'INTERRUPTED', regime: 'COMMERCIAL' }));
@@ -154,10 +178,59 @@ describe('<SessionScreen />', () => {
     await renderWithProviders(<SessionScreen sessionId="session-1" />);
 
     expect(await screen.findByRole('header', { name: 'Pagamento pendente' })).toBeOnTheScreen();
-    expect(screen.getByText(`R$${NBSP}200,40`)).toBeOnTheScreen();
+    expect(screen.getAllByText(`R$${NBSP}200,40`).length).toBeGreaterThan(0);
     await fireEvent.press(screen.getByRole('button', { name: 'Cancelar recarga' }));
 
     expect(api.stopSession).toHaveBeenCalledWith('session-1');
     expect(await screen.findByText('Recarga interrompida')).toBeOnTheScreen();
+  });
+
+  it('pays with a fresh payment sheet and starts charging', async () => {
+    api.getSession.mockResolvedValue(
+      buildSession({ status: 'AWAITING_PAYMENT', regime: 'COMMERCIAL', energyKwh: 0, payment: paymentFixture }),
+    );
+    api.createSessionPaymentSheet.mockResolvedValue(sheetFixture);
+    cardPayment.presentCardPayment.mockResolvedValue('completed');
+    api.confirmSessionPayment.mockResolvedValue(
+      buildSession({ status: 'ACTIVE', regime: 'COMMERCIAL', payment: { ...paymentFixture, status: 'AUTHORIZED' } }),
+    );
+
+    await renderWithProviders(<SessionScreen sessionId="session-1" />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Pagar com cartão' }));
+
+    expect(await screen.findByText('Pagamento autorizado. Carregador liberado!')).toBeOnTheScreen();
+    expect(api.createSessionPaymentSheet).toHaveBeenCalledWith('session-1');
+    expect(cardPayment.presentCardPayment).toHaveBeenCalledWith(sheetFixture);
+    expect(screen.getByRole('header', { name: 'Recarga em andamento' })).toBeOnTheScreen();
+    expect(screen.getByText('Pré-autorizado · só o consumido é cobrado')).toBeOnTheScreen();
+  });
+
+  it('shows the card error from the payment sheet', async () => {
+    api.getSession.mockResolvedValue(
+      buildSession({ status: 'AWAITING_PAYMENT', regime: 'COMMERCIAL', energyKwh: 0, payment: paymentFixture }),
+    );
+    api.createSessionPaymentSheet.mockResolvedValue(sheetFixture);
+    cardPayment.presentCardPayment.mockRejectedValue(new cardPaymentModule.CardPaymentError('Cartão sem saldo'));
+
+    await renderWithProviders(<SessionScreen sessionId="session-1" />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Pagar com cartão' }));
+
+    expect(await screen.findByText('Cartão sem saldo')).toBeOnTheScreen();
+    expect(api.confirmSessionPayment).not.toHaveBeenCalled();
+  });
+
+  it('shows what was charged on the card in the receipt', async () => {
+    api.getSession.mockResolvedValue(
+      buildClosedSession({
+        regime: 'COMMERCIAL',
+        payment: { ...paymentFixture, status: 'CAPTURED', capturedCents: 1278 },
+      }),
+    );
+
+    await renderWithProviders(<SessionScreen sessionId="session-1" />);
+
+    expect(await screen.findByText('Cobrado no cartão')).toBeOnTheScreen();
+    expect(screen.getByText(`R$${NBSP}200,40`)).toBeOnTheScreen();
+    expect(screen.getByText('O restante da pré-autorização volta ao limite do cartão')).toBeOnTheScreen();
   });
 });

@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { Zap } from 'lucide-react-native';
+import { CreditCard, Zap } from 'lucide-react-native';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -17,7 +17,11 @@ import {
   type ChargePointPricing,
   type ChargingLimitInput,
 } from '@/features/charging/api/charging-api';
-import { activeSessionQueryKey, useStartSession } from '@/features/charging/api/use-charging-sessions';
+import {
+  activeSessionQueryKey,
+  usePayForSession,
+  useStartSession,
+} from '@/features/charging/api/use-charging-sessions';
 import { getStartSessionErrorMessage, isActiveSessionConflict } from '@/features/charging/charging-errors';
 import {
   demandLevelLabels,
@@ -57,6 +61,8 @@ export function StartChargingSheet({ chargePoint, pricing, visible, onClose }: S
   const queryClient = useQueryClient();
   const toast = useToast();
   const startSession = useStartSession();
+  const payForSession = usePayForSession();
+  const needsCardPayment = chargePoint.type === 'COMMERCIAL';
   const [limitId, setLimitId] = useState(limitOptions[0].id);
   const selected = limitOptions.find((option) => option.id === limitId) ?? limitOptions[0];
 
@@ -73,8 +79,12 @@ export function StartChargingSheet({ chargePoint, pricing, visible, onClose }: S
       {
         onSuccess: (session) => {
           onClose();
-          toast.show('Carregador liberado. Recarga iniciada!');
           router.replace({ pathname: '/sessions/[sessionId]', params: { sessionId: session.id } });
+          if (session.status === 'AWAITING_PAYMENT') {
+            payForSession.mutate({ sessionId: session.id, sheet: session.paymentSheet });
+            return;
+          }
+          toast.show('Carregador liberado. Recarga iniciada!');
         },
         onError: (error) => {
           if (isActiveSessionConflict(error)) {
@@ -110,8 +120,17 @@ export function StartChargingSheet({ chargePoint, pricing, visible, onClose }: S
             label="Taxa de ocupação"
             value={`${formatCents(pricing.idleFeeCentsPerMinute)}/min`}
             hint={`Só depois de ${pricing.gracePeriodMinutes} min de tolerância`}
-            divider={false}
+            divider={needsCardPayment}
           />
+          {needsCardPayment ? (
+            <ListRow
+              icon={CreditCard}
+              label="Pagamento no cartão"
+              value="Pré-autorização"
+              hint="Reservamos o valor máximo e cobramos só o consumido ao encerrar"
+              divider={false}
+            />
+          ) : null}
         </Card>
         <View style={styles.section}>
           <SectionTitle>Limite da recarga</SectionTitle>
@@ -133,8 +152,8 @@ export function StartChargingSheet({ chargePoint, pricing, visible, onClose }: S
           </Text>
         ) : null}
         <Button
-          label="Confirmar e iniciar"
-          icon={Zap}
+          label={needsCardPayment ? 'Continuar para pagamento' : 'Confirmar e iniciar'}
+          icon={needsCardPayment ? CreditCard : Zap}
           size="lg"
           block
           loading={startSession.isPending}
