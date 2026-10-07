@@ -101,3 +101,23 @@ export function formatLimit(limit: ChargingSession['limit']) {
   if (limit.type === 'AMOUNT' && limit.amountCents !== null) return `Até ${formatCents(limit.amountCents)}`;
   return 'Até completar';
 }
+
+export const sessionStatusLabels: Record<ChargingSession['status'], string> = {
+  AWAITING_PAYMENT: 'Pagamento pendente',
+  PENDING: 'Iniciando',
+  ACTIVE: 'Carregando',
+  GRACE: 'Tolerância',
+  IDLE: 'Ocupação',
+  CLOSED: 'Concluída',
+  INTERRUPTED: 'Interrompida',
+};
+
+export const sessionStatusPill: Record<ChargingSession['status'], Status> = {
+  AWAITING_PAYMENT: 'info',
+  PENDING: 'info',
+  ACTIVE: 'charging',
+  GRACE: 'idle',
+  IDLE: 'fault',
+  CLOSED: 'available',
+  INTERRUPTED: 'offline',
+};

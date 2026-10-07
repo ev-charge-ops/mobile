@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { House, LogOut, RotateCw, Square } from 'lucide-react-native';
+import { House, LogOut, RotateCw, Square, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +25,7 @@ export type SessionScreenProps = {
 };
 
 const titles: Record<ChargingSession['status'], string> = {
+  AWAITING_PAYMENT: 'Pagamento pendente',
   PENDING: 'Liberando carregador',
   ACTIVE: 'Recarga em andamento',
   GRACE: 'Carga concluída',
@@ -76,6 +77,16 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
                   block
                   loading={stopSession.isPending}
                   onPress={() => setConfirmingStop(true)}
+                />
+              ) : session.status === 'AWAITING_PAYMENT' ? (
+                <Button
+                  label="Cancelar recarga"
+                  icon={X}
+                  variant="outline"
+                  size="lg"
+                  block
+                  loading={stopSession.isPending}
+                  onPress={stop}
                 />
               ) : isOpen ? (
                 <Button

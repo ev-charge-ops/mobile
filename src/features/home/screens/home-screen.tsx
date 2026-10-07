@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { LogOut, MapPin, Palette, ShieldCheck, Zap } from 'lucide-react-native';
+import { History, LogOut, MapPin, Palette, ShieldCheck, Zap } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,9 +24,10 @@ export type HomeScreenProps = {
   onSignOut: () => void;
   isSigningOut?: boolean;
   banner?: ReactNode;
+  activeSession?: ReactNode;
 };
 
-export function HomeScreen({ user, onSignOut, isSigningOut = false, banner }: HomeScreenProps) {
+export function HomeScreen({ user, onSignOut, isSigningOut = false, banner, activeSession }: HomeScreenProps) {
   const isManager = user.role === 'MANAGER';
 
   return (
@@ -34,6 +35,7 @@ export function HomeScreen({ user, onSignOut, isSigningOut = false, banner }: Ho
       <AppBar variant="large" title={`Olá, ${user.name}`} subtitle={user.email} />
       <ScrollView contentContainerStyle={styles.content}>
         {banner}
+        {activeSession}
         <Card style={styles.stack}>
           <StatusPill
             status={isManager ? 'info' : 'available'}
@@ -51,6 +53,13 @@ export function HomeScreen({ user, onSignOut, isSigningOut = false, banner }: Ho
             icon={MapPin}
             block
             onPress={() => router.push('/charge-points')}
+          />
+          <Button
+            label="Histórico de recargas"
+            icon={History}
+            variant="secondary"
+            block
+            onPress={() => router.push('/sessions')}
           />
         </Card>
         <OrganizationsCard />
