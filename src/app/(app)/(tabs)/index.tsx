@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 
+import { getMapCenterSource } from '@/config/map-center';
 import { useMyOrganizations } from '@/features/account/api/use-my-organizations';
 import { getInitials } from '@/features/account/account-initials';
 import { useMe } from '@/features/auth/api/use-me';
@@ -17,7 +18,7 @@ export default function HomeRoute() {
   const { data: user } = useMe();
   const organizationsQuery = useMyOrganizations();
   const sessionQuery = useActiveSession();
-  const pointsQuery = useNearbyChargePoints();
+  const pointsQuery = useNearbyChargePoints(getMapCenterSource(user?.locationMode));
   const session = hasOpenSession(sessionQuery.data) ? sessionQuery.data : null;
   const now = useNow(ETA_REFRESH_MS);
 
