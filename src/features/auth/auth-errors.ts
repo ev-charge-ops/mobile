@@ -48,6 +48,21 @@ export function getResetPasswordErrorMessage(error: unknown) {
   return getCommonErrorMessage(error);
 }
 
+export function getUpdateProfileErrorMessage(error: unknown) {
+  const status = statusOf(error);
+  if (status === 400) return 'Verifique os dados informados e tente novamente.';
+  if (status === 401) return 'Sua sessão expirou. Entre novamente.';
+  return getCommonErrorMessage(error);
+}
+
+export function getChangePasswordErrorMessage(error: unknown) {
+  if (error instanceof AuthApiError && error.code === 'INVALID_CURRENT_PASSWORD') return 'Senha atual incorreta';
+  const status = statusOf(error);
+  if (status === 400) return 'Verifique os dados informados e tente novamente.';
+  if (status === 401) return 'Sua sessão expirou. Entre novamente.';
+  return getCommonErrorMessage(error);
+}
+
 export function getVerifyEmailErrorMessage(error: unknown) {
   if (statusOf(error) === 400) return 'Link de verificação inválido ou expirado. Solicite um novo e-mail.';
   return getCommonErrorMessage(error);

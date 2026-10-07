@@ -33,7 +33,7 @@ jest.mock('@/features/charging/screens/charge-points-screen', () => {
   };
 });
 
-const user = { id: 'u1', name: 'Ana', email: 'ana@example.com', role: 'DRIVER', emailVerified: true };
+const user = { id: 'u1', name: 'Ana', email: 'ana@example.com', role: 'DRIVER', emailVerified: true, hasPassword: true };
 const organizations = [{ id: 'o1', name: 'Residencial Aclimação', type: 'CONDOMINIUM', role: 'DRIVER', unitLabel: 'B · 42' }];
 
 const purposes = [
