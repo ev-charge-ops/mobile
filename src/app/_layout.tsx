@@ -1,16 +1,21 @@
-import { Stack, ThemeProvider } from 'expo-router';
+import { Stack, ThemeProvider, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { navigationTheme } from '@/constants/navigation-theme';
 import { colors } from '@/constants/theme';
+import { RootErrorScreen } from '@/features/auth/screens/root-error-screen';
 import { useSession } from '@/features/auth/session/session-context';
 import { useReturnAfterSignIn } from '@/features/auth/session/use-return-after-sign-in';
 import { useAppFonts } from '@/hooks/use-app-fonts';
 import { AppProviders } from '@/providers/app-providers';
 
 SplashScreen.preventAutoHideAsync();
+
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return <RootErrorScreen details={__DEV__ ? error.message : null} onRetry={retry} />;
+}
 
 export default function RootLayout() {
   return (
