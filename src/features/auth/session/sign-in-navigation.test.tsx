@@ -137,6 +137,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  jest.requireMock('@/lib/secure-storage').store.clear();
   api.routes.clear();
   api.native = true;
   mockHomeScreenFailure.enabled = false;
