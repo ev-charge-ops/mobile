@@ -20,6 +20,17 @@ export const registerSchema = z
     path: ['confirmPassword'],
   });
 
+export const acceptInviteSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Informe seu nome'),
+    password: newPassword,
+    confirmPassword: z.string().min(1, 'Confirme sua senha'),
+  })
+  .refine((values) => values.password === values.confirmPassword, {
+    message: 'As senhas não coincidem',
+    path: ['confirmPassword'],
+  });
+
 export const emailSchema = z.object({ email });
 
 export const emailCodeSchema = z.object({
@@ -38,6 +49,7 @@ export const resetPasswordSchema = z
 
 export type LoginValues = z.infer<typeof loginSchema>;
 export type RegisterValues = z.infer<typeof registerSchema>;
+export type AcceptInviteValues = z.infer<typeof acceptInviteSchema>;
 export type EmailValues = z.infer<typeof emailSchema>;
 export type EmailCodeValues = z.infer<typeof emailCodeSchema>;
 export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;

@@ -90,3 +90,31 @@ export function getOAuthLoginErrorMessage(provider: OAuthProvider, error: unknow
   }
   return getCommonErrorMessage(error);
 }
+
+export type InviteUnavailableReason = 'NOT_FOUND' | 'EXPIRED' | 'REVOKED' | 'ACCEPTED';
+
+const unavailableReasonsByCode: Record<string, InviteUnavailableReason> = {
+  INVITE_NOT_FOUND: 'NOT_FOUND',
+  INVITE_EXPIRED: 'EXPIRED',
+  INVITE_REVOKED: 'REVOKED',
+  INVITE_ALREADY_ACCEPTED: 'ACCEPTED',
+};
+
+export function getInviteUnavailableReason(error: unknown): InviteUnavailableReason | null {
+  if (!(error instanceof AuthApiError)) return null;
+  if (error.code && unavailableReasonsByCode[error.code]) return unavailableReasonsByCode[error.code];
+  if (error.status === 404) return 'NOT_FOUND';
+  if (error.status === 410) return 'EXPIRED';
+  return null;
+}
+
+export function isInviteEmailMismatch(error: unknown) {
+  return error instanceof AuthApiError && (error.code === 'INVITE_EMAIL_MISMATCH' || error.status === 403);
+}
+
+export function getAcceptInviteErrorMessage(error: unknown) {
+  const status = statusOf(error);
+  if (status === 409) return 'Este e-mail já tem uma conta. Toque em "Já tenho conta" para entrar e aceitar o convite.';
+  if (status === 400) return 'Verifique os dados informados e tente novamente.';
+  return getCommonErrorMessage(error);
+}
