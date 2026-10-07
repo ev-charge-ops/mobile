@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { StatusPill } from '@/components/ui/status-pill';
 import { colors, spacing, typography } from '@/constants/theme';
+import { OrganizationsCard } from '@/features/home/components/organizations-card';
 import type { components } from '@/lib/api-schema';
 
 type User = components['schemas']['UserResponseDto'];
@@ -46,6 +47,7 @@ export function HomeScreen({ user, onSignOut, isSigningOut = false, banner }: Ho
               : 'Em breve você poderá encontrar estações próximas e iniciar suas recargas por aqui.'}
           </Text>
         </Card>
+        <OrganizationsCard />
         <View style={styles.stack}>
           <Button
             label="Ver design system"
