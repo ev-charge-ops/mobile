@@ -1,7 +1,11 @@
 import * as Notifications from 'expo-notifications';
 
 import { apiClient } from '@/lib/api-client';
-import { registerDevicePushToken, unregisterDevicePushToken } from '@/lib/push-notifications';
+import {
+  configureNotificationHandler,
+  registerDevicePushToken,
+  unregisterDevicePushToken,
+} from '@/lib/push-notifications';
 
 jest.mock('expo-notifications', () => ({
   AndroidImportance: { HIGH: 4 },
@@ -88,5 +92,29 @@ describe('unregisterDevicePushToken', () => {
     notifications.getPermissionsAsync.mockResolvedValue(permission(true));
     api.DELETE.mockRejectedValue(new Error('offline'));
     await expect(unregisterDevicePushToken()).resolves.toBeUndefined();
+  });
+});
+
+describe('configureNotificationHandler', () => {
+  function handlerResult(data: Record<string, unknown>) {
+    const [{ handleNotification }] = notifications.setNotificationHandler.mock.calls.at(-1)!;
+    return handleNotification({ request: { content: { data } } } as unknown as Notifications.Notification);
+  }
+
+  it('shows each session alert once when the reminder and the push both arrive', async () => {
+    configureNotificationHandler((data) => (typeof data?.alert === 'string' ? data.alert : null));
+
+    await expect(handlerResult({ alert: 's1:complete' })).resolves.toMatchObject({
+      shouldShowBanner: true,
+      shouldPlaySound: true,
+    });
+    await expect(handlerResult({ alert: 's1:complete' })).resolves.toMatchObject({
+      shouldShowBanner: false,
+      shouldPlaySound: false,
+      shouldShowList: true,
+    });
+    await expect(handlerResult({ alert: 's1:idle' })).resolves.toMatchObject({ shouldShowBanner: true });
+    await expect(handlerResult({ other: true })).resolves.toMatchObject({ shouldShowBanner: true });
+    await expect(handlerResult({ other: true })).resolves.toMatchObject({ shouldShowBanner: true });
   });
 });
