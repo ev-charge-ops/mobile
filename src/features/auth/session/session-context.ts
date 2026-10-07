@@ -8,6 +8,7 @@ export type SessionContextValue = {
   user: AuthUser | null;
   startSession: (session: AuthSession) => Promise<void>;
   endSession: () => Promise<void>;
+  retryRestore: () => Promise<void>;
 };
 
 export const SessionContext = createContext<SessionContextValue | null>(null);
