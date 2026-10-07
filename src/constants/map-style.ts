@@ -1,0 +1,27 @@
+import type { MapStyleElement } from 'react-native-maps';
+
+export const darkMapStyle: MapStyleElement[] = [
+  { elementType: 'geometry', stylers: [{ color: '#121214' }] },
+  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#7C7C84' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#0B0B0D' }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#26262A' }] },
+  { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#B4B4BA' }] },
+  { featureType: 'poi', elementType: 'labels.text', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#17171A' }] },
+  { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#101512' }] },
+  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#3D5245' }] },
+  { featureType: 'road', elementType: 'geometry.fill', stylers: [{ color: '#212125' }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#17171A' }] },
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#57575E' }] },
+  { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#26262A' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#303036' }] },
+  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#1C1C1F' }] },
+  { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#7C7C84' }] },
+  { featureType: 'road.local', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0B0E12' }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#3D3D44' }] },
+];
