@@ -74,8 +74,8 @@ export function register(body: RegisterInput) {
   return unwrap(publicApiClient.POST('/auth/register', { body }));
 }
 
-export function refresh(refreshToken: string) {
-  return unwrap(publicApiClient.POST('/auth/refresh', { body: { refreshToken } }));
+export function refresh(refreshToken: string, signal?: AbortSignal) {
+  return unwrap(publicApiClient.POST('/auth/refresh', { body: { refreshToken }, signal }));
 }
 
 export function logout(refreshToken: string) {
