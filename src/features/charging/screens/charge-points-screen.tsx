@@ -44,12 +44,7 @@ export function ChargePointsScreen() {
       >
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
           {filters.map((item) => (
-            <Chip
-              key={item.id}
-              label={item.label}
-              selected={filter === item.id}
-              onPress={() => setFilter(item.id)}
-            />
+            <Chip key={item.id} label={item.label} selected={filter === item.id} onPress={() => setFilter(item.id)} />
           ))}
         </ScrollView>
         {isPending ? (
