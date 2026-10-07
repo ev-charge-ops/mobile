@@ -15,6 +15,7 @@ export type SheetProps = PropsWithChildren<{
 
 const DISMISS_DISTANCE = 90;
 const DISMISS_VELOCITY = 700;
+const PAN_ACTIVATION = 12;
 
 export function Sheet({ visible, onClose, closeLabel = 'Fechar', children }: SheetProps) {
   const { height: screenHeight } = useWindowDimensions();
@@ -40,6 +41,8 @@ export function Sheet({ visible, onClose, closeLabel = 'Fechar', children }: She
   }, [visible, screenHeight, translateY, scrimOpacity]);
 
   const pan = Gesture.Pan()
+    .activeOffsetY(PAN_ACTIVATION)
+    .failOffsetX([-PAN_ACTIVATION, PAN_ACTIVATION])
     .onUpdate((event) => {
       translateY.set(Math.max(0, event.translationY));
     })
