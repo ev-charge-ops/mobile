@@ -1347,6 +1347,26 @@ export interface components {
              * @description Real time when the idle fee reaches its cap, null without an idle fee
              */
             idleFeeCapReachedAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when charging is expected to end, projected from the simulation model while ACTIVE and equal to chargingEndedAt in GRACE or IDLE; recomputed from the current session state on every read, null before the charger starts, after the session ends or when the charger cannot predict it. Schedule the charging complete reminder for this instant
+             */
+            projectedChargingEndsAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when the free grace period is expected to end (projectedChargingEndsAt plus the grace period), equal to graceEndsAt once charging ended
+             */
+            projectedGraceEndsAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when the idle fee is expected to start (same instant as projectedGraceEndsAt), equal to idleStartsAt once charging ended
+             */
+            projectedIdleStartsAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when the idle fee is expected to reach its cap, null without an idle fee
+             */
+            projectedIdleFeeCapReachedAt: string | null;
             /** Format: date-time */
             endedAt: string | null;
             /** @example 11.76 */
@@ -1427,6 +1447,26 @@ export interface components {
              * @description Real time when the idle fee reaches its cap, null without an idle fee
              */
             idleFeeCapReachedAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when charging is expected to end, projected from the simulation model while ACTIVE and equal to chargingEndedAt in GRACE or IDLE; recomputed from the current session state on every read, null before the charger starts, after the session ends or when the charger cannot predict it. Schedule the charging complete reminder for this instant
+             */
+            projectedChargingEndsAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when the free grace period is expected to end (projectedChargingEndsAt plus the grace period), equal to graceEndsAt once charging ended
+             */
+            projectedGraceEndsAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when the idle fee is expected to start (same instant as projectedGraceEndsAt), equal to idleStartsAt once charging ended
+             */
+            projectedIdleStartsAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when the idle fee is expected to reach its cap, null without an idle fee
+             */
+            projectedIdleFeeCapReachedAt: string | null;
             /** Format: date-time */
             endedAt: string | null;
             /** @example 11.76 */
@@ -1528,6 +1568,26 @@ export interface components {
              * @description Real time when the idle fee reaches its cap, null without an idle fee
              */
             idleFeeCapReachedAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when charging is expected to end, projected from the simulation model while ACTIVE and equal to chargingEndedAt in GRACE or IDLE; recomputed from the current session state on every read, null before the charger starts, after the session ends or when the charger cannot predict it. Schedule the charging complete reminder for this instant
+             */
+            projectedChargingEndsAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when the free grace period is expected to end (projectedChargingEndsAt plus the grace period), equal to graceEndsAt once charging ended
+             */
+            projectedGraceEndsAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when the idle fee is expected to start (same instant as projectedGraceEndsAt), equal to idleStartsAt once charging ended
+             */
+            projectedIdleStartsAt: string | null;
+            /**
+             * Format: date-time
+             * @description Real time when the idle fee is expected to reach its cap, null without an idle fee
+             */
+            projectedIdleFeeCapReachedAt: string | null;
             /** Format: date-time */
             endedAt: string | null;
             /** @example 11.76 */
