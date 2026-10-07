@@ -14,17 +14,29 @@ import Animated, {
 import { motion, palette } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 
-import carTopLoopPoster from '../../../../assets/media/car-top-loop-poster.webp';
-import carTopLoop from '../../../../assets/media/car-top-loop.mp4';
+import carTopAmberPoster from '../../../../assets/media/car-top-amber-poster.webp';
+import carTopAmber from '../../../../assets/media/car-top-amber.mp4';
+import carTopGreenPoster from '../../../../assets/media/car-top-green-poster.webp';
+import carTopGreen from '../../../../assets/media/car-top-green.mp4';
+import carTopRedPoster from '../../../../assets/media/car-top-red-poster.webp';
+import carTopRed from '../../../../assets/media/car-top-red.mp4';
 
 export const PLUG_TRAVEL = 46;
 const PLUG_HOLD = 1200;
 const TILE_WIDTH = 150;
 const TILE_HEIGHT = 220;
 
-function CarTopVideo() {
+export type CarTopTone = 'charging' | 'grace' | 'idle';
+
+const toneMedia: Record<CarTopTone, { video: number; poster: number; port: string; glow: string }> = {
+  charging: { video: carTopGreen, poster: carTopGreenPoster, port: palette.green500, glow: 'rgba(61,220,132,0.25)' },
+  grace: { video: carTopAmber, poster: carTopAmberPoster, port: palette.amber500, glow: 'rgba(242,169,59,0.25)' },
+  idle: { video: carTopRed, poster: carTopRedPoster, port: palette.red500, glow: 'rgba(229,72,77,0.25)' },
+};
+
+function CarTopVideo({ source }: { source: number }) {
   const isFocused = useIsFocused();
-  const player = useVideoPlayer(carTopLoop, (instance) => {
+  const player = useVideoPlayer(source, (instance) => {
     instance.loop = true;
     instance.muted = true;
     instance.audioMixingMode = 'mixWithOthers';
@@ -51,9 +63,11 @@ function CarTopVideo() {
 export type CarTopTileProps = {
   plugged: boolean;
   animatePlug?: boolean;
+  tone?: CarTopTone;
 };
 
-export function CarTopTile({ plugged, animatePlug = false }: CarTopTileProps) {
+export function CarTopTile({ plugged, animatePlug = false, tone = 'charging' }: CarTopTileProps) {
+  const media = toneMedia[tone];
   const reduceMotion = useReduceMotion();
   const shouldAnimate = animatePlug && !reduceMotion;
   const connector = useSharedValue(shouldAnimate ? PLUG_TRAVEL : 0);
@@ -82,8 +96,8 @@ export function CarTopTile({ plugged, animatePlug = false }: CarTopTileProps) {
     transform: [{ translateX: connector.get() }],
   }));
   const portStyle = useAnimatedStyle(() => ({
-    backgroundColor: port.get() > 0.5 ? palette.green500 : palette.ink400,
-    boxShadow: `0 0 0 ${6 * port.get()}px rgba(61,220,132,0.25)`,
+    backgroundColor: port.get() > 0.5 ? media.port : palette.ink400,
+    boxShadow: `0 0 0 ${6 * port.get()}px ${media.glow}`,
   }));
 
   return (
@@ -92,13 +106,13 @@ export function CarTopTile({ plugged, animatePlug = false }: CarTopTileProps) {
         {reduceMotion ? (
           <Image
             testID="car-top-poster"
-            source={carTopLoopPoster}
+            source={media.poster}
             contentFit="cover"
             style={StyleSheet.absoluteFill}
             accessible={false}
           />
         ) : (
-          <CarTopVideo />
+          <CarTopVideo key={tone} source={media.video} />
         )}
       </View>
       <Animated.View testID="car-port" style={[styles.port, portStyle]} />
@@ -118,7 +132,7 @@ const styles = StyleSheet.create({
     height: TILE_HEIGHT,
     borderRadius: 40,
     borderCurve: 'continuous',
-    backgroundColor: '#1B1C1F',
+    backgroundColor: '#121214',
   },
   clip: {
     ...StyleSheet.absoluteFill,

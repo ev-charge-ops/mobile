@@ -337,14 +337,15 @@ function GraceView({ session, now, isStopping, onBack, onStop }: LiveChargingNig
             trackColor={nightColors.surfaceInset}
             accessibilityLabel="Tempo de tolerância restante"
           >
-            <View style={styles.graceCenter}>
-              <Text style={styles.eyebrow}>Sem multa por</Text>
-              <Text accessibilityLiveRegion="polite" style={styles.clock}>
-                {formatClock(getGraceRemainingSeconds(session, now))}
-              </Text>
-              {graceEnd ? <Text style={styles.graceUntil}>{`até ${graceEnd}`}</Text> : null}
-            </View>
+            <CarTopTile plugged tone="grace" />
           </ChargeRing>
+          <View style={styles.graceCenter}>
+            <Text style={styles.eyebrow}>Sem multa por</Text>
+            <Text accessibilityLiveRegion="polite" style={styles.clock}>
+              {formatClock(getGraceRemainingSeconds(session, now))}
+            </Text>
+            {graceEnd ? <Text style={styles.graceUntil}>{`até ${graceEnd}`}</Text> : null}
+          </View>
         </View>
         <Rise index={1} style={styles.statement}>
           <Text style={styles.statementTitle}>Recarga concluída</Text>
@@ -403,6 +404,9 @@ function IdleView({ session, now, isStopping, onBack, onStop }: LiveChargingNigh
         trailing={null}
       />
       <ScrollView contentContainerStyle={[styles.body, styles.idleBody]} showsVerticalScrollIndicator={false}>
+        <View style={styles.idleCar}>
+          <CarTopTile plugged tone="idle" />
+        </View>
         <Rise style={styles.alert}>
           <View style={styles.alertIcon}>
             <Icon icon={TriangleAlert} size={20} color="#FF8A8E" />
@@ -734,6 +738,11 @@ const styles = StyleSheet.create({
   graceCenter: {
     alignItems: 'center',
     gap: 6,
+    paddingTop: spacing.md,
+  },
+  idleCar: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
   },
   eyebrow: {
     fontSize: 13,
