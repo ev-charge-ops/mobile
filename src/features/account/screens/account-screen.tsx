@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { LogOut, Palette, ShieldCheck, Zap } from 'lucide-react-native';
+import { LockKeyhole, LogOut, Palette, ShieldCheck, Zap } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBar } from '@/components/ui/app-bar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ListRow } from '@/components/ui/list-row';
 import { StatusPill } from '@/components/ui/status-pill';
 import { colors, fonts, spacing } from '@/constants/theme';
 import { getInitials } from '@/features/account/account-initials';
@@ -56,6 +57,15 @@ export function AccountScreen({ user, onSignOut, isSigningOut = false, banner }:
         </Card>
         {banner}
         <OrganizationsCard />
+        <Card padding={0}>
+          <ListRow
+            icon={LockKeyhole}
+            label="Privacidade e dados"
+            hint="Consentimentos, exportação e exclusão da conta"
+            divider={false}
+            onPress={() => router.push('/privacy')}
+          />
+        </Card>
         <View style={styles.stack}>
           <Button
             label="Ver design system"
