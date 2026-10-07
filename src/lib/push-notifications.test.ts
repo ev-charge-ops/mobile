@@ -97,8 +97,8 @@ describe('unregisterDevicePushToken', () => {
 
 describe('configureNotificationHandler', () => {
   function handlerResult(data: Record<string, unknown>) {
-    const [{ handleNotification }] = notifications.setNotificationHandler.mock.calls.at(-1)!;
-    return handleNotification({ request: { content: { data } } } as unknown as Notifications.Notification);
+    const handler = notifications.setNotificationHandler.mock.calls.at(-1)![0]!;
+    return handler.handleNotification({ request: { content: { data } } } as unknown as Notifications.Notification);
   }
 
   it('shows each session alert once when the reminder and the push both arrive', async () => {

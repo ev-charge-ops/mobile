@@ -68,8 +68,9 @@ describe('syncSessionReminders', () => {
   });
 
   it('does not touch the schedule again for the same projection', async () => {
-    await syncSessionReminders(projectedSession());
-    await syncSessionReminders(projectedSession({ energyKwh: 3 }));
+    const session = projectedSession();
+    await syncSessionReminders(session);
+    await syncSessionReminders({ ...session, energyKwh: 3 });
 
     expect(notifications.getAllScheduledNotificationsAsync).toHaveBeenCalledTimes(1);
   });
