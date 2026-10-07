@@ -89,30 +89,55 @@ describe('<ChargePointsScreen /> map mode', () => {
     expect(screen.queryByTestId('marker-cp-3')).not.toBeOnTheScreen();
   });
 
-  it('centers on the points when location is denied', async () => {
-    api.listChargePoints.mockResolvedValue([buildChargePoint()]);
+  it('centers on the condominium of the user without asking for the device location', async () => {
+    api.listChargePoints.mockResolvedValue([
+      buildChargePoint(),
+      buildChargePoint({ id: 'cp-2', code: 'L1-02', latitude: -23.56928, longitude: -46.63102 }),
+      commercialPoint,
+    ]);
 
     await renderWithProviders(<ChargePointsScreen />);
 
-    await waitFor(() => expect(mockAnimateToRegion).toHaveBeenCalledWith(expect.objectContaining({ longitude: -46.63145 }), 420));
-    expect(screen.queryByTestId('user-location-marker')).not.toBeOnTheScreen();
+    const marker = await screen.findByTestId('user-location-marker');
+    expect(within(marker).getByText('Você')).toBeOnTheScreen();
+    await waitFor(() =>
+      expect(mockAnimateToRegion).toHaveBeenCalledWith(
+        expect.objectContaining({ longitude: expect.closeTo(-46.631235, 6), latitudeDelta: 0.034 }),
+        420,
+      ),
+    );
+    expect(location.requestForegroundPermissionsAsync).not.toHaveBeenCalled();
+    expect(location.getCurrentPositionAsync).not.toHaveBeenCalled();
   });
 
-  it('shows the user and centers on them when location is granted', async () => {
-    location.requestForegroundPermissionsAsync.mockResolvedValue({ granted: true } as never);
-    location.getLastKnownPositionAsync.mockResolvedValue(null);
-    location.getCurrentPositionAsync.mockResolvedValue({
-      coords: { latitude: -23.6, longitude: -46.7 },
-      timestamp: 0,
-    } as never);
-    api.listChargePoints.mockResolvedValue([buildChargePoint()]);
+  it('falls back to Aclimação when the user has no condominium', async () => {
+    api.listChargePoints.mockResolvedValue([commercialPoint]);
 
     await renderWithProviders(<ChargePointsScreen />);
 
     expect(await screen.findByTestId('user-location-marker')).toBeOnTheScreen();
     await waitFor(() =>
-      expect(mockAnimateToRegion).toHaveBeenCalledWith(expect.objectContaining({ longitude: -46.7, latitudeDelta: 0.008 }), 420),
+      expect(mockAnimateToRegion).toHaveBeenCalledWith(
+        expect.objectContaining({ longitude: -46.6312, latitudeDelta: 0.034 }),
+        420,
+      ),
     );
+  });
+
+  it('recenters on the condominium from the locate button', async () => {
+    api.listChargePoints.mockResolvedValue([buildChargePoint(), commercialPoint]);
+
+    await renderWithProviders(<ChargePointsScreen />);
+    await screen.findByText('Ver ponto e continuar');
+
+    await fireEvent.press(screen.getByTestId('marker-cp-3'));
+    await fireEvent.press(screen.getByRole('button', { name: 'Centralizar no condomínio' }));
+
+    expect(mockAnimateToRegion).toHaveBeenLastCalledWith(
+      expect.objectContaining({ longitude: -46.63145, latitudeDelta: 0.034 }),
+      420,
+    );
+    expect(location.requestForegroundPermissionsAsync).not.toHaveBeenCalled();
   });
 
   it('falls back to the list when the map fails to load', async () => {
