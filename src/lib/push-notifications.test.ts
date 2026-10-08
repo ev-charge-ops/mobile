@@ -4,6 +4,7 @@ import { apiClient } from '@/lib/api-client';
 import {
   configureNotificationHandler,
   registerDevicePushToken,
+  shouldPresentAlert,
   unregisterDevicePushToken,
 } from '@/lib/push-notifications';
 
@@ -96,25 +97,30 @@ describe('unregisterDevicePushToken', () => {
 });
 
 describe('configureNotificationHandler', () => {
-  function handlerResult(data: Record<string, unknown>) {
+  it('keeps foreground notifications out of the system banner, list and sound', async () => {
+    configureNotificationHandler();
+
     const handler = notifications.setNotificationHandler.mock.calls.at(-1)![0]!;
-    return handler.handleNotification({ request: { content: { data } } } as unknown as Notifications.Notification);
-  }
+    const notification = { request: { content: { data: { type: 'CHARGING_COMPLETE' } } } };
 
-  it('shows each session alert once when the reminder and the push both arrive', async () => {
-    configureNotificationHandler((data) => (typeof data?.alert === 'string' ? data.alert : null));
-
-    await expect(handlerResult({ alert: 's1:complete' })).resolves.toMatchObject({
-      shouldShowBanner: true,
-      shouldPlaySound: true,
-    });
-    await expect(handlerResult({ alert: 's1:complete' })).resolves.toMatchObject({
-      shouldShowBanner: false,
+    await expect(handler.handleNotification(notification as unknown as Notifications.Notification)).resolves.toEqual({
       shouldPlaySound: false,
-      shouldShowList: true,
+      shouldSetBadge: false,
+      shouldShowBanner: false,
+      shouldShowList: false,
     });
-    await expect(handlerResult({ alert: 's1:idle' })).resolves.toMatchObject({ shouldShowBanner: true });
-    await expect(handlerResult({ other: true })).resolves.toMatchObject({ shouldShowBanner: true });
-    await expect(handlerResult({ other: true })).resolves.toMatchObject({ shouldShowBanner: true });
+  });
+});
+
+describe('shouldPresentAlert', () => {
+  it('presents each session alert once when the reminder and the push both arrive', () => {
+    const alertKeyOf = (data: Record<string, unknown> | null | undefined) =>
+      typeof data?.alert === 'string' ? data.alert : null;
+
+    expect(shouldPresentAlert({ alert: 's1:complete' }, alertKeyOf)).toBe(true);
+    expect(shouldPresentAlert({ alert: 's1:complete' }, alertKeyOf)).toBe(false);
+    expect(shouldPresentAlert({ alert: 's1:idle' }, alertKeyOf)).toBe(true);
+    expect(shouldPresentAlert({ other: true }, alertKeyOf)).toBe(true);
+    expect(shouldPresentAlert({ other: true }, alertKeyOf)).toBe(true);
   });
 });

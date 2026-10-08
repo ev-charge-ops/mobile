@@ -24,19 +24,18 @@ export function shouldPresentAlert(data: Record<string, unknown> | null | undefi
   return true;
 }
 
-export function configureNotificationHandler(alertKeyOf?: AlertKeyOf) {
+export const foregroundNotificationBehavior: Notifications.NotificationBehavior = {
+  shouldPlaySound: false,
+  shouldSetBadge: false,
+  shouldShowBanner: false,
+  shouldShowList: false,
+};
+
+export function configureNotificationHandler() {
   if (!isPushSupported()) return;
 
   Notifications.setNotificationHandler({
-    handleNotification: async (notification) => {
-      const present = shouldPresentAlert(notification.request.content.data, alertKeyOf);
-      return {
-        shouldPlaySound: present,
-        shouldSetBadge: false,
-        shouldShowBanner: present,
-        shouldShowList: true,
-      };
-    },
+    handleNotification: async () => foregroundNotificationBehavior,
   });
 }
 
