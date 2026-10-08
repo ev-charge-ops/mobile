@@ -24,25 +24,38 @@ jest.mock('@/lib/secure-storage', () => {
 
 const mockHomeScreenFailure = { enabled: false };
 
-jest.mock('@/features/charging/screens/current-charge-screen', () => {
-  const actual = jest.requireActual('@/features/charging/screens/current-charge-screen');
+jest.mock('@/features/home/screens/home-screen', () => {
+  const actual = jest.requireActual('@/features/home/screens/home-screen');
   return {
-    CurrentChargeScreen: (props: object) => {
+    HomeScreen: (props: object) => {
       if (mockHomeScreenFailure.enabled) throw new Error('Home failed to render');
-      return actual.CurrentChargeScreen(props);
+      return actual.HomeScreen(props);
     },
   };
 });
 
-jest.mock('@/features/charging/components/active-session-card', () => {
+jest.mock('@/features/home/components/home-charge-card', () => {
+  const actual = jest.requireActual('@/features/home/components/home-charge-card');
   const { Text } = jest.requireActual('react-native');
   return {
-    ActiveSessionCard: ({ session }: { session: { id: string } }) => <Text>{`Sessão ${session.id}`}</Text>,
+    ...actual,
+    HomeChargeCard: ({ charge }: { charge: { sessionId: string } }) => <Text>{`Sessão ${charge.sessionId}`}</Text>,
   };
 });
 
 const user = { id: 'u1', name: 'Ana', email: 'ana@example.com', role: 'DRIVER', emailVerified: true, hasPassword: true };
-const openSession = { id: 'session-1', status: 'ACTIVE', chargePoint: { id: 'cp-1', code: 'L1-01', name: 'Garagem L1' } };
+const openSession = {
+  id: 'session-1',
+  status: 'ACTIVE',
+  chargePoint: { id: 'cp-1', code: 'L1-01', name: 'Garagem L1' },
+  limit: { type: 'FULL', energyKwh: null, amountCents: null, socPercent: null },
+  targetEnergyKwh: null,
+  projectedChargingEndsAt: null,
+  energyKwh: 1.5,
+  powerKw: 7,
+  socPercent: 40,
+  totalCents: 134,
+};
 const organizations = [{ id: 'o1', name: 'Residencial Aclimação', type: 'CONDOMINIUM', role: 'DRIVER', unitLabel: 'B · 42' }];
 
 const purposes = [

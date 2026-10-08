@@ -1,0 +1,82 @@
+import type { components } from '@/lib/api-schema';
+
+type Session = components['schemas']['SessionResponseDto'];
+type ChargePoint = components['schemas']['ChargePointResponseDto'];
+
+export function buildHomeSession(overrides: Partial<Session> = {}): Session {
+  return {
+    id: 'session-1',
+    status: 'ACTIVE',
+    chargePoint: { id: 'cp-1', code: 'L1-01', name: 'Garagem L1 · Vaga 12' },
+    organizationId: 'org-1',
+    unitLabel: 'B · 42',
+    regime: 'PRIVATE',
+    limit: { type: 'FULL', energyKwh: null, amountCents: null, socPercent: null },
+    targetEnergyKwh: 12,
+    startedAt: '2026-10-07T13:55:00.000Z',
+    chargingEndedAt: null,
+    graceEndsAt: null,
+    idleStartsAt: null,
+    idleFeeCapReachedAt: null,
+    projectedChargingEndsAt: null,
+    projectedGraceEndsAt: null,
+    projectedIdleStartsAt: null,
+    projectedIdleFeeCapReachedAt: null,
+    endedAt: null,
+    energyKwh: 1.478,
+    powerKw: 7,
+    allocatedPowerKw: 7,
+    socPercent: 45,
+    lockedRateCents: 89,
+    demandFactor: 0.8,
+    demandFactorSource: 'MODEL',
+    demandModelVersion: 'v1',
+    energyCostCents: 132,
+    gracePeriodMinutes: 10,
+    idleFeeCentsPerMinute: 25,
+    idleFeeCapCents: 3000,
+    idleMinutes: 0,
+    idleFeeCents: 0,
+    totalCents: 132,
+    anomalyScore: null,
+    isAnomaly: null,
+    simulationSpeed: 60,
+    payment: null,
+    ...overrides,
+  };
+}
+
+export function buildHomeChargePoint(overrides: Partial<ChargePoint> = {}): ChargePoint {
+  return {
+    id: 'cp-1',
+    organizationId: 'org-1',
+    organizationName: 'Residencial Aclimação',
+    code: 'L1-02',
+    name: 'Garagem L1 · Vaga 13',
+    type: 'PRIVATE',
+    latitude: -23.56905,
+    longitude: -46.63145,
+    maxPowerKw: 7,
+    photoUrl: null,
+    status: 'AVAILABLE',
+    isMember: true,
+    charger: { id: 'ch-1', vendor: 'GoodWe HCA G2', serialNumber: 'GW-HCA-G2-0001', connector: 'TYPE_2' },
+    pricing: {
+      pricePerKwhCents: 89,
+      utilityRateCents: 89,
+      baseRateCents: null,
+      demandFactor: 0.8,
+      demandLevel: 'OFF_PEAK',
+      demandFactorSource: 'MODEL',
+      demandModelVersion: 'v1',
+      demandFactorApplied: false,
+      idleFeeCentsPerMinute: 25,
+      idleFeeCapCents: 3000,
+      gracePeriodMinutes: 10,
+    },
+    queueLength: 0,
+    reservedUntil: null,
+    myQueueEntry: null,
+    ...overrides,
+  };
+}
