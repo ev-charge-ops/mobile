@@ -1,12 +1,17 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook } from '@testing-library/react-native';
+import { act, fireEvent, renderHook, screen } from '@testing-library/react-native';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import type { PropsWithChildren } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { ToastProvider } from '@/components/ui/toast';
 import * as notificationsApi from '@/features/notifications/api/notifications-api';
 import { notificationsQueryKey } from '@/features/notifications/api/use-notifications';
-import { usePushNotifications } from '@/features/notifications/hooks/use-push-notifications';
+import {
+  NOTIFICATION_TOAST_DURATION_MS,
+  usePushNotifications,
+} from '@/features/notifications/hooks/use-push-notifications';
 import { registerDevicePushToken } from '@/lib/push-notifications';
 
 jest.mock('expo-notifications', () => ({
@@ -22,6 +27,7 @@ jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('@/lib/push-notifications', () => ({
   isPushSupported: () => true,
   registerDevicePushToken: jest.fn(),
+  shouldPresentAlert: jest.requireActual('@/lib/push-notifications').shouldPresentAlert,
 }));
 
 jest.mock('@/features/notifications/api/notifications-api', () => ({
@@ -36,6 +42,15 @@ const api = jest.mocked(notificationsApi);
 let responseListener: ((response: Notifications.NotificationResponse) => void) | null = null;
 let receivedListener: ((notification: Notifications.Notification) => void) | null = null;
 
+const safeAreaMetrics = {
+  frame: { x: 0, y: 0, width: 390, height: 844 },
+  insets: { top: 0, left: 0, right: 0, bottom: 0 },
+};
+
+function buildNotification(identifier: string, content: Record<string, unknown>) {
+  return { request: { identifier, content } } as unknown as Notifications.Notification;
+}
+
 function buildResponse(identifier: string, data: Record<string, unknown>, actionIdentifier?: string) {
   return {
     actionIdentifier: actionIdentifier ?? Notifications.DEFAULT_ACTION_IDENTIFIER,
@@ -48,7 +63,13 @@ async function renderPush(onRefresh = jest.fn()) {
   const invalidate = jest.spyOn(queryClient, 'invalidateQueries');
 
   function Providers({ children }: PropsWithChildren) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <SafeAreaProvider initialMetrics={safeAreaMetrics}>
+        <QueryClientProvider client={queryClient}>
+          <ToastProvider>{children}</ToastProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    );
   }
 
   const view = await renderHook(() => usePushNotifications({ onRefresh }), { wrapper: Providers });
@@ -137,5 +158,58 @@ describe('usePushNotifications', () => {
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: notificationsQueryKey });
     expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a foreground push as an in-app toast that opens its screen when tapped', async () => {
+    const { onRefresh } = await renderPush();
+
+    await act(() =>
+      receivedListener?.(
+        buildNotification('push-4', {
+          title: 'Recarga concluída',
+          body: 'Seu veículo terminou de carregar.',
+          data: { notificationId: 'n4', type: 'CHARGING_COMPLETE', sessionId: 's4' },
+        }),
+      ),
+    );
+
+    expect(screen.getByText('Recarga concluída')).toBeOnTheScreen();
+    expect(screen.getByText('Seu veículo terminou de carregar.')).toBeOnTheScreen();
+    expect(router.push).not.toHaveBeenCalled();
+
+    await act(() => fireEvent.press(screen.getByTestId('toast')));
+
+    expect(router.push).toHaveBeenCalledWith({ pathname: '/sessions/[sessionId]', params: { sessionId: 's4' } });
+    expect(api.markNotificationRead).toHaveBeenCalledWith('n4');
+    expect(onRefresh).toHaveBeenCalledTimes(2);
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+
+  it('hides the toast on its own after a few seconds', async () => {
+    jest.useFakeTimers();
+    await renderPush();
+
+    await act(() =>
+      receivedListener?.(buildNotification('push-5', { title: 'Pagamento confirmado', body: 'R$ 12,00' })),
+    );
+    expect(screen.getByTestId('toast')).toBeOnTheScreen();
+
+    await act(() => jest.advanceTimersByTime(NOTIFICATION_TOAST_DURATION_MS));
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+
+  it('shows a session alert once when the local reminder and the push both arrive', async () => {
+    await renderPush();
+    const content = {
+      title: 'Taxa de ocupação iniciada',
+      body: 'Libere a vaga.',
+      data: { type: 'IDLE_FEE_STARTED', sessionId: 's6' },
+    };
+
+    await act(() => receivedListener?.(buildNotification('session-reminder:s6:idle', content)));
+    await act(() => fireEvent.press(screen.getByTestId('toast')));
+    await act(() => receivedListener?.(buildNotification('push-6', content)));
+
+    expect(screen.queryByTestId('toast')).toBeNull();
   });
 });
