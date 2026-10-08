@@ -1,4 +1,8 @@
-import type { ChargingSession, ChargingSessionStatus } from '@/features/charging/api/charging-api';
+import type {
+  ChargingSession,
+  ChargingSessionDetail,
+  ChargingSessionStatus,
+} from '@/features/charging/api/charging-api';
 import { getGraceRemainingSeconds } from '@/features/charging/session-timing';
 import type { haptics } from '@/lib/haptics';
 
@@ -71,4 +75,24 @@ export function getTransitionHaptic(
   if (next === 'ACTIVE' && (previous === 'PENDING' || previous === 'AWAITING_PAYMENT')) return 'success';
   if (previous === 'GRACE' && next === 'IDLE') return 'warning';
   return null;
+}
+
+export function estimateLimitSocPercent(session: ChargingSessionDetail) {
+  if (session.limit.type === 'PERCENT') return session.limit.socPercent;
+  if (session.limit.type === 'FULL' || session.socPercent === null) return null;
+  const remaining = getRemainingEnergyKwh(session);
+  const first = session.readings.find((reading) => reading.socPercent !== null);
+  if (remaining === null || !first || first.socPercent === null) return null;
+  const socGain = session.socPercent - first.socPercent;
+  const energyGain = session.energyKwh - first.energyKwh;
+  if (socGain <= 0 || energyGain <= 0) return null;
+  const capacityKwh = (energyGain / socGain) * 100;
+  return Math.min(100, Math.round(session.socPercent + (remaining / capacityKwh) * 100));
+}
+
+export function getRemainingRealSeconds(iso: string | null, now: number) {
+  if (!iso) return null;
+  const time = Date.parse(iso);
+  if (Number.isNaN(time)) return null;
+  return Math.max(0, (time - now) / 1000);
 }
