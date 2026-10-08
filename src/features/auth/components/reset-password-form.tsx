@@ -1,21 +1,26 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { KeyRound, Lock } from 'lucide-react-native';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
-import { TextField } from '@/components/ui/text-field';
-import { spacing } from '@/constants/theme';
+import { Rise } from '@/components/ui/rise';
 import { resetPasswordSchema, type ResetPasswordValues } from '@/features/auth/auth-schemas';
 import { FormError } from '@/features/auth/components/form-error';
+import { NewPasswordFields } from '@/features/auth/components/new-password-fields';
 
 export type ResetPasswordFormProps = {
   onSubmit: (values: ResetPasswordValues) => void;
   isSubmitting?: boolean;
   errorMessage?: string | null;
+  riseIndex?: number;
 };
 
-export function ResetPasswordForm({ onSubmit, isSubmitting = false, errorMessage }: ResetPasswordFormProps) {
+export function ResetPasswordForm({
+  onSubmit,
+  isSubmitting = false,
+  errorMessage,
+  riseIndex = 0,
+}: ResetPasswordFormProps) {
   const { control, handleSubmit } = useForm<ResetPasswordValues>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { password: '', confirmPassword: '' },
@@ -25,53 +30,28 @@ export function ResetPasswordForm({ onSubmit, isSubmitting = false, errorMessage
 
   return (
     <View style={styles.form}>
-      <Controller
+      <NewPasswordFields
         control={control}
-        name="password"
-        render={({ field, fieldState }) => (
-          <TextField
-            label="Nova senha"
-            icon={Lock}
-            placeholder="Mínimo de 8 caracteres"
-            secureTextEntry
-            autoComplete="new-password"
-            textContentType="newPassword"
-            returnKeyType="next"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={fieldState.error?.message}
-          />
-        )}
-      />
-      <Controller
-        control={control}
-        name="confirmPassword"
-        render={({ field, fieldState }) => (
-          <TextField
-            label="Confirmar nova senha"
-            icon={Lock}
-            placeholder="Repita a nova senha"
-            secureTextEntry
-            autoComplete="new-password"
-            textContentType="newPassword"
-            returnKeyType="go"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            onSubmitEditing={submit}
-            error={fieldState.error?.message}
-          />
-        )}
+        passwordLabel="Nova senha"
+        confirmLabel="Confirmar nova senha"
+        passwordPlaceholder="Crie uma nova senha"
+        confirmPlaceholder="Repita a nova senha"
+        onSubmitEditing={submit}
+        riseIndex={riseIndex}
       />
       {errorMessage ? <FormError message={errorMessage} /> : null}
-      <Button label="Redefinir senha" icon={KeyRound} size="lg" block loading={isSubmitting} onPress={submit} />
+      <Rise index={riseIndex + 2} style={styles.submit}>
+        <Button label="Redefinir senha" size="lg" block haptic loading={isSubmitting} onPress={submit} />
+      </Rise>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   form: {
-    gap: spacing.lg,
+    gap: 12,
+  },
+  submit: {
+    marginTop: 12,
   },
 });
