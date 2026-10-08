@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import type { PropsWithChildren } from 'react';
+import { Linking } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AccountScreen, type AccountScreenProps } from '@/features/account/screens/account-screen';
@@ -105,5 +106,20 @@ describe('<AccountScreen />', () => {
 
     expect(screen.getByRole('button', { name: 'Criar senha' })).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Alterar senha' })).not.toBeOnTheScreen();
+  });
+
+  it('opens support, the terms and the privacy policy on the web', async () => {
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    await renderScreen();
+
+    await fireEvent.press(screen.getByRole('link', { name: 'Suporte' }));
+    await fireEvent.press(screen.getByRole('link', { name: 'Termos de uso' }));
+    await fireEvent.press(screen.getByRole('link', { name: 'Política de privacidade' }));
+
+    expect(openURL.mock.calls.map(([url]) => url)).toEqual([
+      'https://app.evchargeops.com.br/suporte',
+      'https://app.evchargeops.com.br/termos',
+      'https://app.evchargeops.com.br/privacidade',
+    ]);
   });
 });
