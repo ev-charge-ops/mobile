@@ -23,8 +23,8 @@ import carTopRed from '../../../../assets/media/car-top-red.mp4';
 
 export const PLUG_TRAVEL = 46;
 const PLUG_HOLD = 1200;
-const TILE_WIDTH = 150;
-const TILE_HEIGHT = 220;
+const DEFAULT_DIAMETER = 240;
+const VIDEO_BACKGROUND = '#0F0F11';
 
 export type CarTopTone = 'charging' | 'grace' | 'idle';
 
@@ -64,10 +64,14 @@ export type CarTopTileProps = {
   plugged: boolean;
   animatePlug?: boolean;
   tone?: CarTopTone;
+  diameter?: number;
 };
 
-export function CarTopTile({ plugged, animatePlug = false, tone = 'charging' }: CarTopTileProps) {
+export function CarTopTile({ plugged, animatePlug = false, tone = 'charging', diameter = DEFAULT_DIAMETER }: CarTopTileProps) {
   const media = toneMedia[tone];
+  const circle = { width: diameter, height: diameter, borderRadius: diameter / 2 };
+  const portPosition = { left: diameter * 0.64, top: diameter * 0.33 };
+  const connectorPosition = { left: diameter * 0.64 + 8, top: diameter * 0.33 - 1 };
   const reduceMotion = useReduceMotion();
   const shouldAnimate = animatePlug && !reduceMotion;
   const connector = useSharedValue(shouldAnimate ? PLUG_TRAVEL : 0);
@@ -101,8 +105,8 @@ export function CarTopTile({ plugged, animatePlug = false, tone = 'charging' }: 
   }));
 
   return (
-    <View style={styles.tile} testID="car-top-tile">
-      <View style={styles.clip}>
+    <View style={[styles.tile, circle]} testID="car-top-tile">
+      <View style={[styles.clip, circle]}>
         {reduceMotion ? (
           <Image
             testID="car-top-poster"
@@ -115,9 +119,9 @@ export function CarTopTile({ plugged, animatePlug = false, tone = 'charging' }: 
           <CarTopVideo key={tone} source={media.video} />
         )}
       </View>
-      <Animated.View testID="car-port" style={[styles.port, portStyle]} />
+      <Animated.View testID="car-port" style={[styles.port, portPosition, portStyle]} />
       {shouldAnimate ? (
-        <Animated.View testID="plug-connector" pointerEvents="none" style={[styles.connector, connectorStyle]}>
+        <Animated.View testID="plug-connector" pointerEvents="none" style={[styles.connector, connectorPosition, connectorStyle]}>
           <View style={styles.connectorHead} />
           <View style={styles.cable} />
         </Animated.View>
@@ -128,30 +132,23 @@ export function CarTopTile({ plugged, animatePlug = false, tone = 'charging' }: 
 
 const styles = StyleSheet.create({
   tile: {
-    width: TILE_WIDTH,
-    height: TILE_HEIGHT,
-    borderRadius: 40,
-    borderCurve: 'continuous',
-    backgroundColor: '#121214',
+    backgroundColor: VIDEO_BACKGROUND,
   },
   clip: {
-    ...StyleSheet.absoluteFill,
-    borderRadius: 40,
-    borderCurve: 'continuous',
+    position: 'absolute',
+    top: 0,
+    left: 0,
     overflow: 'hidden',
+    backgroundColor: VIDEO_BACKGROUND,
   },
   port: {
     position: 'absolute',
-    right: 10,
-    top: TILE_HEIGHT * 0.3,
     width: 10,
     height: 10,
     borderRadius: 5,
   },
   connector: {
     position: 'absolute',
-    left: TILE_WIDTH - 2,
-    top: TILE_HEIGHT * 0.3 - 1,
     flexDirection: 'row',
     alignItems: 'center',
   },
