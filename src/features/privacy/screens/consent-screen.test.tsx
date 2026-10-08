@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
-import { Share } from 'react-native';
+import { Linking, Share } from 'react-native';
 
 import * as privacyApi from '@/features/privacy/api/privacy-api';
 import { ConsentScreen } from '@/features/privacy/screens/consent-screen';
@@ -13,7 +13,7 @@ jest.mock('@/features/privacy/api/privacy-api', () => {
     getMyConsents: jest.fn(),
     updateMyConsents: jest.fn(),
     exportMyData: jest.fn(),
-    requestAccountDeletion: jest.fn(),
+    deleteMyAccount: jest.fn(),
   };
 });
 
@@ -112,23 +112,72 @@ describe('<ConsentScreen />', () => {
     );
   });
 
-  it('requests the account deletion with an optional reason', async () => {
-    api.requestAccountDeletion.mockResolvedValue({
+  it('deletes a password account after the password and the typed confirmation', async () => {
+    api.deleteMyAccount.mockResolvedValue({
       id: 'd1',
-      status: 'PENDING',
-      reason: 'Mudei de condomínio',
-      requestedAt: '2026-10-07T20:00:00.000Z',
-      processedAt: null,
+      status: 'COMPLETED',
+      reason: null,
+      requestedAt: '2026-10-08T20:00:00.000Z',
+      processedAt: '2026-10-08T20:00:00.000Z',
     });
-    await renderWithProviders(<ConsentScreen mode="settings" />);
+    const onAccountDeleted = jest.fn();
+    await renderWithProviders(<ConsentScreen mode="settings" onAccountDeleted={onAccountDeleted} />);
 
     await fireEvent.press(await screen.findByRole('button', { name: 'Excluir conta' }));
-    await fireEvent.changeText(screen.getByLabelText('Motivo (opcional)'), '  Mudei de condomínio ');
-    await fireEvent.press(screen.getByRole('button', { name: 'Confirmar exclusão' }));
+    expect(screen.getByText('A exclusão é imediata. Veja o que acontece:')).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByLabelText('Digite EXCLUIR para confirmar'), 'excluir');
+    await fireEvent.press(screen.getByRole('button', { name: 'Excluir minha conta' }));
+    expect(api.deleteMyAccount).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(api.requestAccountDeletion).toHaveBeenCalledWith('Mudei de condomínio'));
-    expect(
-      await screen.findByText('Pedido de exclusão registrado. Avisaremos por e-mail quando concluir.'),
-    ).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByLabelText('Senha atual'), 'secret-123');
+    await fireEvent.press(screen.getByRole('button', { name: 'Excluir minha conta' }));
+
+    await waitFor(() => expect(onAccountDeleted).toHaveBeenCalled());
+    expect(api.deleteMyAccount).toHaveBeenCalledWith('secret-123');
+  });
+
+  it('asks only for the typed confirmation on Google and Apple accounts', async () => {
+    api.deleteMyAccount.mockResolvedValue({} as privacyApi.DeletionRequest);
+    const onAccountDeleted = jest.fn();
+    await renderWithProviders(
+      <ConsentScreen mode="settings" hasPassword={false} onAccountDeleted={onAccountDeleted} />,
+    );
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Excluir conta' }));
+    expect(screen.queryByLabelText('Senha atual')).not.toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByLabelText('Digite EXCLUIR para confirmar'), 'EXCLUIR');
+    await fireEvent.press(screen.getByRole('button', { name: 'Excluir minha conta' }));
+
+    await waitFor(() => expect(onAccountDeleted).toHaveBeenCalled());
+    expect(api.deleteMyAccount).toHaveBeenCalledWith(undefined);
+  });
+
+  it('explains a wrong password and the last manager block', async () => {
+    api.deleteMyAccount
+      .mockRejectedValueOnce(new PrivacyApiError(400, 'INVALID_PASSWORD'))
+      .mockRejectedValueOnce(new PrivacyApiError(409, 'LAST_MANAGER'));
+    const onAccountDeleted = jest.fn();
+    await renderWithProviders(<ConsentScreen mode="settings" onAccountDeleted={onAccountDeleted} />);
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Excluir conta' }));
+    await fireEvent.changeText(screen.getByLabelText('Senha atual'), 'wrong');
+    await fireEvent.changeText(screen.getByLabelText('Digite EXCLUIR para confirmar'), 'EXCLUIR');
+    await fireEvent.press(screen.getByRole('button', { name: 'Excluir minha conta' }));
+    expect(await screen.findByText('Senha incorreta. Confira e tente de novo.')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Excluir minha conta' }));
+    expect(await screen.findByText(/Você é o único gestor de um condomínio/)).toBeOnTheScreen();
+    expect(onAccountDeleted).not.toHaveBeenCalled();
+  });
+
+  it('opens the terms and the privacy policy on the web', async () => {
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    await renderWithProviders(<ConsentScreen mode="settings" />);
+
+    await fireEvent.press(await screen.findByRole('link', { name: 'Termos de uso' }));
+    await fireEvent.press(screen.getByRole('link', { name: 'Política de privacidade' }));
+
+    expect(openURL).toHaveBeenNthCalledWith(1, 'https://app.evchargeops.com.br/termos');
+    expect(openURL).toHaveBeenNthCalledWith(2, 'https://app.evchargeops.com.br/privacidade');
   });
 });

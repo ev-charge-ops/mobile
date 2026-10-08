@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { colors, fonts } from '@/constants/theme';
+import { openExternalLink } from '@/lib/external-links';
 import { haptics } from '@/lib/haptics';
 
 export type TermsCheckboxProps = {
@@ -29,8 +30,15 @@ export function TermsCheckbox({ checked, onChange, error }: TermsCheckboxProps) 
           {checked ? <Icon icon={Check} size={16} strokeWidth={3} color={colors.textOnEnergy} /> : null}
         </View>
         <Text style={styles.text}>
-          Li e aceito os <Text style={styles.strong}>Termos de uso</Text> e a{' '}
-          <Text style={styles.strong}>Política de privacidade</Text> (LGPD).
+          Li e aceito os{' '}
+          <Text accessibilityRole="link" style={styles.link} onPress={() => openExternalLink('terms')}>
+            Termos de uso
+          </Text>{' '}
+          e a{' '}
+          <Text accessibilityRole="link" style={styles.link} onPress={() => openExternalLink('privacy')}>
+            Política de privacidade
+          </Text>{' '}
+          (LGPD).
         </Text>
       </Pressable>
       {error && !checked ? (
@@ -73,9 +81,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     color: colors.textBody,
   },
-  strong: {
+  link: {
     fontFamily: fonts.bold,
     color: colors.textTitle,
+    textDecorationLine: 'underline',
   },
   error: {
     fontSize: 13,

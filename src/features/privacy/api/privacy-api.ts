@@ -8,6 +8,7 @@ export type ConsentChoice = components['schemas']['ConsentChoiceDto'];
 export type UpdateConsentsInput = components['schemas']['UpdateMyConsentsRequestDto'];
 export type MyDataExport = components['schemas']['MyDataExportResponseDto'];
 export type DeletionRequest = components['schemas']['DeletionRequestResponseDto'];
+export type DeleteMyAccountInput = components['schemas']['DeleteMyAccountRequestDto'];
 
 export class PrivacyApiError extends Error {
   constructor(
@@ -51,6 +52,12 @@ export function exportMyData() {
   return unwrap(apiClient.GET('/me/data-export'));
 }
 
-export function requestAccountDeletion(reason?: string) {
-  return unwrap(apiClient.POST('/me/deletion-request', { body: reason ? { reason } : {} }));
+export const ACCOUNT_DELETION_CONFIRMATION = 'EXCLUIR';
+
+export function deleteMyAccount(password?: string) {
+  return unwrap(
+    apiClient.DELETE('/me', {
+      body: password ? { password, confirm: ACCOUNT_DELETION_CONFIRMATION } : { confirm: ACCOUNT_DELETION_CONFIRMATION },
+    }),
+  );
 }

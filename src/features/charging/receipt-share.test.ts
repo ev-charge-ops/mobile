@@ -46,4 +46,29 @@ describe('buildReceiptShareText', () => {
     expect(text).toContain(`Cobrado no cartão: R$${NBSP}1,78`);
     expect(text).not.toContain('rateio');
   });
+
+  it('mentions the refund of autoRefund accounts', () => {
+    const text = buildReceiptShareText(
+      buildClosedSession({
+        regime: 'COMMERCIAL',
+        payment: {
+          paymentIntentId: 'pi_1',
+          status: 'REFUNDED',
+          currency: 'BRL',
+          authorizedCents: 20040,
+          capturedCents: 178,
+          failureCode: null,
+          authorizedAt: null,
+          capturedAt: null,
+          canceledAt: null,
+          mode: 'LIVE',
+          refundedCents: 178,
+          refundedAt: '2026-10-07T21:00:00.000Z',
+        },
+      }),
+    );
+
+    expect(text).toContain(`Cobrado no cartão: R$${NBSP}1,78`);
+    expect(text).toContain(`Estornado: R$${NBSP}1,78`);
+  });
 });
