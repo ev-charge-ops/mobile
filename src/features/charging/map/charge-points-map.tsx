@@ -3,17 +3,19 @@ import { StyleSheet } from 'react-native';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 
 import { darkMapStyle } from '@/constants/map-style';
-import { ChargePointMarker, UserLocationMarker } from '@/features/charging/map/charge-point-marker';
+import { ChargePointMarker, ClusterMarker, UserLocationMarker } from '@/features/charging/map/charge-point-marker';
 import type { ChargePointsMapProps } from '@/features/charging/map/map-types';
 
 export const isMapSupported = true;
 
 const ZOOM_DURATION = 240;
 const FALLBACK_ZOOM = 15;
+const MAX_ANIMATED_PINS = 24;
 
 export function ChargePointsMap({
   ref,
   chargePoints,
+  clusters = [],
   selectedId,
   myCharge,
   userCoordinates,
@@ -21,8 +23,11 @@ export function ChargePointsMap({
   initialRegion,
   padding,
   onSelect,
+  onClusterPress,
+  onRegionChange,
 }: ChargePointsMapProps) {
   const mapRef = useRef<MapView>(null);
+  const animated = chargePoints.length + clusters.length <= MAX_ANIMATED_PINS;
 
   useImperativeHandle(ref, () => ({
     animateToRegion: (region, duration) => mapRef.current?.animateToRegion(region, duration),
@@ -52,8 +57,12 @@ export function ChargePointsMap({
       showsCompass={false}
       showsMyLocationButton={false}
       toolbarEnabled={false}
+      onRegionChangeComplete={(region) => onRegionChange?.(region)}
     >
       {userCoordinates ? <UserLocationMarker {...userCoordinates} label={userLabel} /> : null}
+      {clusters.map((cluster) => (
+        <ClusterMarker key={cluster.id} cluster={cluster} onPress={() => onClusterPress?.(cluster)} />
+      ))}
       {chargePoints.map((chargePoint, index) => (
         <ChargePointMarker
           key={chargePoint.id}
@@ -62,6 +71,7 @@ export function ChargePointsMap({
           isSelected={chargePoint.id === selectedId}
           isMine={myCharge?.chargePointId === chargePoint.id}
           chargeLabel={myCharge?.label}
+          animated={animated}
           onPress={() => onSelect(chargePoint)}
         />
       ))}

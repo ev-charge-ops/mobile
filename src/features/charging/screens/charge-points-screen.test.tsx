@@ -8,7 +8,7 @@ import * as Maps from 'react-native-maps';
 import * as chargingApi from '@/features/charging/api/charging-api';
 import { ChargePointsScreen } from '@/features/charging/screens/charge-points-screen';
 import { buildChargePoint, buildCommercialChargePoint } from '@/features/charging/testing/fixtures';
-import { buildMapItem } from '@/features/charging/testing/map-fixtures';
+import { buildMapItem, toMapItem } from '@/features/charging/testing/map-fixtures';
 import { renderWithProviders } from '@/features/charging/testing/render-with-providers';
 import { buildSession } from '@/features/charging/testing/session-fixtures';
 
@@ -24,7 +24,13 @@ jest.mock('expo-status-bar', () => ({ setStatusBarStyle: jest.fn() }));
 
 jest.mock('@/features/charging/api/charging-api', () => {
   const actual = jest.requireActual('@/features/charging/api/charging-api');
-  return { ...actual, listChargePoints: jest.fn(), listChargePointsInBounds: jest.fn(), getActiveSession: jest.fn() };
+  return {
+    ...actual,
+    listChargePoints: jest.fn(),
+    listChargePointsInBounds: jest.fn(),
+    listChargePointClusters: jest.fn(),
+    getActiveSession: jest.fn(),
+  };
 });
 
 const api = jest.mocked(chargingApi);
@@ -43,8 +49,17 @@ const commercialPoint = buildCommercialChargePoint({
   organizationName: 'Shopping Paulista',
 });
 
+const mockNearest = jest.fn<Promise<chargingApi.ChargePointMapItem[]>, []>();
+
 beforeEach(() => {
   jest.clearAllMocks();
+  mockNearest.mockReset().mockResolvedValue([buildMapItem()]);
+  api.listChargePointsInBounds.mockImplementation(async (_bbox, limit) => {
+    if (limit === 1) return mockNearest();
+    const points = (await api.listChargePoints.getMockImplementation()?.()) ?? [];
+    return points.map(toMapItem);
+  });
+  api.listChargePointClusters.mockResolvedValue([]);
   api.getActiveSession.mockResolvedValue(null);
   location.requestForegroundPermissionsAsync.mockResolvedValue({ granted: false } as never);
 });
@@ -395,7 +410,8 @@ describe('<ChargePointsScreen /> list mode', () => {
   });
 
   it('retries after a failure', async () => {
-    api.listChargePoints.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce([buildChargePoint()]);
+    api.listChargePoints.mockResolvedValue([buildChargePoint()]);
+    api.listChargePointsInBounds.mockRejectedValueOnce(new Error('offline'));
 
     await renderWithProviders(<ChargePointsScreen />);
     await showList();
@@ -414,7 +430,7 @@ describe('<ChargePointsScreen /> device location', () => {
   it('centers on the device position without the far notice when a point is nearby', async () => {
     locateAt(-23.6, -46.7);
     api.listChargePoints.mockResolvedValue([commercialPoint]);
-    api.listChargePointsInBounds.mockResolvedValue([buildMapItem({ latitude: -23.61, longitude: -46.71 })]);
+    mockNearest.mockResolvedValue([buildMapItem({ latitude: -23.61, longitude: -46.71 })]);
 
     await renderWithProviders(<ChargePointsScreen locationSource="device" />);
 
@@ -424,7 +440,7 @@ describe('<ChargePointsScreen /> device location', () => {
         420,
       ),
     );
-    await waitFor(() => expect(api.listChargePointsInBounds).toHaveBeenCalled());
+    await waitFor(() => expect(mockNearest).toHaveBeenCalled());
     expect(screen.queryByText('Nenhum ponto perto de você')).not.toBeOnTheScreen();
     expect(screen.queryByText('Você')).not.toBeOnTheScreen();
   });
@@ -432,9 +448,7 @@ describe('<ChargePointsScreen /> device location', () => {
   it('offers the nearest point in Brazil when nothing is within 50 km', async () => {
     locateAt(-8.0476, -34.877);
     api.listChargePoints.mockResolvedValue([commercialPoint]);
-    api.listChargePointsInBounds
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([buildMapItem({ latitude: -9.66, longitude: -35.73 })]);
+    mockNearest.mockResolvedValueOnce([]).mockResolvedValueOnce([buildMapItem({ latitude: -9.66, longitude: -35.73 })]);
 
     await renderWithProviders(<ChargePointsScreen locationSource="device" />);
 
@@ -447,14 +461,14 @@ describe('<ChargePointsScreen /> device location', () => {
         420,
       ),
     );
-    expect(api.listChargePointsInBounds).toHaveBeenLastCalledWith(expect.any(String), 1);
+    expect(mockNearest).toHaveBeenCalledTimes(2);
     expect(screen.queryByText('Nenhum ponto perto de você')).not.toBeOnTheScreen();
   });
 
   it('shows the whole country when no point is found at all', async () => {
     locateAt(-8.0476, -34.877);
     api.listChargePoints.mockResolvedValue([]);
-    api.listChargePointsInBounds.mockResolvedValue([]);
+    mockNearest.mockResolvedValue([]);
 
     await renderWithProviders(<ChargePointsScreen locationSource="device" />);
 
@@ -471,11 +485,111 @@ describe('<ChargePointsScreen /> device location', () => {
   it('lets the driver dismiss the far notice', async () => {
     locateAt(-8.0476, -34.877);
     api.listChargePoints.mockResolvedValue([commercialPoint]);
-    api.listChargePointsInBounds.mockResolvedValue([]);
+    mockNearest.mockResolvedValue([]);
 
     await renderWithProviders(<ChargePointsScreen locationSource="device" />);
 
     await fireEvent.press(await screen.findByRole('button', { name: 'Fechar aviso' }));
     expect(screen.queryByText('Nenhum ponto perto de você')).not.toBeOnTheScreen();
+  });
+});
+
+describe('<ChargePointsScreen /> at scale', () => {
+  function scatterPoints(count: number) {
+    return Array.from({ length: count }, (_, index) =>
+      buildMapItem({
+        id: `ocm-${index}`,
+        code: `OCM-${index}`,
+        latitude: -23.5692 + ((index % 15) - 7) * 0.001,
+        longitude: -46.6312 + (Math.floor(index / 15) - 7) * 0.001,
+      }),
+    );
+  }
+
+  it('asks for the points inside the viewport', async () => {
+    api.listChargePoints.mockResolvedValue([buildChargePoint()]);
+
+    await renderWithProviders(<ChargePointsScreen />);
+    await findMapCard();
+
+    const [bbox, limit] = api.listChargePointsInBounds.mock.calls[0];
+    const [minLongitude, minLatitude, maxLongitude, maxLatitude] = bbox.split(',').map(Number);
+    expect(limit).toBe(300);
+    expect(maxLongitude - minLongitude).toBeCloseTo(0.034, 3);
+    expect(minLatitude).toBeLessThan(-23.56905);
+    expect(maxLatitude).toBeGreaterThan(-23.56905);
+  });
+
+  it('shows server clusters when zoomed out and zooms in on tap', async () => {
+    api.listChargePoints.mockResolvedValue([buildChargePoint()]);
+    api.listChargePointClusters.mockResolvedValue([
+      { latitude: -22.9, longitude: -43.2, count: 1234, availableCount: 900 },
+    ]);
+
+    await renderWithProviders(<ChargePointsScreen />);
+    await findMapCard();
+    await fireEvent(screen.getByTestId('map-view'), 'regionChangeComplete', {
+      latitude: -15,
+      longitude: -50,
+      latitudeDelta: 30,
+      longitudeDelta: 30,
+    });
+
+    const cluster = await screen.findByTestId('cluster-server--22.90000,-43.20000');
+    expect(within(cluster).getByText('1,2 mil')).toBeOnTheScreen();
+    expect(screen.getByTestId('clusters-card')).toHaveTextContent(/1\.234 pontos nesta área/);
+    expect(screen.getByTestId('ocm-attribution')).toHaveTextContent('© Open Charge Map');
+    expect(api.listChargePointClusters).toHaveBeenCalledWith(expect.any(String), 4);
+    expect(screen.queryByTestId('marker-cp-1')).not.toBeOnTheScreen();
+
+    await fireEvent.press(cluster);
+    expect(mockAnimateToRegion).toHaveBeenLastCalledWith(
+      expect.objectContaining({ latitude: -22.9, longitude: -43.2, longitudeDelta: 360 / 2 ** 5 }),
+      420,
+    );
+  });
+
+  it('groups crowded viewports on the device', async () => {
+    api.listChargePoints.mockResolvedValue([]);
+    api.listChargePointsInBounds.mockResolvedValue(scatterPoints(200));
+
+    await renderWithProviders(<ChargePointsScreen />);
+
+    const clusters = await screen.findAllByTestId(/^cluster-client-/);
+    expect(clusters.length).toBeGreaterThan(0);
+    expect(screen.queryAllByTestId(/^marker-/).length).toBeLessThan(200);
+  });
+
+  it('flags demo prices and credits Open Charge Map', async () => {
+    api.listChargePoints.mockResolvedValue([]);
+    api.listChargePointsInBounds.mockResolvedValue([
+      buildMapItem({ latitude: -23.5692, longitude: -46.6312, connector: 'CHADEMO' }),
+    ]);
+
+    await renderWithProviders(<ChargePointsScreen />);
+
+    const card = await findMapCard();
+    expect(within(card).getByTestId('demo-price-tag')).toHaveTextContent('Preço de demonstração');
+    expect(screen.getByTestId('ocm-attribution')).toHaveTextContent('© Open Charge Map');
+
+    await showList();
+    expect(screen.getByText('CHAdeMO')).toBeOnTheScreen();
+    expect(screen.getByTestId('ocm-attribution')).toHaveTextContent(/Open Charge Map/);
+  });
+
+  it('pages the list of a crowded viewport', async () => {
+    api.listChargePoints.mockResolvedValue([]);
+    api.listChargePointsInBounds.mockResolvedValue(scatterPoints(45));
+
+    await renderWithProviders(<ChargePointsScreen />);
+    await findMapCard();
+    await showList();
+
+    expect(screen.getByText('45 pontos')).toBeOnTheScreen();
+    expect(screen.getAllByTestId('distance-tag')).toHaveLength(30);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Mostrar mais pontos' }));
+    expect(screen.getAllByTestId('distance-tag')).toHaveLength(45);
+    expect(screen.queryByRole('button', { name: 'Mostrar mais pontos' })).not.toBeOnTheScreen();
   });
 });

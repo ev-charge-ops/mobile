@@ -38,3 +38,27 @@ export function toBbox(bounds: Bounds): string {
     .map((value) => Number(value.toFixed(5)))
     .join(',');
 }
+
+export const CLUSTER_MAX_ZOOM = 9;
+
+const MAX_ZOOM = 20;
+
+export function getRegionZoom(region: Region): number {
+  return clamp(Math.log2(360 / region.longitudeDelta), 0, MAX_ZOOM);
+}
+
+export function getRegionBounds(region: Region): Bounds {
+  const halfLatitude = region.latitudeDelta / 2;
+  const halfLongitude = region.longitudeDelta / 2;
+  return {
+    minLongitude: clamp(region.longitude - halfLongitude, -180, 180),
+    minLatitude: clamp(region.latitude - halfLatitude, -90, 90),
+    maxLongitude: clamp(region.longitude + halfLongitude, -180, 180),
+    maxLatitude: clamp(region.latitude + halfLatitude, -90, 90),
+  };
+}
+
+export function getZoomedRegion(center: Coordinates, zoom: number): Region {
+  const delta = 360 / 2 ** clamp(zoom, 0, MAX_ZOOM);
+  return { latitude: center.latitude, longitude: center.longitude, latitudeDelta: delta, longitudeDelta: delta };
+}

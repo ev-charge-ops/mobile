@@ -14,7 +14,8 @@ import Animated, {
 
 import { Icon } from '@/components/ui/icon';
 import { fonts, motion, nightColors, palette } from '@/constants/theme';
-import type { ChargePoint } from '@/features/charging/api/charging-api';
+import type { ChargePointSummary } from '@/features/charging/charge-point-summary';
+import { formatClusterCount, type MapCluster } from '@/features/charging/map/marker-clusters';
 
 export type PinKind = 'free' | 'peak' | 'busy' | 'offline' | 'mine';
 
@@ -33,11 +34,11 @@ export const pinStyles: Record<PinKind, PinStyle> = {
   mine: { core: palette.white, halo: 'rgba(255,255,255,0.14)', ink: palette.ink, icon: Zap },
 };
 
-export function getPinKind(chargePoint: ChargePoint, isMine: boolean): PinKind {
+export function getPinKind(chargePoint: ChargePointSummary, isMine: boolean): PinKind {
   if (isMine) return 'mine';
   if (chargePoint.status === 'OFFLINE') return 'offline';
   if (chargePoint.status !== 'AVAILABLE') return 'busy';
-  return chargePoint.pricing?.demandLevel === 'PEAK' ? 'peak' : 'free';
+  return chargePoint.isPeak ? 'peak' : 'free';
 }
 
 const CORE_SIZE = 36;
@@ -48,13 +49,16 @@ const HALO_DURATION = 1800;
 const SNAPSHOT_SLACK = 120;
 
 export type ChargePointMarkerProps = {
-  chargePoint: ChargePoint;
+  chargePoint: ChargePointSummary;
   index: number;
   isSelected: boolean;
   isMine?: boolean;
   chargeLabel?: string | null;
+  animated?: boolean;
   onPress: () => void;
 };
+
+const MAX_STAGGERED_PINS = 12;
 
 export function ChargePointMarker({
   chargePoint,
@@ -62,12 +66,13 @@ export function ChargePointMarker({
   isSelected,
   isMine = false,
   chargeLabel = null,
+  animated = true,
   onPress,
 }: ChargePointMarkerProps) {
   const kind = getPinKind(chargePoint, isMine);
   const reduceMotion = useReducedMotion();
-  const pulses = kind === 'free' && !reduceMotion;
-  const delay = index * motion.revealStagger;
+  const pulses = kind === 'free' && !reduceMotion && animated;
+  const delay = animated ? Math.min(index, MAX_STAGGERED_PINS) * motion.revealStagger : 0;
   const viewKey = `${kind}|${isSelected}|${chargeLabel ?? ''}`;
   const [snapshotKey, setSnapshotKey] = useState<string | null>(null);
   const tracksViewChanges = pulses || snapshotKey !== viewKey;
@@ -157,6 +162,51 @@ export function ChargePin({ kind, label = null, isSelected = false, delay = 0, p
   );
 }
 
+export type ClusterMarkerProps = {
+  cluster: MapCluster;
+  onPress: () => void;
+};
+
+const CLUSTER_SNAPSHOT_DELAY = 300;
+
+function getClusterSize(count: number) {
+  if (count >= 1000) return 64;
+  if (count >= 100) return 54;
+  if (count >= 10) return 46;
+  return 40;
+}
+
+export function ClusterMarker({ cluster, onPress }: ClusterMarkerProps) {
+  const label = formatClusterCount(cluster.count);
+  const [snapshotLabel, setSnapshotLabel] = useState<string | null>(null);
+  const size = getClusterSize(cluster.count);
+  const pin = cluster.availableCount > 0 ? pinStyles.free : pinStyles.offline;
+
+  useEffect(() => {
+    if (snapshotLabel === label) return;
+    const timeout = setTimeout(() => setSnapshotLabel(label), CLUSTER_SNAPSHOT_DELAY);
+    return () => clearTimeout(timeout);
+  }, [label, snapshotLabel]);
+
+  return (
+    <Marker
+      testID={`cluster-${cluster.id}`}
+      coordinate={{ latitude: cluster.latitude, longitude: cluster.longitude }}
+      anchor={{ x: 0.5, y: 0.5 }}
+      onPress={onPress}
+      tracksViewChanges={snapshotLabel !== label}
+      zIndex={1}
+      accessibilityLabel={`${cluster.count} pontos, ${cluster.availableCount} livres. Toque para aproximar`}
+    >
+      <View style={[styles.clusterHalo, { width: size + 16, height: size + 16, backgroundColor: pin.halo }]}>
+        <View style={[styles.clusterCore, { width: size, height: size, backgroundColor: pin.core }]}>
+          <Text style={[styles.clusterLabel, { color: pin.ink }]}>{label}</Text>
+        </View>
+      </View>
+    </Marker>
+  );
+}
+
 export type UserLocationMarkerProps = {
   latitude: number;
   longitude: number;
@@ -229,6 +279,24 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
+    fontFamily: fonts.extrabold,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: -0.3,
+  },
+  clusterHalo: {
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clusterCore: {
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.85)',
+  },
+  clusterLabel: {
+    fontSize: 13,
     fontFamily: fonts.extrabold,
     fontVariant: ['tabular-nums'],
     letterSpacing: -0.3,
