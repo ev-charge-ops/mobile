@@ -163,14 +163,13 @@ describe('<ChargePointScreen />', () => {
     await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
     await fireEvent.press(await screen.findByRole('button', { name: 'Iniciar recarga' }));
 
-    expect(screen.getByText('Confirmar recarga')).toBeOnTheScreen();
-    expect(screen.getByText('Travado quando a recarga começa')).toBeOnTheScreen();
-    expect(screen.getByText('Até encher')).toBeOnTheScreen();
-    await fireEvent.press(screen.getByRole('button', { name: 'Definir um limite' }));
-    await fireEvent.press(screen.getByRole('tab', { name: 'Por energia' }));
+    expect(screen.getByText('Tarifa travada no início')).toBeOnTheScreen();
+    expect(screen.getByText('Limitar por')).toBeOnTheScreen();
+    expect(screen.getByText('Iniciar recarga · L1-01')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('tab', { name: 'kWh' }));
     await fireEvent.press(screen.getByRole('button', { name: '10 kWh' }));
-    expect(screen.getByText(`≈ R$${NBSP}8,90`)).toBeOnTheScreen();
-    await fireEvent.press(screen.getByRole('button', { name: 'Confirmar e iniciar' }));
+    expect(screen.getByText(`≈ R$${NBSP}8,90 · até 62% · pronta em cerca de 1 h 25 min`)).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Conectar e iniciar' }));
 
     expect(api.startSession).toHaveBeenCalledWith({ chargePointId: 'cp-1', limit: { type: 'ENERGY', value: 10 } });
     expect(router.replace).toHaveBeenCalledWith({
@@ -179,13 +178,38 @@ describe('<ChargePointScreen />', () => {
     });
   });
 
+  it('starts with a percent limit by default', async () => {
+    api.getChargePoint.mockResolvedValue(buildChargePoint());
+    api.startSession.mockResolvedValue({ ...buildSession({ id: 'session-9' }), paymentSheet: null });
+
+    await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Iniciar recarga' }));
+    await fireEvent.press(screen.getByRole('button', { name: '90%' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Conectar e iniciar' }));
+
+    expect(api.startSession).toHaveBeenCalledWith({ chargePointId: 'cp-1', limit: { type: 'PERCENT', value: 90 } });
+  });
+
+  it('explains a percent limit below the current charge', async () => {
+    api.getChargePoint.mockResolvedValue(buildChargePoint());
+    api.startSession.mockRejectedValue(new chargingApi.ChargingApiError(400, 'INVALID_LIMIT'));
+
+    await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Iniciar recarga' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Conectar e iniciar' }));
+
+    expect(
+      await screen.findByText(/O limite escolhido não é válido\. Em %, ele precisa ficar acima da carga atual/),
+    ).toBeOnTheScreen();
+  });
+
   it('explains why the session could not start', async () => {
     api.getChargePoint.mockResolvedValue(buildChargePoint());
     api.startSession.mockRejectedValue(new chargingApi.ChargingApiError(409, 'CHARGE_POINT_BUSY'));
 
     await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
     await fireEvent.press(await screen.findByRole('button', { name: 'Iniciar recarga' }));
-    await fireEvent.press(screen.getByRole('button', { name: 'Confirmar e iniciar' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Conectar e iniciar' }));
 
     expect(await screen.findByText('Este ponto acabou de ser ocupado. Escolha outro ponto livre.')).toBeOnTheScreen();
     expect(router.replace).not.toHaveBeenCalled();
@@ -198,7 +222,7 @@ describe('<ChargePointScreen />', () => {
 
     await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
     await fireEvent.press(await screen.findByRole('button', { name: 'Iniciar recarga' }));
-    await fireEvent.press(screen.getByRole('button', { name: 'Confirmar e iniciar' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Conectar e iniciar' }));
 
     await waitFor(() =>
       expect(router.replace).toHaveBeenCalledWith({
@@ -316,7 +340,7 @@ describe('<ChargePointScreen />', () => {
 
     await renderWithProviders(<ChargePointScreen chargePointId="cp-3" />);
     await fireEvent.press(await screen.findByRole('button', { name: 'Iniciar recarga' }));
-    expect(screen.getByText('Pré-autorização')).toBeOnTheScreen();
+    expect(screen.getByText(/com pré-autorização no cartão/)).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Continuar para pagamento' }));
 
     await waitFor(() => expect(api.confirmSessionPayment).toHaveBeenCalledWith('session-5'));

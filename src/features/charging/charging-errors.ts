@@ -12,7 +12,7 @@ const startSessionMessages: Record<string, string> = {
   TARIFF_NOT_CONFIGURED: 'A tarifa deste ponto ainda não foi configurada pelo gestor.',
   BUILDING_CAPACITY_EXCEEDED: 'O prédio atingiu a potência contratada agora. Tente novamente em alguns minutos.',
   CHARGER_UNAVAILABLE: 'O carregador não respondeu ao comando de início. Tente novamente.',
-  INVALID_LIMIT: 'O limite escolhido não é válido.',
+  INVALID_LIMIT: 'O limite escolhido não é válido. Em %, ele precisa ficar acima da carga atual do veículo.',
   PAYMENTS_UNAVAILABLE: 'O pagamento com cartão está indisponível no momento.',
   PAYMENT_PROVIDER_ERROR: 'Não foi possível falar com o provedor de pagamento. Tente novamente.',
 };
