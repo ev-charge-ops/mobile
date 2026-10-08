@@ -81,3 +81,17 @@ jest.mock('expo-notifications', () => ({
   cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
   cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
 }));
+
+jest.mock('expo-video', () => {
+  const { createElement } = jest.requireActual<typeof import('react')>('react');
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
+
+  return {
+    useVideoPlayer: jest.fn((_source: unknown, setup?: (player: Record<string, unknown>) => void) => {
+      const player = { play: jest.fn(), pause: jest.fn(), loop: false, muted: false };
+      setup?.(player);
+      return player;
+    }),
+    VideoView: ({ testID }: { testID?: string }) => createElement(View, { testID }),
+  };
+});
