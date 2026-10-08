@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useDerivedValue, withTiming } from 'react-native-reanimated';
 
-import { colors, fonts, motion, radii } from '@/constants/theme';
+import { colors, fonts, motion, radii, shadows } from '@/constants/theme';
 import { haptics } from '@/lib/haptics';
 
 export type SegmentedOption<T extends string> = {
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     height: 44,
     padding: trackPadding,
     borderRadius: radii.pill,
-    backgroundColor: colors.surfaceCard,
+    backgroundColor: colors.surfaceInset,
   },
   indicator: {
     position: 'absolute',
@@ -85,7 +85,8 @@ const styles = StyleSheet.create({
     bottom: trackPadding,
     left: trackPadding,
     borderRadius: radii.pill,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.surfaceCard,
+    boxShadow: shadows.segment,
   },
   option: {
     flex: 1,
@@ -93,11 +94,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    fontSize: 13.5,
-    fontFamily: fonts.bold,
-    color: colors.textSubtle,
+    fontSize: 14,
+    fontFamily: fonts.semibold,
+    color: colors.textMuted,
   },
   labelSelected: {
+    fontFamily: fonts.bold,
     color: colors.textTitle,
   },
 });

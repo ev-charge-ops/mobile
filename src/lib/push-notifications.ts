@@ -46,7 +46,7 @@ export async function ensureAndroidChannel() {
   await Notifications.setNotificationChannelAsync(DEFAULT_CHANNEL_ID, {
     name: 'Geral',
     importance: Notifications.AndroidImportance.HIGH,
-    lightColor: colors.accent,
+    lightColor: colors.energy,
   });
 }
 

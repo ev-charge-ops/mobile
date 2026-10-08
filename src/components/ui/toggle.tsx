@@ -7,7 +7,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { colors, motion } from '@/constants/theme';
+import { colors, motion, shadows } from '@/constants/theme';
 import { haptics } from '@/lib/haptics';
 
 export type ToggleProps = {
@@ -18,9 +18,9 @@ export type ToggleProps = {
   testID?: string;
 };
 
-const trackWidth = 46;
-const trackHeight = 28;
-const knobSize = 22;
+const trackWidth = 50;
+const trackHeight = 30;
+const knobSize = 24;
 const knobInset = 3;
 
 export function Toggle({ checked, onChange, disabled = false, accessibilityLabel, testID }: ToggleProps) {
@@ -29,8 +29,8 @@ export function Toggle({ checked, onChange, disabled = false, accessibilityLabel
     [checked],
   );
 
-  const trackOff = disabled ? colors.surfaceInset : colors.controlTrackOff;
-  const trackOn = disabled ? colors.surfaceRaised : colors.controlTrackOn;
+  const trackOff = disabled ? colors.surfaceRaised : colors.controlTrackOff;
+  const trackOn = disabled ? colors.borderStrong : colors.controlTrackOn;
 
   const trackStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(progress.get(), [0, 1], [trackOff, trackOn]),
@@ -56,7 +56,7 @@ export function Toggle({ checked, onChange, disabled = false, accessibilityLabel
         <Animated.View
           style={[
             styles.knob,
-            disabled && { backgroundColor: checked ? colors.textMuted : colors.textDisabled },
+            disabled && styles.knobDisabled,
             knobStyle,
           ]}
         />
@@ -77,5 +77,9 @@ const styles = StyleSheet.create({
     height: knobSize,
     borderRadius: knobSize / 2,
     backgroundColor: colors.controlKnob,
+    boxShadow: shadows.knob,
+  },
+  knobDisabled: {
+    boxShadow: 'none',
   },
 });

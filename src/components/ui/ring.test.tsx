@@ -28,6 +28,6 @@ describe('<Ring />', () => {
     expect(screen.queryByTestId('ring-glow')).not.toBeOnTheScreen();
 
     await rerender(<Ring progress={0.5} testID="ring" glow tone="fault" />);
-    expect(screen.getByTestId('ring-glow')).toHaveStyle({ backgroundColor: colors.statusFault });
+    expect(screen.getByTestId('ring-glow')).toHaveStyle({ backgroundColor: colors.critical });
   });
 });

@@ -31,4 +31,18 @@ describe('<ProgressMeter />', () => {
     expect(screen.getByTestId('progress-meter-fill')).toHaveStyle({ backgroundColor: colors.meterOver });
     expect(screen.getByText('80 %')).toHaveStyle({ color: colors.meterOver });
   });
+
+  it('draws the limit marker and the flow stripes', async () => {
+    await render(<ProgressMeter value={68} limit={80} flow />);
+
+    expect(screen.getByTestId('progress-meter-limit')).toHaveStyle({ left: '80%', backgroundColor: colors.meterLimit });
+    expect(screen.getByTestId('progress-meter-flow')).toBeOnTheScreen();
+  });
+
+  it('omits the flow stripes by default', async () => {
+    await render(<ProgressMeter value={68} />);
+
+    expect(screen.queryByTestId('progress-meter-flow')).not.toBeOnTheScreen();
+    expect(screen.queryByTestId('progress-meter-limit')).not.toBeOnTheScreen();
+  });
 });
