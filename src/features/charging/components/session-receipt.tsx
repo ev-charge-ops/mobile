@@ -12,8 +12,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Line, Path, Polyline } from 'react-native-svg';
 
 import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Rise } from '@/components/ui/rise';
-import { colors, fonts, motion, palette, radii, spacing } from '@/constants/theme';
+import { colors, fonts, motion, radii, spacing } from '@/constants/theme';
 import type { ChargingSessionDetail } from '@/features/charging/api/charging-api';
 import {
   formatAmount,
@@ -299,13 +300,12 @@ export function SessionReceipt({ session, now, onShare, onDone }: SessionReceipt
         ) : null}
       </ScrollView>
       <Rise index={5} style={styles.footer}>
-        <Button
-          label="Compartilhar recibo"
+        <IconButton
           icon={Share2}
-          variant="secondary"
-          size="md"
+          accessibilityLabel="Compartilhar recibo"
+          tone="surface"
+          size={56}
           onPress={onShare}
-          style={styles.share}
         />
         <Button label="Voltar ao início" size="lg" block haptic onPress={onDone} style={styles.done} />
       </Rise>
@@ -487,13 +487,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
-  share: {
-    height: 56,
-    paddingHorizontal: 18,
-    backgroundColor: palette.white,
-  },
   done: {
     flex: 1,
-    minWidth: 132,
   },
 });
