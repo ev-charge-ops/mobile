@@ -10,8 +10,14 @@ import { InfoBanner } from '@/components/ui/info-banner';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { useTabBarHeight, useTabSchemeOverride } from '@/components/ui/tab-bar';
 import { useToast } from '@/components/ui/toast';
+import type { MapCenterSource } from '@/config/map-center';
 import { colors, fonts, motion, nightColors, radii, spacing } from '@/constants/theme';
 import type { ChargePoint } from '@/features/charging/api/charging-api';
+import {
+  findNearestChargePoint,
+  NATIONWIDE_RADIUS_METERS,
+  useHasChargePointNearby,
+} from '@/features/charging/api/nearest-charge-point';
 import { useChargePoints } from '@/features/charging/api/use-charge-points';
 import { hasOpenSession, useActiveSession } from '@/features/charging/api/use-charging-sessions';
 import { rankChargePointsByDistance } from '@/features/charging/charge-point-distance';
@@ -28,10 +34,17 @@ import { ChargePointFilterChips } from '@/features/charging/components/charge-po
 import { ChargePointFilterSheet } from '@/features/charging/components/charge-point-filter-sheet';
 import { ChargePointMapCard } from '@/features/charging/components/charge-point-map-card';
 import { ChargePointSearchField } from '@/features/charging/components/charge-point-search-field';
+import { NoNearbyPointsBanner } from '@/features/charging/components/no-nearby-points-banner';
 import { ChargePointsMap, isMapSupported } from '@/features/charging/map/charge-points-map';
 import { GlassSurface, MapControls } from '@/features/charging/map/map-controls';
 import { MapErrorBoundary } from '@/features/charging/map/map-error-boundary';
-import { getFocusRegion, getRegionForCoordinates, MAP_ANIMATION_DURATION } from '@/features/charging/map/map-region';
+import { BRAZIL_REGION } from '@/features/charging/map/map-bounds';
+import {
+  getAreaRegion,
+  getFocusRegion,
+  getRegionForCoordinates,
+  MAP_ANIMATION_DURATION,
+} from '@/features/charging/map/map-region';
 import type { ChargePointsMapHandle, MyCharge } from '@/features/charging/map/map-types';
 import { useMapCenter } from '@/features/charging/map/use-map-center';
 import { useNightStatusBar } from '@/features/charging/use-night-status-bar';
@@ -52,7 +65,11 @@ const enter = (index: number) =>
     .delay(motion.revealStagger * index)
     .easing(motion.easing.out);
 
-export function ChargePointsScreen() {
+export type ChargePointsScreenProps = {
+  locationSource?: MapCenterSource;
+};
+
+export function ChargePointsScreen({ locationSource }: ChargePointsScreenProps) {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useTabBarHeight();
   const toast = useToast();
@@ -75,7 +92,11 @@ export function ChargePointsScreen() {
   useTabSchemeOverride('points', mode === 'list' ? 'light' : null);
   const chargePoints = data ?? noChargePoints;
   const visible = filterChargePoints(chargePoints, filters, query);
-  const location = useMapCenter({ enabled: true, chargePoints: data, isLoading: isPending });
+  const location = useMapCenter({ enabled: true, chargePoints: data, isLoading: isPending, source: locationSource });
+  const nearbyCoverage = useHasChargePointNearby(location.source === 'device' ? location.coordinates : null);
+  const [isFarNoticeDismissed, setFarNoticeDismissed] = useState(false);
+  const [isLocatingCountry, setLocatingCountry] = useState(false);
+  const showFarNotice = nearbyCoverage.data === false && !isFarNoticeDismissed;
   const reference = location.coordinates;
   const ranked = rankChargePointsByDistance(visible, reference);
   const selected = ranked.find((item) => item.chargePoint.id === selectedId) ?? ranked[0] ?? null;
@@ -123,6 +144,15 @@ export function ChargePointsScreen() {
       return;
     }
     toast.show('Permita o acesso à localização nos ajustes para centralizar o mapa.', { tone: 'info' });
+  };
+
+  const showCountry = async () => {
+    setLocatingCountry(true);
+    const origin = location.coordinates;
+    const nearest = origin ? await findNearestChargePoint(origin, NATIONWIDE_RADIUS_METERS).catch(() => null) : null;
+    setLocatingCountry(false);
+    setFarNoticeDismissed(true);
+    mapRef.current?.animateToRegion(nearest ? getAreaRegion(nearest) : BRAZIL_REGION, MAP_ANIMATION_DURATION);
   };
 
   const toggleMode = () => {
@@ -224,6 +254,15 @@ export function ChargePointsScreen() {
             {searchRow}
           </Animated.View>
           <ChargePointFilterChips value={filters} onChange={setFilters} delay={motion.revealStagger} />
+          {showFarNotice ? (
+            <Animated.View entering={FadeInDown.duration(motion.duration.reveal).easing(motion.easing.out)}>
+              <NoNearbyPointsBanner
+                loading={isLocatingCountry}
+                onShowCountry={showCountry}
+                onDismiss={() => setFarNoticeDismissed(true)}
+              />
+            </Animated.View>
+          ) : null}
         </View>
         <MapControls
           locateLabel={isDemoCenter ? 'Centralizar no condomínio' : 'Minha localização'}
