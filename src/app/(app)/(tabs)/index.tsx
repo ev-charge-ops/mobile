@@ -1,17 +1,23 @@
 import { useMyOrganizations } from '@/features/account/api/use-my-organizations';
-import { AccountButton } from '@/features/account/components/account-button';
 import { formatUnitSubtitle } from '@/features/account/unit-subtitle';
 import { useMe } from '@/features/auth/api/use-me';
-import { ChargePointsScreen } from '@/features/charging/screens/charge-points-screen';
+import { CurrentChargeScreen } from '@/features/charging/screens/current-charge-screen';
+import { NotificationsBell } from '@/features/notifications/components/notifications-bell';
 
-export default function SearchRoute() {
+function firstName(name: string | undefined) {
+  return name?.trim().split(/\s+/)[0] ?? '';
+}
+
+export default function HomeRoute() {
   const { data: user } = useMe();
   const { data: organizations } = useMyOrganizations();
+  const name = firstName(user?.name);
 
   return (
-    <ChargePointsScreen
+    <CurrentChargeScreen
+      title={name ? `Olá, ${name}` : 'Olá'}
       subtitle={formatUnitSubtitle(organizations)}
-      accountAction={user ? <AccountButton name={user.name} hasPendingAction={!user.emailVerified} /> : null}
+      actions={<NotificationsBell />}
     />
   );
 }

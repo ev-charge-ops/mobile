@@ -1,5 +1,6 @@
 import { act, fireEvent, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { Text } from 'react-native';
 
 import * as chargingApi from '@/features/charging/api/charging-api';
 import type { ChargingSession } from '@/features/charging/api/charging-api';
@@ -47,7 +48,21 @@ describe('<CurrentChargeScreen />', () => {
     expect(screen.getByText('Nenhuma sessão ativa')).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByRole('button', { name: 'Buscar pontos' }));
-    expect(router.navigate).toHaveBeenCalledWith('/');
+    expect(router.navigate).toHaveBeenCalledWith('/points');
+  });
+
+  it('renders a custom title, subtitle and actions', async () => {
+    api.getActiveSession.mockResolvedValue(null);
+
+    await renderWithProviders(
+      <CurrentChargeScreen title="Olá, Ana" subtitle="Residencial Aclimação" actions={<Text>Ação</Text>} />,
+    );
+
+    expect(await screen.findByText('Nenhuma recarga ativa')).toBeOnTheScreen();
+    expect(screen.getByText('Olá, Ana')).toBeOnTheScreen();
+    expect(screen.getByText('Residencial Aclimação')).toBeOnTheScreen();
+    expect(screen.getByText('Ação')).toBeOnTheScreen();
+    expect(screen.queryByText('Nenhuma sessão ativa')).toBeNull();
   });
 
   it('keeps the content and the pull spinner idle during a background refetch', async () => {

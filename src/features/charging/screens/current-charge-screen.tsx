@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { MapPin, PlugZap } from 'lucide-react-native';
+import type { ReactNode } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,7 +16,13 @@ import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 
 const entering = FadeInDown.duration(motion.duration.slow).easing(motion.easing.sheet);
 
-export function CurrentChargeScreen() {
+export type CurrentChargeScreenProps = {
+  title?: string;
+  subtitle?: string;
+  actions?: ReactNode;
+};
+
+export function CurrentChargeScreen({ title = 'Recarga', subtitle, actions }: CurrentChargeScreenProps) {
   const { data: session, isPending, refetch } = useActiveSession();
   const tabBarHeight = useTabBarHeight();
   const isActive = hasOpenSession(session);
@@ -25,8 +32,9 @@ export function CurrentChargeScreen() {
     <SafeAreaView edges={['top']} style={styles.screen}>
       <AppBar
         variant="large"
-        title="Recarga"
-        subtitle={isPending ? undefined : isActive ? 'Sessão em andamento' : 'Nenhuma sessão ativa'}
+        title={title}
+        subtitle={subtitle ?? (isPending ? undefined : isActive ? 'Sessão em andamento' : 'Nenhuma sessão ativa')}
+        actions={actions}
       />
       <ScrollView
         testID="current-charge-scroll"
@@ -57,7 +65,7 @@ export function CurrentChargeScreen() {
               block
               haptic
               style={styles.emptyAction}
-              onPress={() => router.navigate('/')}
+              onPress={() => router.navigate('/points')}
             />
           </Animated.View>
         )}
