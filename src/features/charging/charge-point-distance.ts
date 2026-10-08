@@ -3,8 +3,8 @@ import type { Coordinates } from '@/features/charging/map/map-region';
 
 const EARTH_RADIUS_METERS = 6_371_000;
 
-export type RankedChargePoint = {
-  chargePoint: ChargePoint;
+export type RankedChargePoint<T extends Coordinates = ChargePoint> = {
+  chargePoint: T;
   distanceMeters: number | null;
 };
 
@@ -25,10 +25,10 @@ export function formatDistance(meters: number): string {
   return `${(Math.round(meters / 100) / 10).toFixed(1).replace('.', ',')} km`;
 }
 
-export function rankChargePointsByDistance(
-  chargePoints: ChargePoint[],
+export function rankChargePointsByDistance<T extends Coordinates>(
+  chargePoints: T[],
   reference: Coordinates | null,
-): RankedChargePoint[] {
+): RankedChargePoint<T>[] {
   if (!reference) return chargePoints.map((chargePoint) => ({ chargePoint, distanceMeters: null }));
   return chargePoints
     .map((chargePoint) => ({ chargePoint, distanceMeters: getDistanceMeters(reference, chargePoint) }))
