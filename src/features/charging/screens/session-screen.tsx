@@ -10,16 +10,22 @@ import { Card } from '@/components/ui/card';
 import { IconButton } from '@/components/ui/icon-button';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
-import { colors, fonts, spacing, typography } from '@/constants/theme';
-import { ChargingApiError, type ChargingSession } from '@/features/charging/api/charging-api';
+import { colors, fonts, getColors, spacing, typography } from '@/constants/theme';
+import {
+  ChargingApiError,
+  type ChargingSession,
+  type ChargingSessionStatus,
+} from '@/features/charging/api/charging-api';
 import { useChargingSession, usePayForSession, useStopSession } from '@/features/charging/api/use-charging-sessions';
 import { getCardPaymentErrorMessage, getStopSessionErrorMessage } from '@/features/charging/charging-errors';
 import { formatCents } from '@/features/charging/charging-format';
+import { LiveChargingNight } from '@/features/charging/components/live-charging-night';
 import { LiveSessionPanel } from '@/features/charging/components/live-session-panel';
 import { SessionReceipt } from '@/features/charging/components/session-receipt';
 import { buildReceiptShareText } from '@/features/charging/receipt-share';
 import { isSessionOpen } from '@/features/charging/session-timing';
 import { useSessionHaptics } from '@/features/charging/use-session-haptics';
+import { useNightStatusBar } from '@/features/charging/use-night-status-bar';
 import { useSessionReminderSync } from '@/features/charging/use-session-reminders';
 import { useNow } from '@/hooks/use-now';
 import { formatEnergy } from '@/utils/format-energy';
@@ -38,21 +44,42 @@ const titles: Record<ChargingSession['status'], string> = {
   INTERRUPTED: 'Recibo',
 };
 
+const nightStatuses: readonly ChargingSessionStatus[] = ['ACTIVE', 'GRACE', 'IDLE'];
+
+export function isNightStatus(status: ChargingSessionStatus | undefined) {
+  return status !== undefined && nightStatuses.includes(status);
+}
+
+function usePlugMoment(status: ChargingSessionStatus | undefined) {
+  const [previous, setPrevious] = useState(status);
+  const [plugged, setPlugged] = useState(false);
+  if (previous !== status) {
+    const wasStarting = previous === 'PENDING' || previous === 'AWAITING_PAYMENT';
+    setPrevious(status);
+    if (wasStarting && status === 'ACTIVE') setPlugged(true);
+  }
+  return plugged;
+}
+
 function goBack() {
   if (router.canGoBack()) router.back();
   else router.replace('/');
 }
 
 export function SessionScreen({ sessionId }: SessionScreenProps) {
-  const { data: session, isPending, error, refetch, isRefetching } = useChargingSession(sessionId);
+  const { data: session, isPending, error, refetch, isRefetching, dataUpdatedAt } = useChargingSession(sessionId);
   const stopSession = useStopSession(sessionId);
   const payForSession = usePayForSession();
   const toast = useToast();
   const [isConfirmingStop, setConfirmingStop] = useState(false);
   const isOpen = session ? isSessionOpen(session.status) : false;
   const now = useNow(1000, isOpen);
+  const isNight = isNightStatus(session?.status);
+  const scheme = isNight ? 'night' : 'light';
+  const justPlugged = usePlugMoment(session?.status);
   useSessionHaptics(session?.status);
   useSessionReminderSync(session);
+  useNightStatusBar(isNight);
 
   const stop = () => {
     setConfirmingStop(false);
@@ -86,6 +113,60 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
     );
   };
 
+  const stopSheet = (
+    <Sheet
+      visible={isConfirmingStop}
+      onClose={() => setConfirmingStop(false)}
+      scheme={scheme}
+    >
+      <View style={styles.stack}>
+        <Text accessibilityRole="header" style={[typography.heading, { color: getColors(scheme).textTitle }]}>
+          Encerrar a recarga agora?
+        </Text>
+        <Text style={[styles.sheetText, { color: getColors(scheme).textMuted }]}>
+          {session
+            ? `A cobrança considera a energia entregue até agora: ${formatEnergy(session.energyKwh)} · ${formatCents(session.energyCostCents)}.`
+            : 'A cobrança considera a energia entregue até agora.'}
+        </Text>
+        <Button
+          label="Encerrar agora"
+          icon={Square}
+          variant="danger"
+          scheme={scheme}
+          size="lg"
+          block
+          haptic="impactMedium"
+          onPress={stop}
+        />
+        <Button
+          label="Continuar carregando"
+          variant="ghost"
+          scheme={scheme}
+          size="md"
+          block
+          onPress={() => setConfirmingStop(false)}
+        />
+      </View>
+    </Sheet>
+  );
+
+  if (session && isNight) {
+    return (
+      <View style={styles.night}>
+        <LiveChargingNight
+          session={session}
+          now={now}
+          readAt={dataUpdatedAt}
+          justPlugged={justPlugged}
+          isStopping={stopSession.isPending}
+          onBack={goBack}
+          onStop={session.status === 'ACTIVE' ? () => setConfirmingStop(true) : stop}
+        />
+        {stopSheet}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
@@ -101,7 +182,7 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
         {session ? (
           <>
             <ScrollView contentContainerStyle={styles.content}>
-              {isOpen ? <LiveSessionPanel session={session} now={now} /> : <SessionReceipt session={session} />}
+              {isOpen ? <LiveSessionPanel session={session} /> : <SessionReceipt session={session} />}
             </ScrollView>
             <View style={styles.footer}>
               {session.status === 'PENDING' ? (
@@ -192,34 +273,7 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
           </View>
         )}
       </SafeAreaView>
-      <Sheet visible={isConfirmingStop} onClose={() => setConfirmingStop(false)}>
-        <View style={styles.stack}>
-          <Text accessibilityRole="header" style={typography.heading}>
-            Encerrar a recarga agora?
-          </Text>
-          <Text style={styles.sheetText}>
-            {session
-              ? `A cobrança considera a energia entregue até agora: ${formatEnergy(session.energyKwh)} · ${formatCents(session.energyCostCents)}.`
-              : 'A cobrança considera a energia entregue até agora.'}
-          </Text>
-          <Button
-            label="Encerrar agora"
-            icon={Square}
-            variant="danger"
-            size="lg"
-            block
-            haptic="impactMedium"
-            onPress={stop}
-          />
-          <Button
-            label="Continuar carregando"
-            variant="ghost"
-            size="md"
-            block
-            onPress={() => setConfirmingStop(false)}
-          />
-        </View>
-      </Sheet>
+      {stopSheet}
     </View>
   );
 }
@@ -228,6 +282,10 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.bgBase,
+  },
+  night: {
+    flex: 1,
+    backgroundColor: getColors('night').bgBase,
   },
   content: {
     gap: spacing.md,
