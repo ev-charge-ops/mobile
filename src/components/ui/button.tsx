@@ -104,7 +104,14 @@ export function Button({
         ) : (
           leadingIcon
         )}
-        <Text style={[styles.label, { fontSize: sizeStyle.fontSize, color: textColor }]}>{label}</Text>
+        <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.85}
+          style={[styles.label, { fontSize: sizeStyle.fontSize, color: textColor }]}
+        >
+          {label}
+        </Text>
         {trailingIcon && !loading ? (
           <Icon
             icon={trailingIcon}
