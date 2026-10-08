@@ -34,6 +34,7 @@ function tile(viewBox, radius = 0) {
 
 const adaptiveViewBox = '-7 -7 78 78';
 const splashViewBox = '12 12 40 40';
+const notificationViewBox = '9 9 46 46';
 
 const assets = [
   { file: 'icon.png', size: 1024, svg: svg('0 0 64 64', tile('0 0 64 64') + mark()) },
@@ -45,6 +46,11 @@ const assets = [
     svg: svg(adaptiveViewBox, mark({ ring: white, bolt: white, dot: white })),
   },
   { file: 'splash-icon.png', size: 512, svg: svg(splashViewBox, mark()) },
+  {
+    file: 'notification-icon.png',
+    size: 96,
+    svg: svg(notificationViewBox, mark({ ring: white, bolt: white, dot: white })),
+  },
   {
     file: 'favicon.png',
     size: 48,
