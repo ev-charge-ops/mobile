@@ -11,11 +11,7 @@ import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { colors, fonts, palette, radii, spacing } from '@/constants/theme';
 import { getActiveSession, type ChargePoint, type ChargePointPricing } from '@/features/charging/api/charging-api';
-import {
-  activeSessionQueryKey,
-  usePayForSession,
-  useStartSession,
-} from '@/features/charging/api/use-charging-sessions';
+import { activeSessionQueryKey, useStartSession } from '@/features/charging/api/use-charging-sessions';
 import { getStartSessionErrorMessage, isActiveSessionConflict } from '@/features/charging/charging-errors';
 import { DEFAULT_LIMIT_DRAFT, toLimitInput, type LimitDraft } from '@/features/charging/charging-limit';
 import {
@@ -76,7 +72,6 @@ export function StartChargingSheet({ chargePoint, pricing, visible, onClose }: S
   const queryClient = useQueryClient();
   const toast = useToast();
   const startSession = useStartSession();
-  const payForSession = usePayForSession();
   const needsCardPayment = chargePoint.type === 'COMMERCIAL';
   const [limit, setLimit] = useState<LimitDraft>(DEFAULT_LIMIT_DRAFT);
   const terms = getStartTerms(chargePoint, pricing);
@@ -95,11 +90,7 @@ export function StartChargingSheet({ chargePoint, pricing, visible, onClose }: S
         onSuccess: (session) => {
           onClose();
           router.replace({ pathname: '/sessions/[sessionId]', params: { sessionId: session.id } });
-          if (session.status === 'AWAITING_PAYMENT') {
-            payForSession.mutate({ sessionId: session.id, sheet: session.paymentSheet });
-            return;
-          }
-          toast.show('Carregador liberado. Recarga iniciada!');
+          if (session.status !== 'AWAITING_PAYMENT') toast.show('Carregador liberado. Recarga iniciada!');
         },
         onError: (error) => {
           if (isActiveSessionConflict(error)) {
