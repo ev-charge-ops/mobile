@@ -25,7 +25,7 @@ export default function RootLayout() {
   return (
     <AppProviders>
       <ThemeProvider value={navigationTheme}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <RootNavigator />
       </ThemeProvider>
     </AppProviders>
