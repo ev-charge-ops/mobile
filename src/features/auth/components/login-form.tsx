@@ -8,6 +8,7 @@ import { Rise } from '@/components/ui/rise';
 import { TextField } from '@/components/ui/text-field';
 import { colors, fonts } from '@/constants/theme';
 import { loginSchema, type LoginValues } from '@/features/auth/auth-schemas';
+import { FieldLabel } from '@/features/auth/components/field-label';
 import { FormError } from '@/features/auth/components/form-error';
 
 export type LoginFormProps = {
@@ -49,14 +50,16 @@ export function LoginForm({ onSubmit, onForgotPassword, isSubmitting = false, er
         />
       </Rise>
       <Rise index={riseIndex + 1}>
-        <View style={styles.labelRow}>
-          <Text style={styles.label}>Senha</Text>
-          {onForgotPassword ? (
-            <Pressable accessibilityRole="link" hitSlop={10} onPress={onForgotPassword}>
-              <Text style={styles.forgot}>Esqueci a senha</Text>
-            </Pressable>
-          ) : null}
-        </View>
+        <FieldLabel
+          label="Senha"
+          trailing={
+            onForgotPassword ? (
+              <Pressable accessibilityRole="link" hitSlop={10} onPress={onForgotPassword}>
+                <Text style={styles.forgot}>Esqueci a senha</Text>
+              </Pressable>
+            ) : null
+          }
+        />
         <Controller
           control={control}
           name="password"
@@ -88,17 +91,6 @@ export function LoginForm({ onSubmit, onForgotPassword, isSubmitting = false, er
 const styles = StyleSheet.create({
   form: {
     gap: 12,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  label: {
-    fontSize: 14,
-    fontFamily: fonts.semibold,
-    color: colors.textBody,
   },
   forgot: {
     fontSize: 14,
