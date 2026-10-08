@@ -1,0 +1,45 @@
+# Manual store release: run it from the EAS dashboard or with
+#   npx eas-cli@latest workflow:run .eas/workflows/release-production.yml
+# Builds with the "production" profile (channel and EAS environment "production")
+# and submits the iOS build to App Store Connect with the "production" submit profile.
+name: Release production
+
+on:
+  workflow_dispatch:
+    inputs:
+      android:
+        type: boolean
+        required: false
+        default: true
+        description: 'Also build the Android app bundle'
+
+jobs:
+  fingerprint:
+    name: Fingerprint
+    type: fingerprint
+    environment: production
+
+  build_ios:
+    name: Build iOS
+    needs: [fingerprint]
+    type: build
+    params:
+      platform: ios
+      profile: production
+
+  submit_ios:
+    name: Submit iOS to App Store Connect
+    needs: [build_ios]
+    type: submit
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      profile: production
+
+  build_android:
+    name: Build Android
+    needs: [fingerprint]
+    if: ${{ inputs.android }}
+    type: build
+    params:
+      platform: android
+      profile: production
