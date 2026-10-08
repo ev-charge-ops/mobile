@@ -113,7 +113,7 @@ export function StartChargingSheet({ chargePoint, pricing, visible, onClose }: S
           ) : null}
         </Card>
         <View style={styles.section}>
-          <SectionTitle>Limite da recarga</SectionTitle>
+          <SectionTitle>Limite de recarga</SectionTitle>
           <ChargingLimitPicker value={limit} onChange={setLimit} pricePerKwhCents={pricing.pricePerKwhCents} />
         </View>
         {startSession.isError ? (
