@@ -3,7 +3,7 @@ import {
   getDistanceMeters,
   rankChargePointsByDistance,
 } from '@/features/charging/charge-point-distance';
-import { filterChargePoints } from '@/features/charging/charge-point-filters';
+import { DEFAULT_CHARGE_POINT_FILTERS, filterChargePoints } from '@/features/charging/charge-point-filters';
 import { buildChargePoint, buildCommercialChargePoint } from '@/features/charging/testing/fixtures';
 
 const aclimacao = { latitude: -23.5692, longitude: -46.6312 };
@@ -55,7 +55,11 @@ describe('rankChargePointsByDistance', () => {
   });
 
   it('sorts what is left after the search and the filter chips', () => {
-    const visible = filterChargePoints([far, middle, near], 'AVAILABLE', '');
+    const visible = filterChargePoints(
+      [far, middle, near],
+      { ...DEFAULT_CHARGE_POINT_FILTERS, availableOnly: true },
+      '',
+    );
 
     expect(rankChargePointsByDistance(visible, aclimacao).map((item) => item.chargePoint.id)).toEqual(['near', 'far']);
   });

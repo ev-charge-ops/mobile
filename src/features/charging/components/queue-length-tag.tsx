@@ -2,16 +2,22 @@ import { Clock } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
-import { colors, fonts, radii, spacing } from '@/constants/theme';
+import { fonts, getColors, radii, spacing, type ColorScheme } from '@/constants/theme';
 import { formatQueueLength } from '@/features/charging/charge-point-queue';
 
-export function QueueLengthTag({ queueLength }: { queueLength: number }) {
+export type QueueLengthTagProps = {
+  queueLength: number;
+  scheme?: ColorScheme;
+};
+
+export function QueueLengthTag({ queueLength, scheme = 'light' }: QueueLengthTagProps) {
   if (queueLength <= 0) return null;
+  const tokens = getColors(scheme);
 
   return (
-    <View testID="queue-length-tag" style={styles.tag}>
-      <Icon icon={Clock} size={12} color={colors.statusIdle} />
-      <Text style={styles.label}>{formatQueueLength(queueLength)}</Text>
+    <View testID="queue-length-tag" style={[styles.tag, { backgroundColor: tokens.statusIdleBg }]}>
+      <Icon icon={Clock} size={12} color={tokens.statusIdle} />
+      <Text style={[styles.label, { color: tokens.statusIdle }]}>{formatQueueLength(queueLength)}</Text>
     </View>
   );
 }
@@ -24,11 +30,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
     borderRadius: radii.pill,
-    backgroundColor: colors.statusIdleBg,
   },
   label: {
     fontSize: 11,
     fontFamily: fonts.bold,
-    color: colors.statusIdle,
   },
 });

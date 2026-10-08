@@ -1,6 +1,8 @@
 import {
+  countActiveFilters,
+  DEFAULT_CHARGE_POINT_FILTERS,
   filterChargePoints,
-  matchesFilter,
+  matchesFilters,
   matchesSearch,
   normalizeSearchText,
 } from '@/features/charging/charge-point-filters';
@@ -12,21 +14,37 @@ const busyCommercialPoint = buildCommercialChargePoint({
   organizationName: 'Shopping Paulista',
 });
 
-describe('matchesFilter', () => {
-  it('keeps every point for all', () => {
-    expect(matchesFilter(privatePoint, 'ALL')).toBe(true);
-    expect(matchesFilter(busyCommercialPoint, 'ALL')).toBe(true);
+describe('matchesFilters', () => {
+  const filters = DEFAULT_CHARGE_POINT_FILTERS;
+
+  it('keeps every point without filters', () => {
+    expect(matchesFilters(privatePoint, filters)).toBe(true);
+    expect(matchesFilters(busyCommercialPoint, filters)).toBe(true);
+    expect(countActiveFilters(filters)).toBe(0);
   });
 
   it('filters by regime', () => {
-    expect(matchesFilter(privatePoint, 'PRIVATE')).toBe(true);
-    expect(matchesFilter(busyCommercialPoint, 'PRIVATE')).toBe(false);
-    expect(matchesFilter(busyCommercialPoint, 'COMMERCIAL')).toBe(true);
+    expect(matchesFilters(privatePoint, { ...filters, regime: 'PRIVATE' })).toBe(true);
+    expect(matchesFilters(busyCommercialPoint, { ...filters, regime: 'PRIVATE' })).toBe(false);
+    expect(matchesFilters(busyCommercialPoint, { ...filters, regime: 'COMMERCIAL' })).toBe(true);
   });
 
   it('keeps only available points', () => {
-    expect(matchesFilter(privatePoint, 'AVAILABLE')).toBe(true);
-    expect(matchesFilter(busyCommercialPoint, 'AVAILABLE')).toBe(false);
+    expect(matchesFilters(privatePoint, { ...filters, availableOnly: true })).toBe(true);
+    expect(matchesFilters(busyCommercialPoint, { ...filters, availableOnly: true })).toBe(false);
+  });
+
+  it('splits 7 kW and 22 kW chargers', () => {
+    expect(matchesFilters(privatePoint, { ...filters, power: 'AC_7' })).toBe(true);
+    expect(matchesFilters(privatePoint, { ...filters, power: 'AC_22' })).toBe(false);
+    expect(matchesFilters(busyCommercialPoint, { ...filters, power: 'AC_22' })).toBe(true);
+  });
+
+  it('combines every active filter', () => {
+    const combined = { availableOnly: true, power: 'AC_22', regime: 'COMMERCIAL' } as const;
+
+    expect(matchesFilters(busyCommercialPoint, combined)).toBe(false);
+    expect(countActiveFilters(combined)).toBe(3);
   });
 });
 
@@ -52,8 +70,11 @@ describe('filterChargePoints', () => {
   it('combines the filter and the search', () => {
     const points = [privatePoint, busyCommercialPoint];
 
-    expect(filterChargePoints(points, 'ALL', 'paulista')).toEqual([busyCommercialPoint]);
-    expect(filterChargePoints(points, 'AVAILABLE', 'paulista')).toEqual([]);
-    expect(filterChargePoints(points, 'PRIVATE', '')).toEqual([privatePoint]);
+    expect(filterChargePoints(points, DEFAULT_CHARGE_POINT_FILTERS, 'paulista')).toEqual([busyCommercialPoint]);
+    const availableOnly = { ...DEFAULT_CHARGE_POINT_FILTERS, availableOnly: true };
+    const privateOnly = { ...DEFAULT_CHARGE_POINT_FILTERS, regime: 'PRIVATE' } as const;
+
+    expect(filterChargePoints(points, availableOnly, 'paulista')).toEqual([]);
+    expect(filterChargePoints(points, privateOnly, '')).toEqual([privatePoint]);
   });
 });
