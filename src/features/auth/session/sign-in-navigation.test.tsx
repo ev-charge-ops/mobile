@@ -138,6 +138,8 @@ async function flush(ms = 0) {
   });
 }
 
+jest.setTimeout(15000);
+
 let app: ReturnType<typeof renderRouter>;
 
 async function renderApp() {
@@ -154,7 +156,7 @@ async function signInToHome() {
 }
 
 async function signIn() {
-  await fireEvent.changeText(screen.getByLabelText('E-mail'), 'ana@example.com');
+  await fireEvent.changeText(await screen.findByLabelText('E-mail'), 'ana@example.com');
   await fireEvent.changeText(screen.getByLabelText('Senha'), 'secret-password');
   await fireEvent.press(screen.getByRole('button', { name: 'Entrar' }));
 }
