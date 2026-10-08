@@ -6,13 +6,16 @@ import {
   matchesSearch,
   normalizeSearchText,
 } from '@/features/charging/charge-point-filters';
+import { summarizeChargePoint } from '@/features/charging/charge-point-summary';
 import { buildChargePoint, buildCommercialChargePoint } from '@/features/charging/testing/fixtures';
 
-const privatePoint = buildChargePoint();
-const busyCommercialPoint = buildCommercialChargePoint({
-  status: 'CHARGING',
-  organizationName: 'Shopping Paulista',
-});
+const privatePoint = summarizeChargePoint(buildChargePoint());
+const busyCommercialPoint = summarizeChargePoint(
+  buildCommercialChargePoint({
+    status: 'CHARGING',
+    organizationName: 'Shopping Paulista',
+  }),
+);
 
 describe('matchesFilters', () => {
   const filters = DEFAULT_CHARGE_POINT_FILTERS;

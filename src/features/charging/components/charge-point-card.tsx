@@ -9,16 +9,18 @@ import { ProgressMeter } from '@/components/ui/progress-meter';
 import { RingMark } from '@/components/ui/ring-mark';
 import { StatusDot } from '@/components/ui/status-pill';
 import { colors, fonts, motion, radii, spacing } from '@/constants/theme';
-import type { ChargePoint } from '@/features/charging/api/charging-api';
 import { formatDistance } from '@/features/charging/charge-point-distance';
 import { formatQueueLength } from '@/features/charging/charge-point-queue';
+import type { ChargePointSummary } from '@/features/charging/charge-point-summary';
 import {
   chargePointStatusLabels,
+  connectorLabels,
   formatAmount,
   formatPower,
   formatPricePerKwh,
   splitChargePointName,
 } from '@/features/charging/charging-format';
+import { DemoPriceTag } from '@/features/charging/components/demo-price-tag';
 
 export type MyChargeSummary = {
   socPercent: number | null;
@@ -27,7 +29,7 @@ export type MyChargeSummary = {
 };
 
 export type ChargePointCardProps = {
-  chargePoint: ChargePoint;
+  chargePoint: ChargePointSummary;
   distanceMeters?: number | null;
   myCharge?: MyChargeSummary | null;
   onPress: () => void;
@@ -35,7 +37,7 @@ export type ChargePointCardProps = {
 
 type Pill = { label: string; color: string; background: string; dot: string };
 
-export function getListStatusPill(chargePoint: ChargePoint): Pill {
+export function getListStatusPill(chargePoint: ChargePointSummary): Pill {
   if (chargePoint.status === 'OFFLINE') {
     return { label: 'Offline', color: colors.textMuted, background: colors.surfaceInset, dot: colors.textDisabled };
   }
@@ -47,22 +49,22 @@ export function getListStatusPill(chargePoint: ChargePoint): Pill {
       dot: colors.warning,
     };
   }
-  if (chargePoint.pricing?.demandLevel === 'PEAK') {
+  if (chargePoint.isPeak) {
     return { label: 'Pico', color: colors.warningText, background: colors.warningTint, dot: colors.warning };
   }
   return { label: 'Livre', color: colors.energyText, background: colors.energyTint, dot: colors.energy };
 }
 
-export function formatListPrice(chargePoint: ChargePoint) {
-  const { pricing } = chargePoint;
-  if (!pricing) return 'Sem tarifa';
-  if (chargePoint.type === 'COMMERCIAL' && pricing.baseRateCents !== null) {
-    return `R$ ${formatAmount(pricing.baseRateCents)} × ${formatAmount(pricing.demandFactor * 100)}/kWh`;
+export function formatListPrice(chargePoint: ChargePointSummary) {
+  const { pricePerKwhCents, basePricePerKwhCents, demandFactor } = chargePoint;
+  if (pricePerKwhCents === null) return 'Sem tarifa';
+  if (chargePoint.type === 'COMMERCIAL' && basePricePerKwhCents !== null && demandFactor !== null) {
+    return `R$ ${formatAmount(basePricePerKwhCents)} × ${formatAmount(demandFactor * 100)}/kWh`;
   }
-  return formatPricePerKwh(pricing.pricePerKwhCents);
+  return formatPricePerKwh(pricePerKwhCents);
 }
 
-function Photo({ chargePoint }: { chargePoint: ChargePoint }) {
+function Photo({ chargePoint }: { chargePoint: ChargePointSummary }) {
   const [failed, setFailed] = useState(false);
   if (!chargePoint.photoUrl || failed) {
     return (
@@ -92,6 +94,7 @@ export function ChargePointCard({ chargePoint, distanceMeters, myCharge, onPress
   const status = myCharge ? 'Em uso por você' : chargePointStatusLabels[chargePoint.status];
   const chips: { label: string; testID?: string }[] = [
     { label: formatPower(chargePoint.maxPowerKw) },
+    ...(chargePoint.connector ? [{ label: connectorLabels[chargePoint.connector] }] : []),
     { label: formatListPrice(chargePoint) },
     ...(distanceMeters == null ? [] : [{ label: formatDistance(distanceMeters), testID: 'distance-tag' }]),
     ...(isPrivate ? [] : [{ label: 'cartão' }]),
@@ -125,7 +128,7 @@ export function ChargePointCard({ chargePoint, distanceMeters, myCharge, onPress
               {chargePoint.code} · {spot}
             </Text>
             <Text numberOfLines={1} style={styles.subtitle}>
-              {garage ?? chargePoint.organizationName}
+              {garage ?? chargePoint.operatorName}
             </Text>
           </View>
           {myCharge ? (
@@ -157,6 +160,7 @@ export function ChargePointCard({ chargePoint, distanceMeters, myCharge, onPress
           </>
         ) : (
           <>
+            {chargePoint.isDemoPrice ? <DemoPriceTag /> : null}
             <View style={styles.chips}>
               {chips.map((chip) => (
                 <Text
