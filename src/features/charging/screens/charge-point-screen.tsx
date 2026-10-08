@@ -100,9 +100,11 @@ function closeDetail() {
   else router.replace('/points');
 }
 
+const SHEET_CASCADE = 40;
+
 const rise = (index: number) =>
   FadeInDown.duration(motion.duration.reveal)
-    .delay(motion.revealStagger * index)
+    .delay(SHEET_CASCADE * index)
     .easing(motion.easing.out);
 
 export function ChargePointScreen({ chargePointId }: ChargePointScreenProps) {

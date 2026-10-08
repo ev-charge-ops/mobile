@@ -44,7 +44,7 @@ const CORE_SIZE = 36;
 const HALO_SIZE = 52;
 const CANVAS_SIZE = 92;
 const DROP_DURATION = 500;
-const HALO_DURATION = 2000;
+const HALO_DURATION = 1800;
 const SNAPSHOT_SLACK = 120;
 
 export type ChargePointMarkerProps = {

@@ -78,9 +78,15 @@ describe('transition haptics', () => {
     expect(getTransitionHaptic('GRACE', 'IDLE')).toBe('warning');
   });
 
+  it('warns when the tolerance starts and celebrates the receipt', () => {
+    expect(getTransitionHaptic('ACTIVE', 'GRACE')).toBe('warning');
+    expect(getTransitionHaptic('IDLE', 'CLOSED')).toBe('success');
+    expect(getTransitionHaptic('AWAITING_PAYMENT', 'CLOSED')).toBeNull();
+  });
+
   it('stays silent otherwise', () => {
     expect(getTransitionHaptic(undefined, 'ACTIVE')).toBeNull();
     expect(getTransitionHaptic('ACTIVE', 'ACTIVE')).toBeNull();
-    expect(getTransitionHaptic('ACTIVE', 'GRACE')).toBeNull();
+    expect(getTransitionHaptic('PENDING', 'INTERRUPTED')).toBeNull();
   });
 });
