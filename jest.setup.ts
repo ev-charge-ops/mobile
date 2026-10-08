@@ -25,6 +25,7 @@ jest.mock('react-native-maps', () => {
 
   const animateToRegion = jest.fn();
   const fitToCoordinates = jest.fn();
+  const animateCamera = jest.fn();
 
   class MockMapView extends Component<Record<string, unknown> & { children?: unknown }> {
     animateToRegion(...args: unknown[]) {
@@ -33,6 +34,14 @@ jest.mock('react-native-maps', () => {
 
     fitToCoordinates(...args: unknown[]) {
       fitToCoordinates(...args);
+    }
+
+    getCamera() {
+      return Promise.resolve({ zoom: 15 });
+    }
+
+    animateCamera(...args: unknown[]) {
+      animateCamera(...args);
     }
 
     render() {
@@ -51,6 +60,7 @@ jest.mock('react-native-maps', () => {
     PROVIDER_DEFAULT: undefined,
     mockAnimateToRegion: animateToRegion,
     mockFitToCoordinates: fitToCoordinates,
+    mockAnimateCamera: animateCamera,
   };
 });
 
