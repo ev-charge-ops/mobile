@@ -1,6 +1,7 @@
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { Zap, type LucideIcon } from 'lucide-react-native';
+import { useEffect, useSyncExternalStore } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,6 +42,36 @@ function getAccessibilityLabel(item: TabBarItem) {
   return item.badge && item.badgeLabel ? `${item.label}, ${item.badgeLabel}` : item.label;
 }
 
+const schemeOverrides = new Map<string, ColorScheme>();
+const schemeListeners = new Set<() => void>();
+let schemeVersion = 0;
+
+function subscribeToSchemeOverrides(listener: () => void) {
+  schemeListeners.add(listener);
+  return () => {
+    schemeListeners.delete(listener);
+  };
+}
+
+export function setTabSchemeOverride(routeName: string, scheme: ColorScheme | null) {
+  if (scheme === null) schemeOverrides.delete(routeName);
+  else schemeOverrides.set(routeName, scheme);
+  schemeVersion += 1;
+  schemeListeners.forEach((listener) => listener());
+}
+
+export function useTabSchemeOverride(routeName: string, scheme: ColorScheme | null) {
+  useEffect(() => {
+    setTabSchemeOverride(routeName, scheme);
+    return () => setTabSchemeOverride(routeName, null);
+  }, [routeName, scheme]);
+}
+
+function useSchemeOverride(routeName: string | undefined) {
+  useSyncExternalStore(subscribeToSchemeOverrides, () => schemeVersion);
+  return routeName ? schemeOverrides.get(routeName) : undefined;
+}
+
 export function useTabBarBottomOffset() {
   const insets = useSafeAreaInsets();
   return Math.max(insets.bottom, TAB_BAR_MIN_BOTTOM_INSET);
@@ -54,7 +85,8 @@ export function TabBar({ state, navigation, items, action }: TabBarProps) {
   const bottom = useTabBarBottomOffset();
   const activeRoute = state.routes[state.index];
   const activeItem = items.find((item) => item.name === activeRoute?.name);
-  const scheme: ColorScheme = activeItem?.night ? 'night' : 'light';
+  const override = useSchemeOverride(activeRoute?.name);
+  const scheme: ColorScheme = override ?? (activeItem?.night ? 'night' : 'light');
   const tokens = getColors(scheme);
   const hasGlass = isLiquidGlassAvailable();
 
