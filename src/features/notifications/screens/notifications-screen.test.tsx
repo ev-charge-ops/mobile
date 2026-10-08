@@ -50,8 +50,9 @@ describe('<NotificationsScreen />', () => {
     expect(await screen.findByText('Recarga concluída')).toBeOnTheScreen();
     expect(api.listMyNotifications).toHaveBeenCalledWith(1, 20);
     expect(screen.getByText('Pagamento confirmado')).toBeOnTheScreen();
-    expect(screen.getByText('1 aviso não lido')).toBeOnTheScreen();
-    expect(screen.getAllByText('há 5 min')).toHaveLength(2);
+    expect(screen.getByText('Notificações')).toBeOnTheScreen();
+    expect(screen.getByText('Hoje')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Marcar todas como lidas' })).toBeOnTheScreen();
     expect(screen.getByTestId('notification-unread-n1')).toBeOnTheScreen();
     expect(screen.queryByTestId('notification-unread-n2')).toBeNull();
   });
@@ -100,7 +101,7 @@ describe('<NotificationsScreen />', () => {
     );
 
     await renderWithProviders(<NotificationsScreen />);
-    expect(await screen.findByText('2 avisos não lidos')).toBeOnTheScreen();
+    expect(await screen.findByRole('button', { name: 'Marcar todas como lidas' })).toBeOnTheScreen();
 
     api.listMyNotifications.mockResolvedValue(
       buildNotificationPage([
@@ -111,9 +112,36 @@ describe('<NotificationsScreen />', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Marcar todas como lidas' }));
 
     await waitFor(() => expect(api.markAllNotificationsRead).toHaveBeenCalledTimes(1));
-    expect(await screen.findByText('Cada evento financeiro é avisado')).toBeOnTheScreen();
+    expect(await screen.findByText('Tudo lido')).toBeOnTheScreen();
     expect(screen.queryByTestId('notification-unread-n1')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Marcar todas como lidas' })).toBeNull();
+  });
+
+  it('filters charging and condo notices and groups older ones', async () => {
+    api.listMyNotifications.mockResolvedValue(
+      buildNotificationPage([
+        buildNotification({ id: 'n1' }),
+        buildNotification({
+          id: 'n2',
+          type: 'ORGANIZATION_INVITE',
+          title: 'Convite do condomínio',
+          createdAt: '2020-01-10T12:00:00.000Z',
+          readAt: '2020-01-10T13:00:00.000Z',
+        }),
+      ]),
+    );
+
+    await renderWithProviders(<NotificationsScreen />);
+    expect(await screen.findByText('Anteriores')).toBeOnTheScreen();
+    expect(screen.getByText('10/01')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByRole('tab', { name: 'Recargas' }));
+    expect(screen.getByTestId('notification-n1')).toBeOnTheScreen();
+    expect(screen.queryByTestId('notification-n2')).toBeNull();
+
+    await fireEvent.press(screen.getByRole('tab', { name: 'Condomínio' }));
+    expect(screen.getByTestId('notification-n2')).toBeOnTheScreen();
+    expect(screen.queryByTestId('notification-n1')).toBeNull();
   });
 
   it('shows the empty state', async () => {

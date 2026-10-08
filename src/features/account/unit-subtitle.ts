@@ -6,3 +6,10 @@ export function formatUnitSubtitle(organizations: MyOrganization[] | undefined) 
   if (withUnit?.unitLabel) return `Unidade ${withUnit.unitLabel} · ${withUnit.name}`;
   return organizations[0].name;
 }
+
+export function formatMembershipLine(organizations: MyOrganization[] | undefined) {
+  if (!organizations || organizations.length === 0) return null;
+  const withUnit = organizations.find((organization) => organization.unitLabel);
+  if (withUnit?.unitLabel) return `${withUnit.name} · ${withUnit.unitLabel}`;
+  return organizations[0].name;
+}

@@ -1,5 +1,5 @@
 import type { MyOrganization } from '@/features/account/api/organizations-api';
-import { formatUnitSubtitle } from '@/features/account/unit-subtitle';
+import { formatMembershipLine, formatUnitSubtitle } from '@/features/account/unit-subtitle';
 
 function organization(overrides: Partial<MyOrganization> = {}): MyOrganization {
   return {
@@ -27,5 +27,19 @@ describe('formatUnitSubtitle', () => {
     expect(formatUnitSubtitle([organization({ unitLabel: null })])).toBe('Residencial Aclimação');
     expect(formatUnitSubtitle([])).toBeUndefined();
     expect(formatUnitSubtitle(undefined)).toBeUndefined();
+  });
+});
+
+describe('formatMembershipLine', () => {
+  it('shows the condo followed by the unit', () => {
+    expect(
+      formatMembershipLine([organization({ id: 'o2', name: 'Shopping Paulista', unitLabel: null }), organization()]),
+    ).toBe('Residencial Aclimação · B · 42');
+  });
+
+  it('falls back to the organization name or nothing', () => {
+    expect(formatMembershipLine([organization({ unitLabel: null })])).toBe('Residencial Aclimação');
+    expect(formatMembershipLine([])).toBeNull();
+    expect(formatMembershipLine(undefined)).toBeNull();
   });
 });
