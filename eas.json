@@ -19,7 +19,10 @@
     "production": {
       "environment": "production",
       "channel": "production",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "ios": {
+        "distribution": "store"
+      }
     }
   },
   "submit": {
