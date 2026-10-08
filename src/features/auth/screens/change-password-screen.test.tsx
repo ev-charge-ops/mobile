@@ -52,7 +52,7 @@ describe('<ChangePasswordScreen />', () => {
     expect(screen.getByRole('header', { name: 'Alterar senha' })).toBeOnTheScreen();
     await fireEvent.changeText(screen.getByLabelText('Senha atual'), 'old-pass-123');
     await fillNewPassword();
-    await fireEvent.press(screen.getByRole('button', { name: 'Alterar senha' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Atualizar senha' }));
 
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
     expect(api.changeMyPassword.mock.calls[0][0]).toEqual({
@@ -68,7 +68,7 @@ describe('<ChangePasswordScreen />', () => {
     await renderScreen(true);
 
     await fillNewPassword('short', 'other');
-    await fireEvent.press(screen.getByRole('button', { name: 'Alterar senha' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Atualizar senha' }));
 
     expect(await screen.findByText('Informe sua senha atual')).toBeOnTheScreen();
     expect(screen.getByText('A senha deve ter pelo menos 8 caracteres')).toBeOnTheScreen();
@@ -82,7 +82,7 @@ describe('<ChangePasswordScreen />', () => {
 
     await fireEvent.changeText(screen.getByLabelText('Senha atual'), 'wrong-pass-1');
     await fillNewPassword();
-    await fireEvent.press(screen.getByRole('button', { name: 'Alterar senha' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Atualizar senha' }));
 
     expect(await screen.findByText('Senha atual incorreta')).toBeOnTheScreen();
     expect(session.startSession).not.toHaveBeenCalled();
@@ -95,7 +95,7 @@ describe('<ChangePasswordScreen />', () => {
 
     await fireEvent.changeText(screen.getByLabelText('Senha atual'), 'old-pass-123');
     await fillNewPassword();
-    await fireEvent.press(screen.getByRole('button', { name: 'Alterar senha' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Atualizar senha' }));
 
     expect(await screen.findByText('Muitas tentativas. Tente novamente em 45 s.')).toBeOnTheScreen();
   });
@@ -121,5 +121,31 @@ describe('<ChangePasswordScreen />', () => {
 
     expect(screen.getByLabelText('Nova senha')).toHaveProp('secureTextEntry', false);
     expect(screen.getByLabelText('Senha atual')).toHaveProp('secureTextEntry', true);
+  });
+
+  it('checks the password rules while typing', async () => {
+    await renderScreen(true);
+
+    await fireEvent.changeText(screen.getByLabelText('Senha atual'), 'Aclimacao2026v');
+    await fireEvent.changeText(screen.getByLabelText('Nova senha'), 'Aclimacao2026v');
+    expect(screen.getByLabelText('Pelo menos 8 caracteres, atendido')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Uma letra maiúscula e uma minúscula, atendido')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Pelo menos um número, atendido')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Diferente da senha atual, pendente')).toBeOnTheScreen();
+    expect(screen.getByLabelText('As duas senhas coincidem, pendente')).toBeOnTheScreen();
+
+    await fireEvent.changeText(screen.getByLabelText('Nova senha'), 'Aclimacao2027v');
+    await fireEvent.changeText(screen.getByLabelText('Confirmar nova senha'), 'Aclimacao2027v');
+    expect(screen.getByLabelText('Diferente da senha atual, atendido')).toBeOnTheScreen();
+    expect(screen.getByLabelText('As duas senhas coincidem, atendido')).toBeOnTheScreen();
+    expect(screen.getByText('Forte')).toBeOnTheScreen();
+    expect(screen.getByText(/os outros serão desconectados/)).toBeOnTheScreen();
+  });
+
+  it('skips the current password rule when creating the first password', async () => {
+    await renderScreen(false);
+
+    expect(screen.queryByLabelText(/Diferente da senha atual/)).not.toBeOnTheScreen();
+    expect(screen.getByText(/Crie uma senha para também entrar com e-mail e senha/)).toBeOnTheScreen();
   });
 });
