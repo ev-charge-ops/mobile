@@ -2,7 +2,7 @@ import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { Zap, type LucideIcon } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/ui/icon';
@@ -32,8 +32,8 @@ export type TabBarProps = BottomTabBarProps & {
 };
 
 export const TAB_BAR_MIN_BOTTOM_INSET = 16;
-export const TAB_BAR_SIDE_INSET = 16;
-const itemSize = 48;
+export const TAB_BAR_SIDE_INSET = 12;
+const itemSize = 46;
 const barPadding = (spacing.tabBarHeight - itemSize) / 2;
 const layoutTransition = LinearTransition.duration(motion.duration.slow).easing(motion.easing.out);
 
@@ -140,11 +140,9 @@ function TabBarButton({ item, scheme, isActive, onPress, onLongPress }: TabBarBu
           ) : null}
         </View>
         {isActive ? (
-          <Animated.View entering={FadeIn.duration(motion.duration.slow)}>
-            <Text numberOfLines={1} style={[styles.label, { color }]}>
-              {item.label}
-            </Text>
-          </Animated.View>
+          <Text numberOfLines={1} style={[styles.label, { color }]}>
+            {item.label}
+          </Text>
         ) : null}
       </PressableScale>
     </Animated.View>
@@ -192,7 +190,7 @@ const styles = StyleSheet.create({
     right: TAB_BAR_SIDE_INSET,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   pill: {
     flex: 1,
@@ -217,10 +215,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   itemActive: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 14,
   },
   label: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: fonts.bold,
   },
   badge: {
