@@ -275,21 +275,41 @@ describe('<ChargePointsScreen /> list mode', () => {
   it('lists the points with status, power, price and the demand badge', async () => {
     api.listChargePoints.mockResolvedValue([buildChargePoint(), buildCommercialChargePoint({ status: 'CHARGING' })]);
 
-    await renderWithProviders(<ChargePointsScreen subtitle="Unidade B · 42 · Residencial Aclimação" />);
+    await renderWithProviders(<ChargePointsScreen />);
     await showList();
 
-    expect(await screen.findByText('Unidade B · 42 · Residencial Aclimação')).toBeOnTheScreen();
     const privateCard = await screen.findByRole('button', { name: 'Garagem L1 · Vaga 12, Livre, a 10 m' });
-    expect(within(privateCard).getByText(`R$${NBSP}0,89`)).toBeOnTheScreen();
-    expect(within(privateCard).getByText('7 kW · Condomínio')).toBeOnTheScreen();
-    expect(within(privateCard).getByText('Fora de pico · ×0,80')).toBeOnTheScreen();
-    expect(within(privateCard).getByText('Previsão da IA · modelo v1')).toBeOnTheScreen();
+    expect(within(privateCard).getByText('L1-01 · Vaga 12')).toBeOnTheScreen();
+    expect(within(privateCard).getByText('Livre')).toBeOnTheScreen();
+    expect(within(privateCard).getByText(`R$${NBSP}0,89/kWh`)).toBeOnTheScreen();
+    expect(within(privateCard).getByText('7 kW')).toBeOnTheScreen();
+    expect(within(privateCard).getByText('Grupo A · rateio no condomínio')).toBeOnTheScreen();
+    expect(within(privateCard).getByTestId('ring-mark')).toBeOnTheScreen();
 
     const commercialCard = screen.getByRole('button', { name: 'Garagem L2 · Visitantes, Em uso, a 10 m' });
-    expect(within(commercialCard).getByText(`R$${NBSP}2,84`)).toBeOnTheScreen();
-    expect(within(commercialCard).getByText('Pico · ×1,50')).toBeOnTheScreen();
-    expect(within(commercialCard).getByText('Regra por horário')).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: 'Ver mapa' })).toBeOnTheScreen();
+    expect(within(commercialCard).getByText('R$ 1,89 × 1,50/kWh')).toBeOnTheScreen();
+    expect(within(commercialCard).getByText('cartão')).toBeOnTheScreen();
+    expect(within(commercialCard).getByText('Grupo B · ponto comercial')).toBeOnTheScreen();
+    expect(screen.getByText('2 pontos')).toBeOnTheScreen();
+    expect(screen.getByRole('tab', { name: 'Ver mapa' })).toBeOnTheScreen();
+  });
+
+  it('highlights the point charging the car of the driver', async () => {
+    api.listChargePoints.mockResolvedValue([buildChargePoint()]);
+    api.getActiveSession.mockResolvedValue(
+      buildSession({
+        socPercent: 68,
+        limit: { type: 'PERCENT', energyKwh: null, amountCents: null, socPercent: 80 },
+        projectedChargingEndsAt: '2026-10-07T21:32:00.000-03:00',
+      }),
+    );
+
+    await renderWithProviders(<ChargePointsScreen />);
+    await showList();
+
+    const card = await screen.findByRole('button', { name: 'Garagem L1 · Vaga 12, Em uso por você, a 10 m' });
+    expect(within(card).getByText('68')).toBeOnTheScreen();
+    expect(within(card).getByText(/^7 kW · limite 80% · pronta às \d\d:\d\d$/)).toBeOnTheScreen();
   });
 
   it('sorts the points by distance from the condominium, nearest first', async () => {
@@ -297,7 +317,7 @@ describe('<ChargePointsScreen /> list mode', () => {
 
     await renderWithProviders(<ChargePointsScreen />);
     await showList();
-    await screen.findByText('Garagem L1 · Vaga 12');
+    await screen.findByText('L1-01 · Vaga 12');
 
     expect(listedCardNames()).toEqual([
       'Garagem L1 · Vaga 12, Livre, a 10 m',
@@ -312,7 +332,7 @@ describe('<ChargePointsScreen /> list mode', () => {
 
     await renderWithProviders(<ChargePointsScreen />);
     await showList();
-    await screen.findByText('Garagem L1 · Vaga 12');
+    await screen.findByText('L1-01 · Vaga 12');
 
     await fireEvent.press(screen.getByRole('button', { name: 'Comercial' }));
     expect(listedCardNames()).toEqual([
@@ -320,6 +340,7 @@ describe('<ChargePointsScreen /> list mode', () => {
       'Garagem L2 · Visitantes, Em uso, a 2,6 km',
     ]);
 
+    await fireEvent.press(screen.getByRole('button', { name: 'Buscar ponto' }));
     await fireEvent.changeText(screen.getByLabelText('Buscar ponto'), 'vaga');
     expect(listedCardNames()).toEqual(['Rua Muniz · Vaga 1, Em uso, a 360 m']);
   });
@@ -329,21 +350,22 @@ describe('<ChargePointsScreen /> list mode', () => {
 
     await renderWithProviders(<ChargePointsScreen />);
     await showList();
-    await screen.findByText('Garagem L1 · Vaga 12');
+    await screen.findByText('L1-01 · Vaga 12');
 
     await fireEvent.press(screen.getByRole('button', { name: 'Comercial' }));
-    expect(screen.queryByText('Garagem L1 · Vaga 12')).not.toBeOnTheScreen();
-    expect(screen.getByText('Garagem L2 · Visitantes')).toBeOnTheScreen();
+    expect(screen.queryByText('L1-01 · Vaga 12')).not.toBeOnTheScreen();
+    expect(screen.getByText('L2-01 · Visitantes')).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByRole('button', { name: 'Comercial' }));
     await fireEvent.press(screen.getByRole('button', { name: 'Livres agora' }));
-    expect(screen.getByText('Garagem L1 · Vaga 12')).toBeOnTheScreen();
-    expect(screen.queryByText('Garagem L2 · Visitantes')).not.toBeOnTheScreen();
+    expect(screen.getByText('L1-01 · Vaga 12')).toBeOnTheScreen();
+    expect(screen.queryByText('L2-01 · Visitantes')).not.toBeOnTheScreen();
 
     await fireEvent.press(screen.getByRole('button', { name: 'Livres agora' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Buscar ponto' }));
     await fireEvent.changeText(screen.getByLabelText('Buscar ponto'), 'visitantes');
-    expect(screen.queryByText('Garagem L1 · Vaga 12')).not.toBeOnTheScreen();
-    expect(screen.getByText('Garagem L2 · Visitantes')).toBeOnTheScreen();
+    expect(screen.queryByText('L1-01 · Vaga 12')).not.toBeOnTheScreen();
+    expect(screen.getByText('L2-01 · Visitantes')).toBeOnTheScreen();
 
     await fireEvent.changeText(screen.getByLabelText('Buscar ponto'), 'nada por aqui');
     expect(screen.getByText('Nenhum ponto corresponde a esta busca agora.')).toBeOnTheScreen();
@@ -378,6 +400,6 @@ describe('<ChargePointsScreen /> list mode', () => {
     await showList();
     await fireEvent.press(await screen.findByRole('button', { name: 'Tentar novamente' }));
 
-    expect(await screen.findByText('Garagem L1 · Vaga 12')).toBeOnTheScreen();
+    expect(await screen.findByText('L1-01 · Vaga 12')).toBeOnTheScreen();
   });
 });

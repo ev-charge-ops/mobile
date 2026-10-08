@@ -1,9 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { CircleUserRound, House, Map, Receipt } from 'lucide-react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { TabBar, type TabBarAction, type TabBarItem } from '@/components/ui/tab-bar';
+import { setTabSchemeOverride, TabBar, type TabBarAction, type TabBarItem } from '@/components/ui/tab-bar';
 import { colors, nightColors } from '@/constants/theme';
 import { haptics } from '@/lib/haptics';
 
@@ -101,6 +101,16 @@ describe('<TabBar />', () => {
 
     expect(screen.getByTestId('tab-bar-night')).toHaveStyle({ backgroundColor: nightColors.surfaceNav });
     expect(screen.getByTestId('tab-points')).toHaveStyle({ backgroundColor: nightColors.accent });
+  });
+
+  it('follows the scheme a screen sets for its own tab', async () => {
+    await renderTabBar({ index: 1 });
+
+    await act(() => setTabSchemeOverride('points', 'light'));
+    expect(screen.getByTestId('tab-bar-light')).toBeOnTheScreen();
+
+    await act(() => setTabSchemeOverride('points', null));
+    expect(screen.getByTestId('tab-bar-night')).toBeOnTheScreen();
   });
 
   it('shows the pending badge on a tab', async () => {
