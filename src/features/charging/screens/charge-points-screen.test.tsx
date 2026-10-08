@@ -8,6 +8,7 @@ import * as Maps from 'react-native-maps';
 import * as chargingApi from '@/features/charging/api/charging-api';
 import { ChargePointsScreen } from '@/features/charging/screens/charge-points-screen';
 import { buildChargePoint, buildCommercialChargePoint } from '@/features/charging/testing/fixtures';
+import { buildMapItem } from '@/features/charging/testing/map-fixtures';
 import { renderWithProviders } from '@/features/charging/testing/render-with-providers';
 import { buildSession } from '@/features/charging/testing/session-fixtures';
 
@@ -23,7 +24,7 @@ jest.mock('expo-status-bar', () => ({ setStatusBarStyle: jest.fn() }));
 
 jest.mock('@/features/charging/api/charging-api', () => {
   const actual = jest.requireActual('@/features/charging/api/charging-api');
-  return { ...actual, listChargePoints: jest.fn(), getActiveSession: jest.fn() };
+  return { ...actual, listChargePoints: jest.fn(), listChargePointsInBounds: jest.fn(), getActiveSession: jest.fn() };
 });
 
 const api = jest.mocked(chargingApi);
@@ -401,5 +402,80 @@ describe('<ChargePointsScreen /> list mode', () => {
     await fireEvent.press(await screen.findByRole('button', { name: 'Tentar novamente' }));
 
     expect(await screen.findByText('L1-01 · Vaga 12')).toBeOnTheScreen();
+  });
+});
+
+describe('<ChargePointsScreen /> device location', () => {
+  function locateAt(latitude: number, longitude: number) {
+    location.requestForegroundPermissionsAsync.mockResolvedValue({ granted: true } as never);
+    location.getCurrentPositionAsync.mockResolvedValue({ coords: { latitude, longitude }, timestamp: 0 } as never);
+  }
+
+  it('centers on the device position without the far notice when a point is nearby', async () => {
+    locateAt(-23.6, -46.7);
+    api.listChargePoints.mockResolvedValue([commercialPoint]);
+    api.listChargePointsInBounds.mockResolvedValue([buildMapItem({ latitude: -23.61, longitude: -46.71 })]);
+
+    await renderWithProviders(<ChargePointsScreen locationSource="device" />);
+
+    await waitFor(() =>
+      expect(mockAnimateToRegion).toHaveBeenCalledWith(
+        expect.objectContaining({ longitude: -46.7, latitudeDelta: 0.008 }),
+        420,
+      ),
+    );
+    await waitFor(() => expect(api.listChargePointsInBounds).toHaveBeenCalled());
+    expect(screen.queryByText('Nenhum ponto perto de você')).not.toBeOnTheScreen();
+    expect(screen.queryByText('Você')).not.toBeOnTheScreen();
+  });
+
+  it('offers the nearest point in Brazil when nothing is within 50 km', async () => {
+    locateAt(-8.0476, -34.877);
+    api.listChargePoints.mockResolvedValue([commercialPoint]);
+    api.listChargePointsInBounds
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([buildMapItem({ latitude: -9.66, longitude: -35.73 })]);
+
+    await renderWithProviders(<ChargePointsScreen locationSource="device" />);
+
+    expect(await screen.findByText('Nenhum ponto perto de você')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Ver pontos no Brasil' }));
+
+    await waitFor(() =>
+      expect(mockAnimateToRegion).toHaveBeenLastCalledWith(
+        expect.objectContaining({ longitude: -35.73, latitudeDelta: 0.034 }),
+        420,
+      ),
+    );
+    expect(api.listChargePointsInBounds).toHaveBeenLastCalledWith(expect.any(String), 1);
+    expect(screen.queryByText('Nenhum ponto perto de você')).not.toBeOnTheScreen();
+  });
+
+  it('shows the whole country when no point is found at all', async () => {
+    locateAt(-8.0476, -34.877);
+    api.listChargePoints.mockResolvedValue([]);
+    api.listChargePointsInBounds.mockResolvedValue([]);
+
+    await renderWithProviders(<ChargePointsScreen locationSource="device" />);
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Ver pontos no Brasil' }));
+
+    await waitFor(() =>
+      expect(mockAnimateToRegion).toHaveBeenLastCalledWith(
+        expect.objectContaining({ latitudeDelta: 38, longitudeDelta: 38 }),
+        420,
+      ),
+    );
+  });
+
+  it('lets the driver dismiss the far notice', async () => {
+    locateAt(-8.0476, -34.877);
+    api.listChargePoints.mockResolvedValue([commercialPoint]);
+    api.listChargePointsInBounds.mockResolvedValue([]);
+
+    await renderWithProviders(<ChargePointsScreen locationSource="device" />);
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Fechar aviso' }));
+    expect(screen.queryByText('Nenhum ponto perto de você')).not.toBeOnTheScreen();
   });
 });

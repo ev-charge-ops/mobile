@@ -28,6 +28,7 @@ import { ListRow } from '@/components/ui/list-row';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { RingMark } from '@/components/ui/ring-mark';
 import { useToast } from '@/components/ui/toast';
+import type { MapCenterSource } from '@/config/map-center';
 import { colors, fonts, motion, nightColors, palette, radii, shadows, spacing } from '@/constants/theme';
 import { ChargingApiError, type ChargePoint, type ChargePointPricing } from '@/features/charging/api/charging-api';
 import { useChargePoint, useChargePoints, useLeaveQueue } from '@/features/charging/api/use-charge-points';
@@ -67,6 +68,7 @@ const PHOTO_HEIGHT = 196;
 
 export type ChargePointScreenProps = {
   chargePointId: string;
+  locationSource?: MapCenterSource;
 };
 
 const unavailableLabels: Record<ChargePoint['status'], string> = {
@@ -107,7 +109,7 @@ const rise = (index: number) =>
     .delay(SHEET_CASCADE * index)
     .easing(motion.easing.out);
 
-export function ChargePointScreen({ chargePointId }: ChargePointScreenProps) {
+export function ChargePointScreen({ chargePointId, locationSource }: ChargePointScreenProps) {
   useNightStatusBar();
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
@@ -174,7 +176,12 @@ export function ChargePointScreen({ chargePointId }: ChargePointScreenProps) {
         {chargePoint ? (
           <>
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-              <ChargePointDetails chargePoint={chargePoint} queueState={queueState} now={now} />
+              <ChargePointDetails
+                chargePoint={chargePoint}
+                queueState={queueState}
+                now={now}
+                locationSource={locationSource}
+              />
             </ScrollView>
             <Animated.View entering={rise(4)} style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
               <StartFooter
@@ -354,9 +361,9 @@ function LeaveQueueFooter({ chargePoint, position }: { chargePoint: ChargePoint;
   );
 }
 
-function useDistanceTo(chargePoint: ChargePoint) {
+function useDistanceTo(chargePoint: ChargePoint, source: MapCenterSource | undefined) {
   const { data: chargePoints, isPending } = useChargePoints();
-  const location = useMapCenter({ enabled: true, chargePoints, isLoading: isPending });
+  const location = useMapCenter({ enabled: true, chargePoints, isLoading: isPending, source });
   return location.coordinates ? getDistanceMeters(location.coordinates, chargePoint) : null;
 }
 
@@ -397,13 +404,14 @@ type ChargePointDetailsProps = {
   chargePoint: ChargePoint;
   queueState: QueueState | null;
   now: number;
+  locationSource?: MapCenterSource;
 };
 
-function ChargePointDetails({ chargePoint, queueState, now }: ChargePointDetailsProps) {
+function ChargePointDetails({ chargePoint, queueState, now, locationSource }: ChargePointDetailsProps) {
   const { pricing, charger } = chargePoint;
   const { garage, spot } = splitChargePointName(chargePoint.name);
   const availability = getAvailability(chargePoint, queueState);
-  const distanceMeters = useDistanceTo(chargePoint);
+  const distanceMeters = useDistanceTo(chargePoint, locationSource);
 
   return (
     <>
