@@ -1,5 +1,6 @@
 import {
   Ban,
+  Bell,
   Building2,
   Clock3,
   CreditCard,
@@ -10,6 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 
+import type { ToastTone } from '@/components/ui/toast';
 import { colors } from '@/constants/theme';
 import type { AppNotification, AppNotificationType } from '@/features/notifications/api/notifications-api';
 
@@ -31,6 +33,28 @@ export const notificationTones: Record<AppNotificationType, NotificationTone> = 
   ORGANIZATION_INVITE: { icon: Building2, ...info },
   QUEUE_TURN: { icon: Hourglass, ...warning },
 };
+
+const toastTones: Record<AppNotificationType, ToastTone> = {
+  SESSION_ACTIVE: 'success',
+  CHARGING_COMPLETE: 'warning',
+  IDLE_FEE_STARTED: 'error',
+  PAYMENT_CAPTURED: 'neutral',
+  PAYMENT_FAILED: 'error',
+  SESSION_INTERRUPTED: 'error',
+  ORGANIZATION_INVITE: 'info',
+  QUEUE_TURN: 'warning',
+};
+
+const reminderToast = { icon: Clock3, tone: 'warning' } as const;
+
+export function getNotificationToast(type: unknown): { icon: LucideIcon; tone: ToastTone } {
+  if (typeof type === 'string' && type in toastTones) {
+    const known = type as AppNotificationType;
+    return { icon: notificationTones[known].icon, tone: toastTones[known] };
+  }
+  if (type === 'SESSION_REMINDER') return reminderToast;
+  return { icon: Bell, tone: 'neutral' };
+}
 
 export type NotificationFilter = 'all' | 'charging' | 'condo';
 

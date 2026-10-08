@@ -1,6 +1,9 @@
+import { Bell, Clock3, TriangleAlert, Zap } from 'lucide-react-native';
+
 import {
   filterNotifications,
   formatNotificationTime,
+  getNotificationToast,
   groupNotifications,
 } from '@/features/notifications/notification-format';
 import { buildNotification } from '@/features/notifications/testing/notification-fixtures';
@@ -45,5 +48,15 @@ describe('filterNotifications', () => {
     expect(filterNotifications([charging, invite], 'all')).toHaveLength(2);
     expect(filterNotifications([charging, invite], 'charging').map((n) => n.id)).toEqual(['charging']);
     expect(filterNotifications([charging, invite], 'condo').map((n) => n.id)).toEqual(['invite']);
+  });
+});
+
+describe('getNotificationToast', () => {
+  it('picks the icon and tone of each notice for the in-app toast', () => {
+    expect(getNotificationToast('SESSION_ACTIVE')).toEqual({ icon: Zap, tone: 'success' });
+    expect(getNotificationToast('IDLE_FEE_STARTED')).toEqual({ icon: TriangleAlert, tone: 'error' });
+    expect(getNotificationToast('SESSION_REMINDER')).toEqual({ icon: Clock3, tone: 'warning' });
+    expect(getNotificationToast('SOMETHING_NEW')).toEqual({ icon: Bell, tone: 'neutral' });
+    expect(getNotificationToast(undefined)).toEqual({ icon: Bell, tone: 'neutral' });
   });
 });
