@@ -195,6 +195,12 @@ export const nightColors: ThemeColors = {
   controlKnob: palette.white,
 };
 
+export type ColorScheme = 'light' | 'night';
+
+export function getColors(scheme: ColorScheme = 'light'): ThemeColors {
+  return scheme === 'night' ? nightColors : colors;
+}
+
 export const shadows = {
   floating: '0 14px 32px -14px rgba(17,19,22,0.28)',
   floatingStrong: '0 14px 32px -14px rgba(17,19,22,0.5)',
