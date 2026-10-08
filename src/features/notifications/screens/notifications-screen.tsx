@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { FadeInItem } from '@/components/ui/fade-in-item';
 import { Icon } from '@/components/ui/icon';
-import { useTabBarHeight } from '@/components/ui/tab-bar';
 import { colors, fonts, motion, spacing, typography } from '@/constants/theme';
 import type { AppNotification } from '@/features/notifications/api/notifications-api';
 import {
@@ -30,7 +29,6 @@ function formatUnread(unreadCount: number) {
 }
 
 export function NotificationsScreen() {
-  const tabBarHeight = useTabBarHeight();
   const now = useNow(30_000);
   const { data, isPending, isError, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useNotifications();
@@ -38,7 +36,7 @@ export function NotificationsScreen() {
   const markAllRead = useMarkAllNotificationsRead();
   const notifications = data?.pages.flatMap((page) => page.items) ?? [];
   const unreadCount = data?.pages[0]?.unreadCount ?? 0;
-  const contentStyle = [styles.content, { paddingBottom: tabBarHeight + spacing.xxl }];
+  const contentStyle = [styles.content, { paddingBottom: spacing.xxl }];
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
 
   const openNotification = (notification: AppNotification) => {
@@ -48,8 +46,8 @@ export function NotificationsScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top']} style={styles.screen}>
-      <AppBar variant="large" title="Avisos" subtitle={formatUnread(unreadCount)} />
+    <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
+      <AppBar variant="large" title="Avisos" subtitle={formatUnread(unreadCount)} onBack={() => router.back()} />
       {isPending ? (
         <View style={styles.centered}>
           <ActivityIndicator accessibilityLabel="Carregando avisos" color={colors.accent} size="large" />
