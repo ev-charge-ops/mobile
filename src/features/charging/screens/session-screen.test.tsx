@@ -169,9 +169,10 @@ describe('<SessionScreen />', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Encerrar agora' }));
 
     expect(api.stopSession).toHaveBeenCalledWith('session-1');
-    expect(await screen.findByText('Recibo')).toBeOnTheScreen();
+    expect(await screen.findByRole('header', { name: 'Recarga encerrada' })).toBeOnTheScreen();
     expect(screen.getByLabelText(`Total R$${NBSP}1,78`)).toBeOnTheScreen();
-    expect(screen.getByText('Veículo retirado dentro da tolerância')).toBeOnTheScreen();
+    expect(screen.getByText('Retirado dentro da tolerância')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Recarga encerrada com sucesso')).toBeOnTheScreen();
   });
 
   it('counts the grace period down after charging completes', async () => {
@@ -239,7 +240,8 @@ describe('<SessionScreen />', () => {
     await renderWithProviders(<SessionScreen sessionId="session-1" />);
 
     expect(await screen.findByLabelText(`Total R$${NBSP}12,78`)).toBeOnTheScreen();
-    expect(screen.getByText(`2,00 kWh · R$${NBSP}1,78`)).toBeOnTheScreen();
+    expect(screen.getByText(`2,00 kWh × R$${NBSP}0,89/kWh`)).toBeOnTheScreen();
+    expect(screen.getByText('Rateio mensal da unidade B · 42')).toBeOnTheScreen();
     expect(screen.getByText('×0,80')).toBeOnTheScreen();
     expect(screen.getByText(`R$${NBSP}11,00`)).toBeOnTheScreen();
 
@@ -290,8 +292,10 @@ describe('<SessionScreen />', () => {
 
     await renderWithProviders(<SessionScreen sessionId="session-1" />);
 
-    expect(await screen.findByRole('header', { name: 'Pagamento pendente' })).toBeOnTheScreen();
-    expect(screen.getAllByText(`R$${NBSP}200,40`).length).toBeGreaterThan(0);
+    expect(await screen.findByRole('header', { name: 'Pagamento no cartão' })).toBeOnTheScreen();
+    expect(screen.getByLabelText(`Pré-autorização de R$${NBSP}200,40`)).toBeOnTheScreen();
+    expect(screen.getByText('Tarifa desta sessão')).toBeOnTheScreen();
+    expect(screen.getByText('IA')).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Cancelar recarga' }));
 
     expect(api.stopSession).toHaveBeenCalledWith('session-1');
@@ -309,7 +313,7 @@ describe('<SessionScreen />', () => {
     );
 
     await renderWithProviders(<SessionScreen sessionId="session-1" />);
-    await fireEvent.press(await screen.findByRole('button', { name: 'Pagar com cartão' }));
+    await fireEvent.press(await screen.findByRole('button', { name: `Autorizar R$${NBSP}200,40 e iniciar` }));
 
     expect(await screen.findByText('Pagamento autorizado. Carregador liberado!')).toBeOnTheScreen();
     expect(api.createSessionPaymentSheet).toHaveBeenCalledWith('session-1');
@@ -326,7 +330,7 @@ describe('<SessionScreen />', () => {
     cardPayment.presentCardPayment.mockRejectedValue(new cardPaymentModule.CardPaymentError('Cartão sem saldo'));
 
     await renderWithProviders(<SessionScreen sessionId="session-1" />);
-    await fireEvent.press(await screen.findByRole('button', { name: 'Pagar com cartão' }));
+    await fireEvent.press(await screen.findByRole('button', { name: `Autorizar R$${NBSP}200,40 e iniciar` }));
 
     expect(await screen.findByText('Cartão sem saldo')).toBeOnTheScreen();
     expect(api.confirmSessionPayment).not.toHaveBeenCalled();
@@ -343,7 +347,9 @@ describe('<SessionScreen />', () => {
     await renderWithProviders(<SessionScreen sessionId="session-1" />);
 
     expect(await screen.findByText('Cobrado no cartão')).toBeOnTheScreen();
-    expect(screen.getByText(`R$${NBSP}200,40`)).toBeOnTheScreen();
-    expect(screen.getByText('O restante da pré-autorização volta ao limite do cartão')).toBeOnTheScreen();
+    expect(screen.getByText(`R$${NBSP}12,78`)).toBeOnTheScreen();
+    expect(
+      screen.getByText(`Pré-autorização de R$${NBSP}200,40 · o restante volta ao limite do cartão`),
+    ).toBeOnTheScreen();
   });
 });
