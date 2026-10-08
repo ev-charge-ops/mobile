@@ -69,7 +69,8 @@
     "lint": "expo lint",
     "test": "jest",
     "test:watch": "jest --watchAll",
-    "gen:api": "node scripts/generate-api-schema.mjs"
+    "gen:api": "node scripts/generate-api-schema.mjs",
+    "gen:brand": "node scripts/generate-brand-assets.mjs"
   },
   "private": true,
   "overrides": {
