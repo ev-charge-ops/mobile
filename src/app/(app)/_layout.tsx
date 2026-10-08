@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Stack, type ErrorBoundaryProps } from 'expo-router';
 
 import { LoadingScreen } from '@/components/ui/loading-screen';
-import { colors } from '@/constants/theme';
+import { colors, motion } from '@/constants/theme';
 import { useLogout } from '@/features/auth/api/use-logout';
 import { SignedInErrorScreen } from '@/features/auth/screens/signed-in-error-screen';
 import { chargePointsQueryKey } from '@/features/charging/api/use-charge-points';
@@ -56,7 +56,15 @@ export default function AppLayout() {
       <SignedInServices />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bgBase } }}>
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-        <Stack.Screen name="charge-points/[chargePointId]" />
+        <Stack.Screen
+          name="charge-points/[chargePointId]"
+          options={{
+            presentation: 'transparentModal',
+            animation: 'fade',
+            animationDuration: motion.duration.slow,
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
+        />
         <Stack.Screen name="sessions/[sessionId]" />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="privacy" />
