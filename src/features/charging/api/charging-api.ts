@@ -2,6 +2,9 @@ import { apiClient } from '@/lib/api-client';
 import type { components } from '@/lib/api-schema';
 
 export type ChargePoint = components['schemas']['ChargePointResponseDto'];
+export type ChargePointMapItem = components['schemas']['ChargePointMapItemResponseDto'];
+export type ChargePointCluster = components['schemas']['ChargePointClusterResponseDto'];
+export type ConnectorType = components['schemas']['ConnectorType'];
 export type ChargePointPricing = components['schemas']['ChargePointPricingDto'];
 export type ChargePointStatus = components['schemas']['ChargePointStatus'];
 export type ChargePointType = components['schemas']['ChargePointType'];
@@ -47,8 +50,20 @@ async function unwrap<T>(request: Promise<ApiResult<T>>): Promise<T> {
   return result.data;
 }
 
-export function listChargePoints() {
-  return unwrap(apiClient.GET('/charge-points'));
+type ChargePointListItem = ChargePoint | ChargePointMapItem;
+
+export function isChargePointMapItem(item: ChargePointListItem): item is ChargePointMapItem {
+  return 'source' in item;
+}
+
+export async function listChargePoints(): Promise<ChargePoint[]> {
+  const items: ChargePointListItem[] = await unwrap(apiClient.GET('/charge-points'));
+  return items.filter((item): item is ChargePoint => !isChargePointMapItem(item));
+}
+
+export async function listChargePointsInBounds(bbox: string, limit?: number): Promise<ChargePointMapItem[]> {
+  const items: ChargePointListItem[] = await unwrap(apiClient.GET('/charge-points', { params: { query: { bbox, limit } } }));
+  return items.filter(isChargePointMapItem);
 }
 
 export function getChargePoint(chargePointId: string) {

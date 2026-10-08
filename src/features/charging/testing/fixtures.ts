@@ -27,6 +27,7 @@ export function buildChargePoint(overrides: Partial<ChargePoint> = {}): ChargePo
     longitude: -46.63145,
     maxPowerKw: 7,
     photoUrl: null,
+    attribution: null,
     status: 'AVAILABLE',
     isMember: true,
     charger: { id: 'ch-1', vendor: 'GoodWe HCA G2', serialNumber: 'GW-HCA-G2-0001', connector: 'TYPE_2' },

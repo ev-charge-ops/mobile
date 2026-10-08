@@ -28,7 +28,7 @@ jest.mock('@/lib/secure-storage', () => {
 const storage = (secureStorage as unknown as { store: Map<string, string> }).store;
 const api = jest.mocked(authApi);
 
-const user: authApi.AuthUser = { id: 'u1', name: 'Ana', email: 'ana@example.com', role: 'DRIVER', emailVerified: true, hasPassword: true };
+const user: authApi.AuthUser = { id: 'u1', name: 'Ana', email: 'ana@example.com', role: 'DRIVER', emailVerified: true, hasPassword: true, paymentMode: 'TEST', locationMode: 'DEMO', autoRefund: false };
 
 function session(suffix: string): authApi.AuthSession {
   return { user, accessToken: `access-${suffix}`, refreshToken: `refresh-${suffix}` };
