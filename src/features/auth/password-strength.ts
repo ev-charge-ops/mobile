@@ -3,6 +3,7 @@ export type PasswordStrength = {
   label: string;
   hasMinLength: boolean;
   hasNumber: boolean;
+  hasMixedCase: boolean;
 };
 
 export const PASSWORD_MIN_LENGTH = 8;
@@ -22,5 +23,5 @@ export function getPasswordStrength(password: string): PasswordStrength {
   if (score === 2 && (hasMixedCase || hasSymbol)) score = 3;
   if (score === 3 && isLong) score = 4;
 
-  return { score: score as PasswordStrength['score'], label: labels[score], hasMinLength, hasNumber };
+  return { score: score as PasswordStrength['score'], label: labels[score], hasMinLength, hasNumber, hasMixedCase };
 }

@@ -37,9 +37,13 @@ export function AuthBackButton({ onPress, label = 'Voltar' }: AuthBackButtonProp
   return <IconButton icon={ChevronLeft} tone="surface" accessibilityLabel={label} onPress={onPress} />;
 }
 
-export function AuthBarTitle({ children }: { children: string }) {
+export function AuthBarTitle({ children, size = 'default' }: { children: string; size?: 'default' | 'large' }) {
   return (
-    <Text numberOfLines={1} style={styles.barTitle}>
+    <Text
+      accessibilityRole={size === 'large' ? 'header' : undefined}
+      numberOfLines={1}
+      style={[styles.barTitle, size === 'large' && styles.barTitleLarge]}
+    >
       {children}
     </Text>
   );
@@ -154,6 +158,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontFamily: fonts.bold,
     color: colors.textTitle,
+  },
+  barTitleLarge: {
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: -0.84,
   },
   heading: {
     gap: 4,
