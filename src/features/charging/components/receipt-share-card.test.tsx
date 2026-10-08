@@ -57,4 +57,24 @@ describe('<ReceiptShareCard />', () => {
     expect(screen.getByText('Interrompida')).toBeOnTheScreen();
     expect(screen.queryByText('Rateio da unidade')).not.toBeOnTheScreen();
   });
+
+  it('shows the refunded amount', async () => {
+    await render(
+      <ReceiptShareCard
+        session={buildClosedSession({
+          regime: 'COMMERCIAL',
+          payment: {
+            ...paymentFixture,
+            status: 'REFUNDED',
+            refundedCents: 1278,
+            refundedAt: '2026-10-07T21:00:00.000Z',
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Estornado')).toBeOnTheScreen();
+    expect(screen.getByText(`−R$${NBSP}12,78`)).toBeOnTheScreen();
+    expect(screen.getByText(/^Devolvido ao cartão em 07\/10\/2026 às/)).toBeOnTheScreen();
+  });
 });

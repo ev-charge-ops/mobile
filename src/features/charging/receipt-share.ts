@@ -30,6 +30,9 @@ export function buildReceiptShareText(session: ChargingSession) {
 
   if (session.payment?.capturedCents != null) {
     lines.push(`Cobrado no cartão: ${formatCents(session.payment.capturedCents)}`);
+    if (session.payment.status === 'REFUNDED') {
+      lines.push(`Estornado: ${formatCents(session.payment.refundedCents ?? session.payment.capturedCents)}`);
+    }
   } else if (session.regime === 'PRIVATE') {
     lines.push(
       session.unitLabel ? `Vai para o rateio da unidade ${session.unitLabel}` : 'Vai para o rateio do condomínio',
