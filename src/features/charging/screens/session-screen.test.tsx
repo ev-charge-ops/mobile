@@ -234,6 +234,15 @@ describe('<SessionScreen />', () => {
     expect(await screen.findByText(`44 min × R$${NBSP}0,25`)).toBeOnTheScreen();
   });
 
+  it.each(['GRACE', 'IDLE'] as const)('keeps the stop button tappable in the %s footer', async (status) => {
+    api.getSession.mockResolvedValue(buildSession({ status, graceEndsAt: secondsAgo(5) }));
+
+    await renderWithProviders(<SessionScreen sessionId="session-1" />);
+    const button = await screen.findByRole('button', { name: 'Retirei o veículo · encerrar' });
+
+    expect(button).not.toHaveStyle({ flex: 1 });
+  });
+
   it('shows the receipt of a closed session and goes home', async () => {
     api.getSession.mockResolvedValue(buildClosedSession());
 
