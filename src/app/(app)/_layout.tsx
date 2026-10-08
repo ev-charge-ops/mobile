@@ -3,7 +3,9 @@ import { Stack, type ErrorBoundaryProps } from 'expo-router';
 
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { colors, motion } from '@/constants/theme';
+import { useDeletedAccountSignOut } from '@/features/auth/api/use-deleted-account-sign-out';
 import { useLogout } from '@/features/auth/api/use-logout';
+import { useMe } from '@/features/auth/api/use-me';
 import { SignedInErrorScreen } from '@/features/auth/screens/signed-in-error-screen';
 import { chargePointsQueryKey } from '@/features/charging/api/use-charge-points';
 import { sessionsQueryKey } from '@/features/charging/api/use-charging-sessions';
@@ -35,6 +37,8 @@ const pushTransition = { animation: 'slide_from_right', animationDuration: motio
 export default function AppLayout() {
   const consentsQuery = useMyConsents();
   const logout = useLogout();
+  const signOutDeletedAccount = useDeletedAccountSignOut();
+  const { data: user } = useMe();
 
   if (!consentsQuery.data) {
     if (consentsQuery.isError) {
@@ -50,7 +54,14 @@ export default function AppLayout() {
   }
 
   if (consentsQuery.data.mustAccept) {
-    return <ConsentScreen mode="gate" onSignOut={() => logout.mutate()} />;
+    return (
+      <ConsentScreen
+        mode="gate"
+        hasPassword={user?.hasPassword ?? true}
+        onSignOut={() => logout.mutate()}
+        onAccountDeleted={signOutDeletedAccount}
+      />
+    );
   }
 
   return (
