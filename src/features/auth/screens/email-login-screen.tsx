@@ -1,11 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { KeyRound, LogIn, Mail, Send } from 'lucide-react-native';
+import { Mail, MailX } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text } from 'react-native';
 
 import { Button } from '@/components/ui/button';
+import { Rise } from '@/components/ui/rise';
 import { useToast } from '@/components/ui/toast';
-import { colors, spacing } from '@/constants/theme';
+import { colors } from '@/constants/theme';
 import { AuthApiError } from '@/features/auth/api/auth-api';
 import { useRequestEmailLogin } from '@/features/auth/api/use-request-email-login';
 import { useVerifyEmailLogin } from '@/features/auth/api/use-verify-email-login';
@@ -14,7 +15,14 @@ import {
   getEmailLoginLinkErrorMessage,
   getEmailLoginRequestErrorMessage,
 } from '@/features/auth/auth-errors';
-import { AuthLayout } from '@/features/auth/components/auth-layout';
+import {
+  AuthBackButton,
+  AuthFooterLink,
+  AuthHeading,
+  AuthIconTile,
+  AuthScreen,
+  authTextStyles,
+} from '@/features/auth/components/auth-screen';
 import { EmailCodeForm } from '@/features/auth/components/email-code-form';
 import { EmailForm } from '@/features/auth/components/email-form';
 import { FormError } from '@/features/auth/components/form-error';
@@ -22,6 +30,15 @@ import { useCooldown } from '@/features/auth/hooks/use-cooldown';
 import { hasReturnTarget } from '@/features/auth/session/return-target';
 
 export const RESEND_COOLDOWN_SECONDS = 30;
+
+function goToLogin() {
+  router.replace('/login');
+}
+
+function leaveEmailLogin() {
+  if (router.canGoBack()) router.back();
+  else goToLogin();
+}
 
 function goHomeUnlessReturning() {
   const isReturning = hasReturnTarget();
@@ -40,6 +57,7 @@ export function EmailLoginScreen() {
 
 function EmailCodeLogin() {
   const [email, setEmail] = useState<string | null>(null);
+  const [lastEmail, setLastEmail] = useState('');
   const requestMutation = useRequestEmailLogin();
   const verifyMutation = useVerifyEmailLogin();
   const cooldown = useCooldown();
@@ -77,6 +95,7 @@ function EmailCodeLogin() {
   const changeEmail = () => {
     requestMutation.reset();
     verifyMutation.reset();
+    if (email) setLastEmail(email);
     setEmail(null);
   };
 
@@ -93,44 +112,53 @@ function EmailCodeLogin() {
 
   if (!email) {
     return (
-      <AuthLayout
-        title="Entrar com código"
-        subtitle="Informe seu e-mail e enviaremos um código de 6 dígitos para você entrar sem senha."
-        footerText="Prefere usar senha?"
-        footerLinkLabel="Entrar com senha"
-        footerHref="/login"
+      <AuthScreen
+        header={<AuthBackButton onPress={leaveEmailLogin} />}
+        footer={<AuthFooterLink index={6} text="Prefere usar senha?" linkLabel="Entrar com senha" onPress={goToLogin} />}
       >
-        <EmailForm
-          submitLabel="Enviar código"
-          submitIcon={Send}
-          onSubmit={(values) => requestCode(values.email)}
-          isSubmitting={requestMutation.isPending}
-          errorMessage={requestMutation.isError ? getEmailLoginRequestErrorMessage(requestMutation.error) : null}
+        <AuthIconTile icon={Mail} />
+        <AuthHeading
+          title="Entrar sem senha"
+          subtitle="Enviamos um link e um código de 6 dígitos para o seu e-mail. Use o que for mais prático."
         />
-      </AuthLayout>
+        <Rise index={2}>
+          <EmailForm
+            submitLabel="Enviar link e código"
+            defaultEmail={lastEmail}
+            onSubmit={(values) => requestCode(values.email)}
+            isSubmitting={requestMutation.isPending}
+            errorMessage={requestMutation.isError ? getEmailLoginRequestErrorMessage(requestMutation.error) : null}
+          />
+        </Rise>
+      </AuthScreen>
     );
   }
 
   return (
-    <AuthLayout
-      title="Digite o código"
-      subtitle={`Enviamos um código de 6 dígitos para ${email}. Ele expira em alguns minutos.`}
-      footerText="Prefere usar senha?"
-      footerLinkLabel="Entrar com senha"
-      footerHref="/login"
+    <AuthScreen
+      header={<AuthBackButton onPress={changeEmail} />}
+      footer={<AuthFooterLink index={6} text="Prefere usar senha?" linkLabel="Entrar com senha" onPress={goToLogin} />}
     >
-      <View style={styles.stack}>
-        <EmailCodeForm
-          onSubmit={(values) => verifyCode(values.code)}
-          onResend={resendCode}
-          resendCooldown={cooldown.remaining}
-          isSubmitting={verifyMutation.isPending}
-          isResending={requestMutation.isPending}
-          errorMessage={verifyMutation.isError ? getEmailLoginCodeErrorMessage(verifyMutation.error) : null}
-        />
-        <Button label="Usar outro e-mail" icon={Mail} variant="ghost" block onPress={changeEmail} />
-      </View>
-    </AuthLayout>
+      <AuthIconTile icon={Mail} />
+      <AuthHeading
+        title="Verifique seu e-mail"
+        subtitle={
+          <>
+            Enviamos um código de 6 dígitos para <Text style={authTextStyles.strong}>{email}</Text>
+          </>
+        }
+      />
+      <EmailCodeForm
+        riseIndex={3}
+        onSubmit={(values) => verifyCode(values.code)}
+        onResend={resendCode}
+        onChangeEmail={changeEmail}
+        resendCooldown={cooldown.remaining}
+        isSubmitting={verifyMutation.isPending}
+        isResending={requestMutation.isPending}
+        errorMessage={verifyMutation.isError ? getEmailLoginCodeErrorMessage(verifyMutation.error) : null}
+      />
+    </AuthScreen>
   );
 }
 
@@ -146,30 +174,35 @@ function EmailLinkLogin({ token, onUseCode }: { token: string; onUseCode: () => 
 
   if (isError) {
     return (
-      <AuthLayout
-        title="Não foi possível entrar"
-        subtitle="Solicite um novo código para acessar sua conta."
-        footerLinkLabel="Voltar ao início"
-        footerHref="/"
-      >
-        <View style={styles.stack}>
+      <AuthScreen footer={<AuthFooterLink index={5} text="Prefere voltar?" linkLabel="Ir para o início" onPress={() => router.replace('/')} />}>
+        <AuthIconTile icon={MailX} tone="critical" />
+        <AuthHeading title="Não foi possível entrar" subtitle="Solicite um novo código para acessar sua conta." />
+        <Rise index={2}>
           <FormError message={getEmailLoginLinkErrorMessage(error)} />
-          <Button label="Entrar com código" icon={KeyRound} size="lg" block onPress={onUseCode} />
-          <Button label="Entrar com senha" icon={LogIn} variant="ghost" block onPress={() => router.replace('/login')} />
-        </View>
-      </AuthLayout>
+        </Rise>
+        <Rise index={3} style={styles.actions}>
+          <Button label="Entrar com código" size="lg" block haptic onPress={onUseCode} />
+          <Button label="Entrar com senha" variant="secondary" size="lg" block onPress={goToLogin} />
+        </Rise>
+      </AuthScreen>
     );
   }
 
   return (
-    <AuthLayout title="Entrando na sua conta" subtitle="Aguarde só um instante.">
-      <ActivityIndicator accessibilityLabel="Entrando" color={colors.accent} size="large" />
-    </AuthLayout>
+    <AuthScreen>
+      <AuthIconTile icon={Mail} />
+      <AuthHeading title="Entrando na sua conta" subtitle="Aguarde só um instante." />
+      <ActivityIndicator accessibilityLabel="Entrando" color={colors.accent} size="large" style={styles.spinner} />
+    </AuthScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  stack: {
-    gap: spacing.lg,
+  actions: {
+    gap: 12,
+    marginTop: 8,
+  },
+  spinner: {
+    marginTop: 24,
   },
 });
