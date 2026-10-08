@@ -419,4 +419,19 @@ describe('<SessionScreen />', () => {
       screen.getByText(`Pré-autorização de R$${NBSP}200,40 · o restante volta ao limite do cartão`),
     ).toBeOnTheScreen();
   });
+
+  it('shows the refund in the receipt', async () => {
+    api.getSession.mockResolvedValue(
+      buildClosedSession({
+        regime: 'COMMERCIAL',
+        payment: { ...paymentFixture, status: 'REFUNDED', capturedCents: 1278, refundedCents: 1278, refundedAt: null },
+      }),
+    );
+
+    await renderWithProviders(<SessionScreen sessionId="session-1" />);
+
+    expect(await screen.findByText('Estornado')).toBeOnTheScreen();
+    expect(screen.getByText(`−R$${NBSP}12,78`)).toBeOnTheScreen();
+    expect(screen.getByText('Devolvido ao cartão')).toBeOnTheScreen();
+  });
 });

@@ -1,6 +1,16 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { ChevronRight, KeyRound, LockKeyhole, LogOut, type LucideIcon } from 'lucide-react-native';
+import {
+  ChevronRight,
+  ExternalLink,
+  FileText,
+  KeyRound,
+  LifeBuoy,
+  LockKeyhole,
+  LogOut,
+  ShieldCheck,
+  type LucideIcon,
+} from 'lucide-react-native';
 import { Fragment, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +24,7 @@ import { getInitials } from '@/features/account/account-initials';
 import { useMyOrganizations } from '@/features/account/api/use-my-organizations';
 import { formatMembershipLine } from '@/features/account/unit-subtitle';
 import type { components } from '@/lib/api-schema';
+import { openExternalLink } from '@/lib/external-links';
 import { formatEnergy } from '@/utils/format-energy';
 
 type User = components['schemas']['UserResponseDto'];
@@ -132,6 +143,24 @@ export function AccountScreen({ user, onSignOut, isSigningOut = false, banner, m
         </Rise>
 
         <Rise index={5}>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>
+            Ajuda e informações
+          </Text>
+        </Rise>
+        <Rise index={6} style={[styles.card, styles.list]}>
+          {[
+            { icon: LifeBuoy, label: 'Suporte', hint: 'Dúvidas, problemas e contato', link: 'support' as const },
+            { icon: FileText, label: 'Termos de uso', link: 'terms' as const },
+            { icon: ShieldCheck, label: 'Política de privacidade', link: 'privacy' as const },
+          ].map(({ link, ...row }, index) => (
+            <Fragment key={row.label}>
+              {index > 0 ? <View style={styles.divider} /> : null}
+              <AccountRow {...row} external onPress={() => openExternalLink(link)} />
+            </Fragment>
+          ))}
+        </Rise>
+
+        <Rise index={7}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Sair"
@@ -148,7 +177,7 @@ export function AccountScreen({ user, onSignOut, isSigningOut = false, banner, m
         </Rise>
 
         {version ? (
-          <Rise index={6}>
+          <Rise index={8}>
             <Text style={styles.version}>{version}</Text>
           </Rise>
         ) : null}
@@ -161,13 +190,14 @@ type AccountRowProps = {
   icon: LucideIcon;
   label: string;
   hint?: string;
+  external?: boolean;
   onPress: () => void;
 };
 
-function AccountRow({ icon, label, hint, onPress }: AccountRowProps) {
+function AccountRow({ icon, label, hint, external = false, onPress }: AccountRowProps) {
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={external ? 'link' : 'button'}
       accessibilityLabel={label}
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
@@ -179,7 +209,7 @@ function AccountRow({ icon, label, hint, onPress }: AccountRowProps) {
         <Text style={styles.rowLabel}>{label}</Text>
         {hint ? <Text style={styles.rowHint}>{hint}</Text> : null}
       </View>
-      <Icon icon={ChevronRight} size={18} color={colors.textDisabled} />
+      <Icon icon={external ? ExternalLink : ChevronRight} size={18} color={colors.textDisabled} />
     </Pressable>
   );
 }

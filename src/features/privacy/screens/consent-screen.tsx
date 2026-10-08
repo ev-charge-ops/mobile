@@ -1,4 +1,14 @@
-import { ChevronLeft, Download, FileText, Lock, LogOut, RotateCw, ShieldCheck, Trash2 } from 'lucide-react-native';
+import {
+  ChevronLeft,
+  Download,
+  ExternalLink,
+  FileText,
+  Lock,
+  LogOut,
+  RotateCw,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react-native';
 import { Fragment, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,7 +22,7 @@ import { useToast } from '@/components/ui/toast';
 import { colors, fonts, spacing } from '@/constants/theme';
 import type { ConsentPurpose, MyConsents } from '@/features/privacy/api/privacy-api';
 import { useExportMyData, useMyConsents, useUpdateConsents } from '@/features/privacy/api/use-privacy';
-import { DeletionRequestSheet } from '@/features/privacy/components/deletion-request-sheet';
+import { AccountDeletionSheet } from '@/features/privacy/components/account-deletion-sheet';
 import {
   buildConsentsPayload,
   formatTermsVersion,
@@ -22,6 +32,7 @@ import {
   shareDataExport,
   type ConsentChoices,
 } from '@/features/privacy/consent-choices';
+import { openExternalLink } from '@/lib/external-links';
 
 export type ConsentScreenMode = 'gate' | 'settings';
 
@@ -30,11 +41,20 @@ export type ConsentScreenProps = {
   onBack?: () => void;
   onDone?: () => void;
   onSignOut?: () => void;
+  hasPassword?: boolean;
+  onAccountDeleted?: () => void;
 };
 
 const LEGAL_NOTE = 'Tratamento de dados conforme a LGPD · Lei 13.709/2018';
 
-export function ConsentScreen({ mode, onBack, onDone, onSignOut }: ConsentScreenProps) {
+export function ConsentScreen({
+  mode,
+  onBack,
+  onDone,
+  onSignOut,
+  hasPassword = true,
+  onAccountDeleted,
+}: ConsentScreenProps) {
   const consentsQuery = useMyConsents();
   const isGate = mode === 'gate';
 
@@ -55,7 +75,13 @@ export function ConsentScreen({ mode, onBack, onDone, onSignOut }: ConsentScreen
         ) : null}
       </Rise>
       {consentsQuery.data ? (
-        <ConsentForm consents={consentsQuery.data} mode={mode} onDone={onDone} />
+        <ConsentForm
+          consents={consentsQuery.data}
+          mode={mode}
+          onDone={onDone}
+          hasPassword={hasPassword}
+          onAccountDeleted={onAccountDeleted}
+        />
       ) : consentsQuery.isError ? (
         <View style={styles.centered}>
           <Text style={styles.message}>Não foi possível carregar seus consentimentos.</Text>
@@ -81,9 +107,11 @@ type ConsentFormProps = {
   consents: MyConsents;
   mode: ConsentScreenMode;
   onDone?: () => void;
+  hasPassword: boolean;
+  onAccountDeleted?: () => void;
 };
 
-function ConsentForm({ consents, mode, onDone }: ConsentFormProps) {
+function ConsentForm({ consents, mode, onDone, hasPassword, onAccountDeleted }: ConsentFormProps) {
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const consentsQuery = useMyConsents();
@@ -132,14 +160,38 @@ function ConsentForm({ consents, mode, onDone }: ConsentFormProps) {
         contentContainerStyle={[styles.body, !isGate && { paddingBottom: insets.bottom + spacing.xxl }]}
         showsVerticalScrollIndicator={false}
       >
-        <Rise index={1} style={[styles.card, styles.terms]}>
-          <View style={styles.termsIcon}>
-            <Icon icon={FileText} size={20} color={colors.textTitle} />
-          </View>
-          <View style={styles.termsTexts}>
-            <Text style={styles.termsTitle}>Termos de uso e privacidade</Text>
-            <Text style={styles.termsVersion}>{formatTermsVersion(consents.termsVersion)}</Text>
-          </View>
+        <Rise index={1} style={styles.card}>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Termos de uso"
+            onPress={() => openExternalLink('terms')}
+            style={({ pressed }) => [styles.terms, pressed && styles.pressed]}
+          >
+            <View style={styles.termsIcon}>
+              <Icon icon={FileText} size={20} color={colors.textTitle} />
+            </View>
+            <View style={styles.termsTexts}>
+              <Text style={styles.termsTitle}>Termos de uso</Text>
+              <Text style={styles.termsVersion}>{formatTermsVersion(consents.termsVersion)}</Text>
+            </View>
+            <Icon icon={ExternalLink} size={18} color={colors.textDisabled} />
+          </Pressable>
+          <View style={styles.divider} />
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Política de privacidade"
+            onPress={() => openExternalLink('privacy')}
+            style={({ pressed }) => [styles.terms, pressed && styles.pressed]}
+          >
+            <View style={styles.termsIcon}>
+              <Icon icon={ShieldCheck} size={20} color={colors.textTitle} />
+            </View>
+            <View style={styles.termsTexts}>
+              <Text style={styles.termsTitle}>Política de privacidade</Text>
+              <Text style={styles.termsVersion}>Como tratamos seus dados</Text>
+            </View>
+            <Icon icon={ExternalLink} size={18} color={colors.textDisabled} />
+          </Pressable>
         </Rise>
 
         <Rise index={2}>
@@ -206,8 +258,8 @@ function ConsentForm({ consents, mode, onDone }: ConsentFormProps) {
             <Text style={styles.deleteLabel}>Excluir conta</Text>
           </Pressable>
           <Text style={styles.deletionNote}>
-            Ao excluir a conta, mantemos apenas os registros de sessões necessários à cobrança e ao rateio, pelo prazo
-            exigido em lei.
+            A exclusão é imediata. Mantemos só os registros de recarga necessários à cobrança e ao rateio, sob um nome
+            anônimo, pelo prazo exigido em lei.
           </Text>
         </Rise>
 
@@ -233,7 +285,15 @@ function ConsentForm({ consents, mode, onDone }: ConsentFormProps) {
         </View>
       ) : null}
 
-      <DeletionRequestSheet visible={deletionVisible} onClose={() => setDeletionVisible(false)} />
+      <AccountDeletionSheet
+        visible={deletionVisible}
+        hasPassword={hasPassword}
+        onClose={() => setDeletionVisible(false)}
+        onDeleted={() => {
+          setDeletionVisible(false);
+          onAccountDeleted?.();
+        }}
+      />
     </>
   );
 }

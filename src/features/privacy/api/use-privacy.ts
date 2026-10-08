@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  deleteMyAccount,
   exportMyData,
   getMyConsents,
-  requestAccountDeletion,
   updateMyConsents,
   type UpdateConsentsInput,
 } from '@/features/privacy/api/privacy-api';
@@ -32,6 +32,6 @@ export function useExportMyData() {
   return useMutation({ mutationFn: exportMyData });
 }
 
-export function useRequestAccountDeletion() {
-  return useMutation({ mutationFn: (reason?: string) => requestAccountDeletion(reason) });
+export function useDeleteMyAccount() {
+  return useMutation({ mutationFn: (password?: string) => deleteMyAccount(password) });
 }

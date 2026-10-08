@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { IconButton } from '@/components/ui/icon-button';
 import { Rise } from '@/components/ui/rise';
 import { colors, fonts, motion, radii, spacing } from '@/constants/theme';
-import type { ChargingSessionDetail } from '@/features/charging/api/charging-api';
+import type { ChargingSessionDetail, SessionPayment } from '@/features/charging/api/charging-api';
 import {
   formatAmount,
   formatCents,
@@ -184,6 +184,11 @@ export function getReceiptTiming(session: ChargingSessionDetail) {
   return { endedAt, averageKw, totalSeconds };
 }
 
+export function getRefundedCents(payment: SessionPayment) {
+  if (payment.status !== 'REFUNDED') return null;
+  return payment.refundedCents ?? payment.capturedCents ?? 0;
+}
+
 export function getReceiptRows(session: ChargingSessionDetail): Row[] {
   const isPrivate = session.regime === 'PRIVATE';
   const rows: Row[] = [
@@ -205,16 +210,26 @@ export function getReceiptRows(session: ChargingSessionDetail): Row[] {
   ];
   if (session.payment) {
     const captured = session.payment.capturedCents;
+    const refunded = getRefundedCents(session.payment);
     rows.push({
       label: captured === null ? 'Cartão' : 'Cobrado no cartão',
       hint:
-        session.payment.status === 'CAPTURED'
+        session.payment.status === 'CAPTURED' || refunded !== null
           ? `Pré-autorização de ${formatCents(session.payment.authorizedCents)} · o restante volta ao limite do cartão`
           : session.payment.status === 'CANCELED'
             ? 'A pré-autorização foi liberada sem cobrança'
             : `Pré-autorização de ${formatCents(session.payment.authorizedCents)}`,
       value: captured === null ? paymentStatusLabels[session.payment.status] : formatCents(captured),
     });
+    if (refunded !== null) {
+      rows.push({
+        label: paymentStatusLabels.REFUNDED,
+        hint: session.payment.refundedAt
+          ? `Devolvido ao cartão em ${formatDate(session.payment.refundedAt)} às ${formatTime(session.payment.refundedAt)}`
+          : 'Devolvido ao cartão',
+        value: `−${formatCents(refunded)}`,
+      });
+    }
   } else {
     rows.push({
       label: 'Forma',
