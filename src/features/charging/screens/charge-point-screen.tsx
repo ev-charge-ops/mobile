@@ -45,7 +45,7 @@ import { useNow } from '@/hooks/use-now';
 
 const ESTIMATE_ENERGY_KWH = 20;
 
-const heroGlow = ['rgba(232,18,31,0.12)', 'transparent'] as const;
+const heroGlow = [colors.energyTint, colors.surfaceCard] as const;
 
 export type ChargePointScreenProps = {
   chargePointId: string;
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   hero: {
     padding: spacing.xl,
     paddingHorizontal: spacing.lg,
-    borderRadius: radii.card,
+    borderRadius: radii.cardLarge,
     backgroundColor: colors.surfaceCard,
     overflow: 'hidden',
   },
