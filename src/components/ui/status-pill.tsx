@@ -4,7 +4,6 @@ import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-na
 import Animated, {
   cancelAnimation,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withRepeat,
   withTiming,
@@ -99,19 +98,17 @@ export type StatusDotProps = {
 };
 
 export function StatusDot({ color, size = 8, live = false }: StatusDotProps) {
-  const reducedMotion = useReducedMotion();
   const pulse = useSharedValue(0);
-  const animate = live && !reducedMotion;
 
   useEffect(() => {
-    if (animate) {
+    if (live) {
       pulse.set(0);
       pulse.set(withRepeat(withTiming(1, { duration: motion.duration.live, easing: motion.easing.standard }), -1));
     } else {
       cancelAnimation(pulse);
       pulse.set(0);
     }
-  }, [animate, pulse]);
+  }, [live, pulse]);
 
   const haloStyle = useAnimatedStyle(() => ({
     opacity: 0.45 * (1 - pulse.get()),
@@ -122,7 +119,7 @@ export function StatusDot({ color, size = 8, live = false }: StatusDotProps) {
 
   return (
     <View testID={live ? 'status-dot-live' : 'status-dot'} style={dotStyle}>
-      {animate ? <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, dotStyle, haloStyle]} /> : null}
+      {live ? <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, dotStyle, haloStyle]} /> : null}
     </View>
   );
 }
