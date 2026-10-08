@@ -1,4 +1,4 @@
-import { Funnel, List, Map as MapIcon, RotateCw } from 'lucide-react-native';
+import { Funnel, List, Map as MapIcon, RotateCw, Search, X } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { InfoBanner } from '@/components/ui/info-banner';
 import { PressableScale } from '@/components/ui/pressable-scale';
-import { useTabBarHeight } from '@/components/ui/tab-bar';
+import { useTabBarHeight, useTabSchemeOverride } from '@/components/ui/tab-bar';
 import { useToast } from '@/components/ui/toast';
 import { colors, fonts, motion, nightColors, radii, spacing } from '@/constants/theme';
 import type { ChargePoint } from '@/features/charging/api/charging-api';
@@ -22,7 +22,8 @@ import {
   type ChargePointFilters,
 } from '@/features/charging/charge-point-filters';
 import { openChargePoint } from '@/features/charging/charge-point-navigation';
-import { ChargePointCard } from '@/features/charging/components/charge-point-card';
+import { ChargePointCard, type MyChargeSummary } from '@/features/charging/components/charge-point-card';
+import { formatTime } from '@/features/charging/charging-format';
 import { ChargePointFilterChips } from '@/features/charging/components/charge-point-filter-chips';
 import { ChargePointFilterSheet } from '@/features/charging/components/charge-point-filter-sheet';
 import { ChargePointMapCard } from '@/features/charging/components/charge-point-map-card';
@@ -51,12 +52,7 @@ const enter = (index: number) =>
     .delay(motion.revealStagger * index)
     .easing(motion.easing.out);
 
-export type ChargePointsScreenProps = {
-  subtitle?: string;
-};
-
-export function ChargePointsScreen({ subtitle }: ChargePointsScreenProps) {
-  useNightStatusBar();
+export function ChargePointsScreen() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useTabBarHeight();
   const toast = useToast();
@@ -70,10 +66,13 @@ export function ChargePointsScreen({ subtitle }: ChargePointsScreenProps) {
   const [preferredMode, setPreferredMode] = useState<ViewMode>('map');
   const [hasMapFailed, setMapFailed] = useState(!isMapSupported);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isSearching, setSearching] = useState(false);
   const mapRef = useRef<ChargePointsMapHandle>(null);
   const centeredOn = useRef<'none' | 'points' | 'user'>('none');
 
   const mode: ViewMode = hasMapFailed ? 'list' : preferredMode;
+  useNightStatusBar(mode === 'map');
+  useTabSchemeOverride('points', mode === 'list' ? 'light' : null);
   const chargePoints = data ?? noChargePoints;
   const visible = filterChargePoints(chargePoints, filters, query);
   const location = useMapCenter({ enabled: true, chargePoints: data, isLoading: isPending });
@@ -260,58 +259,122 @@ export function ChargePointsScreen({ subtitle }: ChargePointsScreenProps) {
     );
   }
 
+  const myChargeSummary: MyChargeSummary | null = openSession
+    ? {
+        socPercent: openSession.socPercent,
+        limitSocPercent: openSession.limit.type === 'PERCENT' ? openSession.limit.socPercent : null,
+        readyAt: openSession.projectedChargingEndsAt ? formatTime(openSession.projectedChargingEndsAt) : null,
+      }
+    : null;
+  const showSearch = isSearching || query.length > 0;
+
   return (
-    <View style={styles.screen}>
+    <View style={styles.listScreen}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           styles.listContent,
           { paddingTop: insets.top + spacing.sm, paddingBottom: tabBarHeight + spacing.xxl },
         ]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={nightColors.textTitle} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
       >
-        <Animated.View entering={enter(0)} style={styles.listHeader}>
-          <Text accessibilityRole="header" style={styles.title}>
-            Pontos
-          </Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        <Animated.View entering={enter(0)} style={styles.listTop}>
+          <View accessibilityRole="tablist" style={styles.modeToggle}>
+            {hasMapFailed ? null : (
+              <PressableScale
+                accessibilityRole="tab"
+                accessibilityLabel="Ver mapa"
+                accessibilityState={{ selected: false }}
+                onPress={toggleMode}
+                scaleTo={0.97}
+                style={styles.modeOption}
+              >
+                <Icon icon={MapIcon} size={18} color={colors.textMuted} />
+                <Text style={styles.modeLabel}>Mapa</Text>
+              </PressableScale>
+            )}
+            <View
+              accessibilityRole="tab"
+              accessibilityLabel="Lista"
+              accessibilityState={{ selected: true }}
+              style={[styles.modeOption, styles.modeOptionActive]}
+            >
+              <Icon icon={List} size={18} color={colors.textOnAccent} />
+              <Text style={[styles.modeLabel, styles.modeLabelActive]}>Lista</Text>
+            </View>
+          </View>
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={showSearch ? 'Fechar busca' : 'Buscar ponto'}
+            onPress={() => {
+              if (showSearch) setQuery('');
+              setSearching(!showSearch);
+            }}
+            haptic="selection"
+            scaleTo={0.92}
+            style={styles.roundWhite}
+          >
+            <Icon icon={showSearch ? X : Search} size={20} color={colors.textTitle} />
+          </PressableScale>
         </Animated.View>
+        {showSearch ? (
+          <Animated.View entering={enter(0)} style={styles.listSearch}>
+            <ChargePointSearchField value={query} onChangeText={setQuery} />
+          </Animated.View>
+        ) : null}
         {hasMapFailed && isMapSupported ? (
           <View style={styles.banner}>
             <InfoBanner tone="info">O mapa não pôde ser carregado. Mostrando os pontos em lista.</InfoBanner>
           </View>
         ) : null}
-        <Animated.View entering={enter(1)}>
-          {searchRow}
+        <Animated.View entering={enter(1)} style={styles.chipsRow}>
+          <View style={styles.flex}>
+            <ChargePointFilterChips value={filters} onChange={setFilters} scheme="light" />
+          </View>
+          <Text style={styles.count}>{visible.length === 1 ? '1 ponto' : `${visible.length} pontos`}</Text>
         </Animated.View>
-        <ChargePointFilterChips value={filters} onChange={setFilters} delay={motion.revealStagger * 2} />
         <View style={styles.list}>
           {isPending ? (
-            <ActivityIndicator accessibilityLabel="Carregando pontos de recarga" color={nightColors.textTitle} />
+            <ActivityIndicator accessibilityLabel="Carregando pontos de recarga" color={colors.accent} />
           ) : showError ? (
-            errorCard
+            <View style={styles.lightMessage}>
+              <Text style={styles.lightMessageText}>Não foi possível carregar os pontos de recarga.</Text>
+              <Button
+                label="Tentar novamente"
+                icon={RotateCw}
+                variant="secondary"
+                size="sm"
+                loading={isRefetching}
+                onPress={() => refetch()}
+              />
+            </View>
           ) : visible.length === 0 ? (
-            emptyCard
+            <View style={styles.lightMessage}>
+              <Text style={styles.lightMessageTitle}>Nenhum ponto encontrado</Text>
+              <Text style={styles.lightMessageText}>
+                {activeFilterCount === 0 && query.trim().length === 0
+                  ? 'Ainda não há pontos disponíveis para você. Entre em um condomínio pelo convite do gestor.'
+                  : 'Nenhum ponto corresponde a esta busca agora.'}
+              </Text>
+            </View>
           ) : (
             ranked.map(({ chargePoint, distanceMeters }, index) => (
-              <Animated.View key={chargePoint.id} entering={enter(index + 3)}>
+              <Animated.View key={chargePoint.id} entering={enter(index + 2)}>
                 <ChargePointCard
                   chargePoint={chargePoint}
                   distanceMeters={distanceMeters}
+                  myCharge={openSession?.chargePoint.id === chargePoint.id ? myChargeSummary : null}
                   onPress={() => openChargePoint(chargePoint.id)}
                 />
               </Animated.View>
             ))
           )}
           <Text style={styles.legal}>
-            Preço por kWh se a recarga começar agora. Em condomínio a energia é repassada a custo e o fator de demanda
-            é apenas informativo.
+            Pontos do Grupo A repassam a energia a custo, sem margem (ANEEL RN 1.000/2021). O fator de demanda vale só
+            para os pontos comerciais.
           </Text>
         </View>
       </ScrollView>
-      {filterSheet}
     </View>
   );
 }
@@ -320,6 +383,80 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: nightColors.bgBase,
+  },
+  listScreen: {
+    flex: 1,
+    backgroundColor: colors.bgBase,
+  },
+  flex: {
+    flex: 1,
+  },
+  listTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: spacing.lg,
+  },
+  modeToggle: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    padding: spacing.xs,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceCard,
+  },
+  modeOption: {
+    flex: 1,
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderRadius: radii.pill,
+  },
+  modeOptionActive: {
+    backgroundColor: colors.accent,
+  },
+  modeLabel: {
+    fontSize: 15,
+    fontFamily: fonts.semibold,
+    color: colors.textMuted,
+  },
+  modeLabelActive: {
+    fontFamily: fonts.bold,
+    color: colors.textOnAccent,
+  },
+  listSearch: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.lg,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingRight: spacing.lg,
+  },
+  count: {
+    fontSize: 13,
+    fontFamily: fonts.semibold,
+    color: colors.textMuted,
+  },
+  lightMessage: {
+    gap: spacing.md,
+    padding: spacing.xl,
+    borderRadius: radii.xxl - 4,
+    backgroundColor: colors.surfaceCard,
+  },
+  lightMessageTitle: {
+    fontSize: 17,
+    fontFamily: fonts.bold,
+    color: colors.textTitle,
+  },
+  lightMessageText: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontFamily: fonts.medium,
+    color: colors.textMuted,
   },
   overlayTop: {
     position: 'absolute',
@@ -387,24 +524,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     gap: spacing.md,
-  },
-  listHeader: {
-    gap: spacing.xs,
-    paddingHorizontal: spacing.gutter,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xs,
-  },
-  title: {
-    fontSize: 32,
-    lineHeight: 36,
-    fontFamily: fonts.bold,
-    letterSpacing: -1,
-    color: nightColors.textTitle,
-  },
-  subtitle: {
-    fontSize: 15,
-    fontFamily: fonts.medium,
-    color: nightColors.textMuted,
   },
   banner: {
     paddingHorizontal: spacing.lg,

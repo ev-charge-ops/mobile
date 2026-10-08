@@ -2,13 +2,14 @@ import { ScrollView, StyleSheet } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Chip } from '@/components/ui/chip';
-import { motion, spacing } from '@/constants/theme';
+import { colors, motion, spacing, type ColorScheme } from '@/constants/theme';
 import { powerFilters, type ChargePointFilters } from '@/features/charging/charge-point-filters';
 
 export type ChargePointFilterChipsProps = {
   value: ChargePointFilters;
   onChange: (filters: ChargePointFilters) => void;
   delay?: number;
+  scheme?: ColorScheme;
 };
 
 type ChipOption = {
@@ -18,7 +19,7 @@ type ChipOption = {
   next: ChargePointFilters;
 };
 
-export function ChargePointFilterChips({ value, onChange, delay = 0 }: ChargePointFilterChipsProps) {
+export function ChargePointFilterChips({ value, onChange, delay = 0, scheme = 'night' }: ChargePointFilterChipsProps) {
   const options: ChipOption[] = [
     {
       key: 'available',
@@ -60,7 +61,13 @@ export function ChargePointFilterChips({ value, onChange, delay = 0 }: ChargePoi
             .delay(delay + motion.revealStagger * index)
             .easing(motion.easing.out)}
         >
-          <Chip label={option.label} scheme="night" selected={option.selected} onPress={() => onChange(option.next)} />
+          <Chip
+            label={option.label}
+            scheme={scheme}
+            selected={option.selected}
+            onPress={() => onChange(option.next)}
+            style={scheme === 'light' && !option.selected ? styles.lightChip : undefined}
+          />
         </Animated.View>
       ))}
     </ScrollView>
@@ -68,6 +75,11 @@ export function ChargePointFilterChips({ value, onChange, delay = 0 }: ChargePoi
 }
 
 const styles = StyleSheet.create({
+  lightChip: {
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceCard,
+  },
   row: {
     gap: spacing.sm,
     paddingVertical: 2,
