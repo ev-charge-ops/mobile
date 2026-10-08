@@ -111,7 +111,7 @@ export function ChargePointsScreen() {
     : getRegionForCoordinates(chargePoints);
 
   const selectChargePoint = (chargePoint: ChargePoint) => {
-    haptics.selection();
+    haptics.impactLight();
     setSelectedId(chargePoint.id);
     mapRef.current?.animateToRegion(getFocusRegion(chargePoint), MAP_ANIMATION_DURATION);
   };

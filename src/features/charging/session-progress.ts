@@ -73,7 +73,9 @@ export function getTransitionHaptic(
 ): SessionHaptic | null {
   if (!previous || !next || previous === next) return null;
   if (next === 'ACTIVE' && (previous === 'PENDING' || previous === 'AWAITING_PAYMENT')) return 'success';
+  if (next === 'GRACE' && previous === 'ACTIVE') return 'warning';
   if (previous === 'GRACE' && next === 'IDLE') return 'warning';
+  if (next === 'CLOSED' && previous !== 'AWAITING_PAYMENT') return 'success';
   return null;
 }
 
