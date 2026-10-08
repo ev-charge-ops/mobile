@@ -2,7 +2,7 @@
   "expo": {
     "name": "EV ChargeOps",
     "slug": "ev-charge-ops",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "evchargeops",
@@ -102,7 +102,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/android-icon-monochrome.png",
+          "icon": "./assets/images/notification-icon.png",
           "color": "#1F9D57"
         }
       ],
