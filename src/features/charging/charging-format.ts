@@ -65,6 +65,19 @@ export const chargePointStatusLabels: Record<ChargePointStatus, string> = {
   OFFLINE: 'Offline',
 };
 
+export const chargePointStatusShortLabels: Record<ChargePointStatus, string> = {
+  AVAILABLE: 'livre',
+  CHARGING: 'em uso',
+  IDLE: 'ocupado',
+  OFFLINE: 'offline',
+};
+
+export function splitChargePointName(name: string) {
+  const parts = name.split(' · ');
+  if (parts.length < 2) return { garage: null, spot: name };
+  return { garage: parts.slice(0, -1).join(' · '), spot: parts[parts.length - 1] };
+}
+
 export const chargePointStatusPill: Record<ChargePointStatus, Status> = {
   AVAILABLE: 'available',
   CHARGING: 'charging',

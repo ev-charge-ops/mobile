@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { StatusPill } from '@/components/ui/status-pill';
-import { colors, fonts } from '@/constants/theme';
+import { fonts, getColors, type ColorScheme } from '@/constants/theme';
 import type { DemandFactorSource, DemandLevel } from '@/features/charging/api/charging-api';
 import {
   demandLevelLabels,
@@ -17,23 +17,29 @@ export type DemandBadgeProps = {
   factor: number;
   source: DemandFactorSource;
   modelVersion: string | null;
+  scheme?: ColorScheme;
 };
 
-export function DemandBadge({ level, factor, source, modelVersion }: DemandBadgeProps) {
+export function DemandBadge({ level, factor, source, modelVersion, scheme = 'light' }: DemandBadgeProps) {
+  const tokens = getColors(scheme);
+
   return (
     <View style={styles.badge}>
       <StatusPill
         status={demandLevelStatus[level]}
         label={`${demandLevelLabels[level]} · ${formatDemandFactor(factor)}`}
+        scheme={scheme}
         testID="demand-badge"
       />
       <View style={styles.source}>
         <Icon
           icon={source === 'MODEL' ? Sparkles : Timer}
           size={12}
-          color={source === 'MODEL' ? colors.accentOnQuiet : colors.textSubtle}
+          color={source === 'MODEL' ? tokens.accentOnQuiet : tokens.textSubtle}
         />
-        <Text style={styles.sourceLabel}>{formatDemandSource(source, modelVersion)}</Text>
+        <Text style={[styles.sourceLabel, { color: tokens.textSubtle }]}>
+          {formatDemandSource(source, modelVersion)}
+        </Text>
       </View>
     </View>
   );
@@ -54,6 +60,5 @@ const styles = StyleSheet.create({
   sourceLabel: {
     fontSize: 12,
     fontFamily: fonts.semibold,
-    color: colors.textSubtle,
   },
 });
