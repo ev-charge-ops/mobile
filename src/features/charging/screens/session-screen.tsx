@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { RotateCw, Square } from 'lucide-react-native';
+import { RotateCw, Unplug } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -130,7 +130,7 @@ export function SessionScreen({ sessionId }: SessionScreenProps) {
         </Text>
         <Button
           label="Encerrar agora"
-          icon={Square}
+          icon={Unplug}
           variant="danger"
           scheme={scheme}
           size="lg"
