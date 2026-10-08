@@ -66,6 +66,10 @@ export async function listChargePointsInBounds(bbox: string, limit?: number): Pr
   return items.filter(isChargePointMapItem);
 }
 
+export function listChargePointClusters(bbox: string, zoom: number) {
+  return unwrap(apiClient.GET('/charge-points/clusters', { params: { query: { bbox, zoom } } }));
+}
+
 export function getChargePoint(chargePointId: string) {
   return unwrap(apiClient.GET('/charge-points/{chargePointId}', { params: { path: { chargePointId } } }));
 }

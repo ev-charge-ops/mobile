@@ -1,6 +1,7 @@
 import { Funnel, List, Map as MapIcon, RotateCw, Search, X } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { Region } from 'react-native-maps';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,7 +19,11 @@ import {
   NATIONWIDE_RADIUS_METERS,
   useHasChargePointNearby,
 } from '@/features/charging/api/nearest-charge-point';
-import { useChargePoints } from '@/features/charging/api/use-charge-points';
+import {
+  useChargePointClusters,
+  useChargePoints,
+  useChargePointsInBounds,
+} from '@/features/charging/api/use-charge-points';
 import { hasOpenSession, useActiveSession } from '@/features/charging/api/use-charging-sessions';
 import { rankChargePointsByDistance } from '@/features/charging/charge-point-distance';
 import {
@@ -28,6 +33,7 @@ import {
   type ChargePointFilters,
 } from '@/features/charging/charge-point-filters';
 import { openChargePoint } from '@/features/charging/charge-point-navigation';
+import { summarizeMapItems, type ChargePointSummary } from '@/features/charging/charge-point-summary';
 import { ChargePointCard, type MyChargeSummary } from '@/features/charging/components/charge-point-card';
 import { formatTime } from '@/features/charging/charging-format';
 import { ChargePointFilterChips } from '@/features/charging/components/charge-point-filter-chips';
@@ -38,7 +44,14 @@ import { NoNearbyPointsBanner } from '@/features/charging/components/no-nearby-p
 import { ChargePointsMap, isMapSupported } from '@/features/charging/map/charge-points-map';
 import { GlassSurface, MapControls } from '@/features/charging/map/map-controls';
 import { MapErrorBoundary } from '@/features/charging/map/map-error-boundary';
-import { BRAZIL_REGION } from '@/features/charging/map/map-bounds';
+import {
+  BRAZIL_REGION,
+  CLUSTER_MAX_ZOOM,
+  getRegionBounds,
+  getRegionZoom,
+  getZoomedRegion,
+  toBbox,
+} from '@/features/charging/map/map-bounds';
 import {
   getAreaRegion,
   getFocusRegion,
@@ -46,8 +59,10 @@ import {
   MAP_ANIMATION_DURATION,
 } from '@/features/charging/map/map-region';
 import type { ChargePointsMapHandle, MyCharge } from '@/features/charging/map/map-types';
+import { clusterChargePoints, fromServerClusters, type MapCluster } from '@/features/charging/map/marker-clusters';
 import { useMapCenter } from '@/features/charging/map/use-map-center';
 import { useNightStatusBar } from '@/features/charging/use-night-status-bar';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 import { haptics } from '@/lib/haptics';
 
@@ -59,10 +74,14 @@ const CARD_HEIGHT = 76;
 const CARD_GAP = 24;
 const CONTROLS_GAP = 64;
 const TOP_OVERLAY_HEIGHT = 130;
+const REGION_DEBOUNCE_MS = 300;
+const LIST_PAGE_SIZE = 30;
+const MAX_STAGGERED_ROWS = 8;
+const CLUSTER_ZOOM_STEP = 2;
 
 const enter = (index: number) =>
   FadeInDown.duration(motion.duration.reveal)
-    .delay(motion.revealStagger * index)
+    .delay(motion.revealStagger * Math.min(index, MAX_STAGGERED_ROWS))
     .easing(motion.easing.out);
 
 export type ChargePointsScreenProps = {
@@ -73,10 +92,8 @@ export function ChargePointsScreen({ locationSource }: ChargePointsScreenProps) 
   const insets = useSafeAreaInsets();
   const tabBarHeight = useTabBarHeight();
   const toast = useToast();
-  const { data, isPending, isError, refetch, isRefetching } = useChargePoints();
+  const memberPoints = useChargePoints();
   const { data: activeSession } = useActiveSession();
-  const { refreshing, onRefresh } = usePullToRefresh(refetch);
-  const showError = isError && !data;
   const [filters, setFilters] = useState<ChargePointFilters>(DEFAULT_CHARGE_POINT_FILTERS);
   const [isFiltering, setFiltering] = useState(false);
   const [query, setQuery] = useState('');
@@ -84,22 +101,64 @@ export function ChargePointsScreen({ locationSource }: ChargePointsScreenProps) 
   const [hasMapFailed, setMapFailed] = useState(!isMapSupported);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isSearching, setSearching] = useState(false);
+  const [region, setRegion] = useState<Region | null>(null);
+  const [listLimit, setListLimit] = useState(LIST_PAGE_SIZE);
   const mapRef = useRef<ChargePointsMapHandle>(null);
   const centeredOn = useRef<'none' | 'points' | 'user'>('none');
 
   const mode: ViewMode = hasMapFailed ? 'list' : preferredMode;
   useNightStatusBar(mode === 'map');
   useTabSchemeOverride('points', mode === 'list' ? 'light' : null);
-  const chargePoints = data ?? noChargePoints;
-  const visible = filterChargePoints(chargePoints, filters, query);
-  const location = useMapCenter({ enabled: true, chargePoints: data, isLoading: isPending, source: locationSource });
+  const knownPoints = memberPoints.data ?? noChargePoints;
+  const location = useMapCenter({
+    enabled: true,
+    chargePoints: memberPoints.data,
+    isLoading: memberPoints.isPending,
+    source: locationSource,
+  });
   const nearbyCoverage = useHasChargePointNearby(location.source === 'device' ? location.coordinates : null);
   const [isFarNoticeDismissed, setFarNoticeDismissed] = useState(false);
   const [isLocatingCountry, setLocatingCountry] = useState(false);
   const showFarNotice = nearbyCoverage.data === false && !isFarNoticeDismissed;
+  const hasLocationSettled = location.status === 'denied' || location.status === 'unavailable';
+
+  const { coordinates: centerCoordinates, regionFor } = location;
+  const initialRegion = useMemo(
+    () =>
+      region ?? (centerCoordinates ? regionFor(centerCoordinates) : getRegionForCoordinates(knownPoints)),
+    [region, centerCoordinates, regionFor, knownPoints],
+  );
+  const isViewportReady = region !== null || location.coordinates !== null || hasLocationSettled;
+  const settledRegion = useDebouncedValue(isViewportReady ? initialRegion : null, REGION_DEBOUNCE_MS);
+  const viewport = settledRegion ?? initialRegion;
+  const zoom = getRegionZoom(viewport);
+  const bounds = getRegionBounds(viewport);
+  const bbox = settledRegion ? toBbox(bounds) : null;
+  const showsServerClusters = mode === 'map' && zoom <= CLUSTER_MAX_ZOOM;
+  const pointsQuery = useChargePointsInBounds(showsServerClusters ? null : bbox);
+  const clustersQuery = useChargePointClusters(showsServerClusters ? bbox : null, Math.round(zoom));
+  const activeQuery = showsServerClusters ? clustersQuery : pointsQuery;
+  const isPending = !settledRegion || activeQuery.isPending;
+  const showError = activeQuery.isError && !activeQuery.data;
+  const isRefetching = activeQuery.isRefetching;
+  const refetch = activeQuery.refetch;
+  const { refreshing, onRefresh } = usePullToRefresh(refetch);
+
+  const chargePoints = useMemo(
+    () => summarizeMapItems(pointsQuery.data ?? [], memberPoints.data),
+    [pointsQuery.data, memberPoints.data],
+  );
+  const visible = filterChargePoints(chargePoints, filters, query);
   const reference = location.coordinates;
-  const ranked = rankChargePointsByDistance(visible, reference);
+  const ranked = rankChargePointsByDistance(visible, reference ?? viewport).map((item) =>
+    reference ? item : { ...item, distanceMeters: null },
+  );
   const selected = ranked.find((item) => item.chargePoint.id === selectedId) ?? ranked[0] ?? null;
+  const markers = showsServerClusters
+    ? { points: [], clusters: fromServerClusters(clustersQuery.data ?? []) }
+    : clusterChargePoints(visible, bounds, zoom, selected?.chargePoint.id ?? null);
+  const clusteredCount = markers.clusters.reduce((total, cluster) => total + cluster.count, 0);
+  const hasDemoPrices = visible.some((chargePoint) => chargePoint.isDemoPrice);
   const isDemoCenter = location.source === 'demo';
   const activeFilterCount = countActiveFilters(filters);
   const openSession = hasOpenSession(activeSession) ? activeSession : null;
@@ -110,7 +169,6 @@ export function ChargePointsScreen({ locationSource }: ChargePointsScreenProps) 
       }
     : null;
 
-  const hasLocationSettled = location.status === 'denied' || location.status === 'unavailable';
   const cardBottom = tabBarHeight + CARD_GAP;
 
   useEffect(() => {
@@ -122,19 +180,23 @@ export function ChargePointsScreen({ locationSource }: ChargePointsScreenProps) 
       map.animateToRegion(location.regionFor(location.coordinates), MAP_ANIMATION_DURATION);
       return;
     }
-    if (centeredOn.current !== 'none' || chargePoints.length === 0 || !hasLocationSettled) return;
+    if (centeredOn.current !== 'none' || knownPoints.length === 0 || !hasLocationSettled) return;
     centeredOn.current = 'points';
-    map.animateToRegion(getRegionForCoordinates(chargePoints), MAP_ANIMATION_DURATION);
-  }, [mode, location, hasLocationSettled, chargePoints]);
+    map.animateToRegion(getRegionForCoordinates(knownPoints), MAP_ANIMATION_DURATION);
+  }, [mode, location, hasLocationSettled, knownPoints]);
 
-  const initialRegion = location.coordinates
-    ? location.regionFor(location.coordinates)
-    : getRegionForCoordinates(chargePoints);
-
-  const selectChargePoint = (chargePoint: ChargePoint) => {
+  const selectChargePoint = (chargePoint: ChargePointSummary) => {
     haptics.impactLight();
     setSelectedId(chargePoint.id);
     mapRef.current?.animateToRegion(getFocusRegion(chargePoint), MAP_ANIMATION_DURATION);
+  };
+
+  const zoomIntoCluster = (cluster: MapCluster) => {
+    haptics.selection();
+    mapRef.current?.animateToRegion(
+      getZoomedRegion(cluster, Math.floor(zoom) + CLUSTER_ZOOM_STEP),
+      MAP_ANIMATION_DURATION,
+    );
   };
 
   const locateUser = async () => {
@@ -158,8 +220,9 @@ export function ChargePointsScreen({ locationSource }: ChargePointsScreenProps) 
   const toggleMode = () => {
     haptics.selection();
     if (mode === 'list') {
-      centeredOn.current = location.coordinates ? 'user' : chargePoints.length > 0 ? 'points' : 'none';
+      centeredOn.current = location.coordinates ? 'user' : knownPoints.length > 0 ? 'points' : 'none';
     }
+    setListLimit(LIST_PAGE_SIZE);
     setPreferredMode(mode === 'map' ? 'list' : 'map');
   };
 
@@ -212,9 +275,18 @@ export function ChargePointsScreen({ locationSource }: ChargePointsScreenProps) 
       <Text style={styles.messageTitle}>Nenhum ponto encontrado</Text>
       <Text style={styles.messageText}>
         {activeFilterCount === 0 && query.trim().length === 0
-          ? 'Ainda não há pontos disponíveis para você. Entre em um condomínio pelo convite do gestor.'
+          ? 'Não há pontos nesta área do mapa. Afaste o mapa para ver mais pontos.'
           : 'Nenhum ponto corresponde a esta busca agora.'}
       </Text>
+    </View>
+  );
+
+  const clustersCard = (
+    <View testID="clusters-card" style={styles.messageCard}>
+      <Text style={styles.messageTitle}>
+        {clusteredCount === 1 ? '1 ponto nesta área' : `${clusteredCount.toLocaleString('pt-BR')} pontos nesta área`}
+      </Text>
+      <Text style={styles.messageText}>Toque em um grupo ou aproxime o mapa para ver os pontos.</Text>
     </View>
   );
 
@@ -234,7 +306,8 @@ export function ChargePointsScreen({ locationSource }: ChargePointsScreenProps) 
         <MapErrorBoundary onError={() => setMapFailed(true)}>
           <ChargePointsMap
             ref={mapRef}
-            chargePoints={visible}
+            chargePoints={markers.points}
+            clusters={markers.clusters}
             selectedId={selected?.chargePoint.id ?? null}
             myCharge={myCharge}
             userCoordinates={location.coordinates}
@@ -247,6 +320,8 @@ export function ChargePointsScreen({ locationSource }: ChargePointsScreenProps) 
               left: 0,
             }}
             onSelect={selectChargePoint}
+            onClusterPress={zoomIntoCluster}
+            onRegionChange={setRegion}
           />
         </MapErrorBoundary>
         <View style={[styles.overlayTop, { top: insets.top + spacing.sm }]} pointerEvents="box-none">
@@ -278,6 +353,8 @@ export function ChargePointsScreen({ locationSource }: ChargePointsScreenProps) 
             </View>
           ) : showError ? (
             errorCard
+          ) : showsServerClusters ? (
+            clustersCard
           ) : selected ? (
             <Animated.View
               key={selected.chargePoint.id}
@@ -293,6 +370,15 @@ export function ChargePointsScreen({ locationSource }: ChargePointsScreenProps) 
             emptyCard
           )}
         </View>
+        {showsServerClusters || hasDemoPrices ? (
+          <Text
+            testID="ocm-attribution"
+            style={[styles.mapAttribution, { bottom: cardBottom + CARD_HEIGHT + spacing.sm }]}
+            pointerEvents="none"
+          >
+            © Open Charge Map
+          </Text>
+        ) : null}
         {filterSheet}
       </View>
     );
@@ -397,7 +483,7 @@ export function ChargePointsScreen({ locationSource }: ChargePointsScreenProps) 
               </Text>
             </View>
           ) : (
-            ranked.map(({ chargePoint, distanceMeters }, index) => (
+            ranked.slice(0, listLimit).map(({ chargePoint, distanceMeters }, index) => (
               <Animated.View key={chargePoint.id} entering={enter(index + 2)}>
                 <ChargePointCard
                   chargePoint={chargePoint}
@@ -408,10 +494,23 @@ export function ChargePointsScreen({ locationSource }: ChargePointsScreenProps) 
               </Animated.View>
             ))
           )}
+          {!isPending && ranked.length > listLimit ? (
+            <Button
+              label="Mostrar mais pontos"
+              variant="secondary"
+              size="md"
+              onPress={() => setListLimit(listLimit + LIST_PAGE_SIZE)}
+            />
+          ) : null}
           <Text style={styles.legal}>
             Pontos do Grupo A repassam a energia a custo, sem margem (ANEEL RN 1.000/2021). O fator de demanda vale só
             para os pontos comerciais.
           </Text>
+          {hasDemoPrices ? (
+            <Text testID="ocm-attribution" style={styles.legal}>
+              Pontos públicos © Open Charge Map, com preços de demonstração.
+            </Text>
+          ) : null}
         </View>
       </ScrollView>
     </View>
@@ -570,6 +669,13 @@ const styles = StyleSheet.create({
   list: {
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
+  },
+  mapAttribution: {
+    position: 'absolute',
+    left: spacing.lg,
+    fontSize: 11,
+    fontFamily: fonts.semibold,
+    color: nightColors.textMuted,
   },
   legal: {
     fontSize: 13,

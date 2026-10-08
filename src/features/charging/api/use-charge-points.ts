@@ -1,16 +1,20 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   ChargingApiError,
   getChargePoint,
   joinQueue,
   leaveQueue,
+  listChargePointClusters,
   listChargePoints,
+  listChargePointsInBounds,
   type ChargePoint,
 } from '@/features/charging/api/charging-api';
 
 export const chargePointsQueryKey = ['charge-points'] as const;
 export const chargePointQueryKey = (chargePointId: string) => ['charge-points', chargePointId] as const;
+
+export const MAP_ITEMS_LIMIT = 300;
 
 const CHARGE_POINTS_REFRESH_INTERVAL = 30_000;
 const QUEUED_CHARGE_POINT_REFRESH_INTERVAL = 10_000;
@@ -24,6 +28,26 @@ export function useChargePoints() {
   return useQuery({
     queryKey: chargePointsQueryKey,
     queryFn: listChargePoints,
+    refetchInterval: CHARGE_POINTS_REFRESH_INTERVAL,
+  });
+}
+
+export function useChargePointsInBounds(bbox: string | null) {
+  return useQuery({
+    queryKey: [...chargePointsQueryKey, 'bounds', bbox],
+    queryFn: () => listChargePointsInBounds(bbox!, MAP_ITEMS_LIMIT),
+    enabled: bbox !== null,
+    placeholderData: keepPreviousData,
+    refetchInterval: CHARGE_POINTS_REFRESH_INTERVAL,
+  });
+}
+
+export function useChargePointClusters(bbox: string | null, zoom: number) {
+  return useQuery({
+    queryKey: [...chargePointsQueryKey, 'clusters', bbox, zoom],
+    queryFn: () => listChargePointClusters(bbox!, zoom),
+    enabled: bbox !== null,
+    placeholderData: keepPreviousData,
     refetchInterval: CHARGE_POINTS_REFRESH_INTERVAL,
   });
 }
