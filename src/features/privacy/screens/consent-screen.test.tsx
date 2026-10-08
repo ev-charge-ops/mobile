@@ -62,15 +62,37 @@ describe('<ConsentScreen />', () => {
     expect(onDone).toHaveBeenCalled();
   });
 
-  it('reloads the terms when the version is outdated', async () => {
+  it('saves each change right away in the settings', async () => {
+    await renderWithProviders(<ConsentScreen mode="settings" onBack={jest.fn()} />);
+
+    expect(await screen.findByText('Privacidade e dados')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Aceitar e continuar' })).toBeNull();
+    await fireEvent.press(await screen.findByRole('switch', { name: 'Novidades do produto' }));
+
+    await waitFor(() =>
+      expect(api.updateMyConsents).toHaveBeenCalledWith({
+        termsVersion: '2026-10-07',
+        consents: [
+          { purpose: 'ESSENTIAL_SERVICE', granted: true },
+          { purpose: 'BILLING_SHARING', granted: true },
+          { purpose: 'USAGE_ANALYTICS', granted: true },
+          { purpose: 'MARKETING_COMMUNICATIONS', granted: true },
+        ],
+      }),
+    );
+    expect(screen.getByRole('switch', { name: 'Novidades do produto' })).toBeChecked();
+  });
+
+  it('reverts the change and reloads the terms when the version is outdated', async () => {
     api.updateMyConsents.mockRejectedValue(new PrivacyApiError(409, 'TERMS_VERSION_OUTDATED'));
     await renderWithProviders(<ConsentScreen mode="settings" onBack={jest.fn()} />);
 
-    const save = await screen.findByRole('button', { name: 'Salvar preferências' });
+    const toggle = await screen.findByRole('switch', { name: 'Novidades do produto' });
     const callsBefore = api.getMyConsents.mock.calls.length;
-    await fireEvent.press(save);
+    await fireEvent.press(toggle);
 
     expect(await screen.findByText('Os termos foram atualizados. Revise e aceite a nova versão.')).toBeOnTheScreen();
+    expect(screen.getByRole('switch', { name: 'Novidades do produto' })).not.toBeChecked();
     await waitFor(() => expect(api.getMyConsents.mock.calls.length).toBeGreaterThan(callsBefore));
   });
 
@@ -100,7 +122,7 @@ describe('<ConsentScreen />', () => {
     });
     await renderWithProviders(<ConsentScreen mode="settings" />);
 
-    await fireEvent.press(await screen.findByRole('button', { name: 'Solicitar exclusão da conta' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Excluir conta' }));
     await fireEvent.changeText(screen.getByLabelText('Motivo (opcional)'), '  Mudei de condomínio ');
     await fireEvent.press(screen.getByRole('button', { name: 'Confirmar exclusão' }));
 
