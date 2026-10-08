@@ -344,7 +344,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete the account of the authenticated user now
+         * @description Sends a confirmation email to the current address, then, in one transaction, anonymizes the user (name "Usuário excluído", email deleted+<id>@evchargeops.invalid, no password), deletes the Google/Apple identities, refresh tokens, push tokens and one-time tokens, and completes the deletion request (creating one when there is none). Sessions and memberships stay for the condo cost sharing under the anonymized name. The TEST and LIVE Stripe customers are deleted afterwards on a best-effort basis. The access token stops being refreshable; the app must sign out.
+         */
+        delete: operations["deleteMyAccount"];
         options?: never;
         head?: never;
         /**
@@ -518,8 +522,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List the charge points of the organizations of the user and the public commercial ones, with the current price, optionally from a single organization */
+        /** List the charge points visible to the user. With bbox: light map items (ChargePointMapItemResponseDto) inside the viewport, nearest to its center first, up to limit, priced without calling the model. With organizationId: every visible point of that organization (ChargePointResponseDto). Without filters (app 1.4.0): the private points of the organizations of the user plus the commercial points within 25 km of the centroid of their condo (or of São Paulo), at most 200 (ChargePointResponseDto) */
         get: operations["listChargePoints"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/charge-points/clusters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Group the charge points visible to the user inside the viewport in a grid whose cell size follows the zoom, for zoomed out maps (zoom 9 or less) */
+        get: operations["listChargePointClusters"];
         put?: never;
         post?: never;
         delete?: never;
@@ -744,8 +765,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Stripe webhook (payment_intent.amount_capturable_updated, canceled, payment_failed, succeeded). Verifies the signature over the raw body and reconciles the session with the PaymentIntent; duplicates are ignored */
+        /** Stripe TEST mode webhook (payment_intent.amount_capturable_updated, canceled, payment_failed, succeeded). Verifies the signature over the raw body with STRIPE_WEBHOOK_SECRET and reconciles the TEST mode session with the PaymentIntent; duplicates are ignored */
         post: operations["handleStripeWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/stripe/webhook/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stripe LIVE mode webhook with the same events as handleStripeWebhook. Verifies the signature over the raw body with STRIPE_LIVE_WEBHOOK_SECRET and reconciles the LIVE mode session with the PaymentIntent; duplicates are ignored */
+        post: operations["handleStripeLiveWebhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -973,6 +1011,16 @@ export interface components {
         };
         /** @enum {string} */
         Role: "DRIVER" | "MANAGER";
+        /**
+         * @description Stripe mode used for the card payments of this user: TEST (test cards) or LIVE (real cards)
+         * @enum {string}
+         */
+        PaymentMode: "TEST" | "LIVE";
+        /**
+         * @description Where the app takes the user position from: DEMO (fixed demo location) or DEVICE (device GPS)
+         * @enum {string}
+         */
+        LocationMode: "DEMO" | "DEVICE";
         UserResponseDto: {
             /** Format: uuid */
             id: string;
@@ -988,6 +1036,12 @@ export interface components {
             emailVerified: boolean;
             /** @description Whether the user has a password; accounts created with Google, Apple or an email code may not */
             hasPassword: boolean;
+            /** @description Stripe mode used for the card payments of this user: TEST (test cards) or LIVE (real cards) */
+            paymentMode: components["schemas"]["PaymentMode"];
+            /** @description Where the app takes the user position from: DEMO (fixed demo location) or DEVICE (device GPS) */
+            locationMode: components["schemas"]["LocationMode"];
+            /** @description Whether captured card payments of this user are refunded in full right after the capture */
+            autoRefund: boolean;
         };
         AuthResponseDto: {
             user: components["schemas"]["UserResponseDto"];
@@ -1167,7 +1221,7 @@ export interface components {
         /** @enum {string} */
         ChargePointStatus: "AVAILABLE" | "CHARGING" | "IDLE" | "OFFLINE";
         /** @enum {string} */
-        ConnectorType: "TYPE_2" | "CCS_2";
+        ConnectorType: "TYPE_2" | "CCS_2" | "CHADEMO" | "OTHER";
         ChargerResponseDto: {
             /** Format: uuid */
             id: string;
@@ -1267,6 +1321,11 @@ export interface components {
              * @example https://app.evchargeops.com.br/media/points/garage-a.webp
              */
             photoUrl: string | null;
+            /**
+             * @description Data attribution to show with the point, set for points imported from Open Charge Map and null otherwise
+             * @example Dados de localização © Open Charge Map (CC BY-SA 4.0)
+             */
+            attribution: string | null;
             status: components["schemas"]["ChargePointStatus"];
             /** @description Whether the user belongs to the organization of the point */
             isMember: boolean;
@@ -1285,6 +1344,73 @@ export interface components {
             reservedUntil: string | null;
             /** @description Your active entry in the queue of this point */
             myQueueEntry: components["schemas"]["QueueEntryResponseDto"] | null;
+        };
+        /**
+         * @description SEED for the demo network, OCM for points imported from Open Charge Map
+         * @enum {string}
+         */
+        ChargePointSource: "SEED" | "OCM";
+        ChargePointMapItemResponseDto: {
+            /** Format: uuid */
+            id: string;
+            /** @example L1-01 */
+            code: string;
+            /** @example Garagem L1 · Vaga 12 */
+            name: string;
+            type: components["schemas"]["ChargePointType"];
+            status: components["schemas"]["ChargePointStatus"];
+            /** @example -23.56905 */
+            latitude: number;
+            /** @example -46.63145 */
+            longitude: number;
+            /** @example 22 */
+            maxPowerKw: number;
+            /** @description Connector of the first charger, null without a charger */
+            connector: components["schemas"]["ConnectorType"] | null;
+            /**
+             * @description Name of the organization that operates the point
+             * @example Residencial Aclimação
+             */
+            operatorName: string;
+            /**
+             * @description Base price per kWh in cents without the demand factor: the base rate of commercial points, the utility rate of private ones. Null without a tariff
+             * @example 189
+             */
+            basePricePerKwhCents: number | null;
+            /**
+             * @description Price per kWh in cents with the demand factor already cached for the operator in this hour, or the base price when none is cached. The detail (getChargePoint) has the exact price
+             * @example 227
+             */
+            pricePerKwhCents: number | null;
+            /**
+             * Format: uri
+             * @example https://app.evchargeops.com.br/media/points/garage-a.webp
+             */
+            photoUrl: string | null;
+            /** @description SEED for the demo network, OCM for points imported from Open Charge Map */
+            source: components["schemas"]["ChargePointSource"];
+        };
+        ChargePointClusterResponseDto: {
+            /**
+             * @description Average latitude of the points in the cell
+             * @example -23.5612
+             */
+            latitude: number;
+            /**
+             * @description Average longitude of the points in the cell
+             * @example -46.6421
+             */
+            longitude: number;
+            /**
+             * @description Points in the cell
+             * @example 42
+             */
+            count: number;
+            /**
+             * @description Online points in the cell without an open session
+             * @example 30
+             */
+            availableCount: number;
         };
         TariffResponseDto: {
             /** Format: uuid */
@@ -1371,14 +1497,16 @@ export interface components {
             socPercent: number | null;
         };
         /**
-         * @description PENDING_AUTHORIZATION until the card is confirmed, AUTHORIZED while the hold is active, CAPTURED with the final amount, CANCELED when the hold is released, FAILED when the card was declined (the driver may retry)
+         * @description PENDING_AUTHORIZATION until the card is confirmed, AUTHORIZED while the hold is active, CAPTURED with the final amount, CANCELED when the hold is released, FAILED when the card was declined (the driver may retry), REFUNDED when the captured amount was refunded in full (autoRefund accounts)
          * @enum {string}
          */
-        PaymentStatus: "PENDING_AUTHORIZATION" | "AUTHORIZED" | "CAPTURED" | "CANCELED" | "FAILED";
+        PaymentStatus: "PENDING_AUTHORIZATION" | "AUTHORIZED" | "CAPTURED" | "CANCELED" | "FAILED" | "REFUNDED";
         SessionPaymentDto: {
             /** @example pi_3Q0abc123 */
             paymentIntentId: string;
-            /** @description PENDING_AUTHORIZATION until the card is confirmed, AUTHORIZED while the hold is active, CAPTURED with the final amount, CANCELED when the hold is released, FAILED when the card was declined (the driver may retry) */
+            /** @description Stripe mode of the payment, taken from the paymentMode of the driver when the session started */
+            mode: components["schemas"]["PaymentMode"];
+            /** @description PENDING_AUTHORIZATION until the card is confirmed, AUTHORIZED while the hold is active, CAPTURED with the final amount, CANCELED when the hold is released, FAILED when the card was declined (the driver may retry), REFUNDED when the captured amount was refunded in full (autoRefund accounts) */
             status: components["schemas"]["PaymentStatus"];
             /** @example BRL */
             currency: string;
@@ -1403,6 +1531,13 @@ export interface components {
             capturedAt: string | null;
             /** Format: date-time */
             canceledAt: string | null;
+            /**
+             * @description Amount refunded to the card, set once refunded
+             * @example 1041
+             */
+            refundedCents: number | null;
+            /** Format: date-time */
+            refundedAt: string | null;
         };
         PaymentSheetDto: {
             /**
@@ -2428,6 +2563,16 @@ export interface components {
             /** @example Mudei de condomínio */
             reason?: string;
         };
+        DeleteMyAccountRequestDto: {
+            /** @description Current password; required when the account has one (hasPassword), ignored for Google, Apple or email code accounts */
+            password?: string;
+            /**
+             * @description Typed by the user to confirm the deletion
+             * @example EXCLUIR
+             * @enum {string}
+             */
+            confirm: "EXCLUIR";
+        };
     };
     responses: never;
     parameters: never;
@@ -3130,6 +3275,58 @@ export interface operations {
             };
         };
     };
+    deleteMyAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteMyAccountRequestDto"];
+            };
+        };
+        responses: {
+            /** @description The completed deletion request */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequestResponseDto"];
+                };
+            };
+            /** @description Invalid payload (confirm must be EXCLUIR) or INVALID_PASSWORD: the password is missing or incorrect for an account with a password */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description LAST_MANAGER: the user is the only manager of an organization */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     updateMyProfile: {
         parameters: {
             query?: never;
@@ -3642,6 +3839,10 @@ export interface operations {
             query?: {
                 /** @description Only the points of this organization that the user can see: all of them for members, the commercial ones otherwise */
                 organizationId?: string;
+                /** @description Map viewport as minLng,minLat,maxLng,maxLat. When set, the response is a list of ChargePointMapItemResponseDto (light map items, nearest to the center first) instead of ChargePointResponseDto */
+                bbox?: string;
+                /** @description Maximum number of map items returned with bbox */
+                limit?: number;
             };
             header?: never;
             path?: never;
@@ -3654,10 +3855,48 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChargePointResponseDto"][];
+                    "application/json": components["schemas"]["ChargePointResponseDto"][] | components["schemas"]["ChargePointMapItemResponseDto"][];
                 };
             };
             /** @description Invalid filters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listChargePointClusters: {
+        parameters: {
+            query: {
+                /** @description Map viewport as minLng,minLat,maxLng,maxLat */
+                bbox: string;
+                /** @description Map zoom level; each grid cell is a quarter of a 256 px map tile at this zoom (360 / 2^zoom / 4 degrees) */
+                zoom: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChargePointClusterResponseDto"][];
+                };
+            };
+            /** @description Invalid bbox or zoom */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -4005,7 +4244,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description CHARGER_UNAVAILABLE: the charger did not start; PAYMENTS_UNAVAILABLE: card payments are not configured (commercial points) */
+            /** @description CHARGER_UNAVAILABLE: the charger did not start; PAYMENTS_UNAVAILABLE: card payments are not configured for the paymentMode of the driver (commercial points) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -4346,6 +4585,41 @@ export interface operations {
                 content?: never;
             };
             /** @description PAYMENTS_UNAVAILABLE: the webhook secret is not configured */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    handleStripeLiveWebhook: {
+        parameters: {
+            query?: never;
+            header: {
+                "stripe-signature": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookReceiptDto"];
+                };
+            };
+            /** @description INVALID_WEBHOOK_SIGNATURE */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PAYMENTS_UNAVAILABLE: the live webhook secret is not configured */
             503: {
                 headers: {
                     [name: string]: unknown;

@@ -93,6 +93,8 @@ export const regimeLabels: Record<ChargePointType, string> = {
 export const connectorLabels: Record<ConnectorType, string> = {
   TYPE_2: 'Tipo 2',
   CCS_2: 'CCS 2',
+  CHADEMO: 'CHAdeMO',
+  OTHER: 'Outro',
 };
 
 const timeFormatter = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -143,4 +145,5 @@ export const paymentStatusLabels: Record<SessionPayment['status'], string> = {
   CAPTURED: 'Cobrado',
   CANCELED: 'Liberado',
   FAILED: 'Recusado',
+  REFUNDED: 'Estornado',
 };

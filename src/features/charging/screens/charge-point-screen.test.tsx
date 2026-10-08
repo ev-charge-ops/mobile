@@ -59,6 +59,9 @@ const paymentFixture = {
   authorizedAt: null,
   capturedAt: null,
   canceledAt: null,
+  mode: 'TEST' as const,
+  refundedCents: null,
+  refundedAt: null,
 };
 
 const api = jest.mocked(chargingApi);

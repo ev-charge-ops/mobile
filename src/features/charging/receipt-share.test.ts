@@ -34,6 +34,9 @@ describe('buildReceiptShareText', () => {
           authorizedAt: null,
           capturedAt: null,
           canceledAt: null,
+          mode: 'TEST',
+          refundedCents: null,
+          refundedAt: null,
         },
       }),
     );
