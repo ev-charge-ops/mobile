@@ -4,6 +4,7 @@ import {
   rankChargePointsByDistance,
 } from '@/features/charging/charge-point-distance';
 import { DEFAULT_CHARGE_POINT_FILTERS, filterChargePoints } from '@/features/charging/charge-point-filters';
+import { summarizeChargePoint } from '@/features/charging/charge-point-summary';
 import { buildChargePoint, buildCommercialChargePoint } from '@/features/charging/testing/fixtures';
 
 const aclimacao = { latitude: -23.5692, longitude: -46.6312 };
@@ -56,7 +57,7 @@ describe('rankChargePointsByDistance', () => {
 
   it('sorts what is left after the search and the filter chips', () => {
     const visible = filterChargePoints(
-      [far, middle, near],
+      [far, middle, near].map(summarizeChargePoint),
       { ...DEFAULT_CHARGE_POINT_FILTERS, availableOnly: true },
       '',
     );

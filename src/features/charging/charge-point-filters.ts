@@ -1,4 +1,5 @@
-import type { ChargePoint, ChargePointType } from '@/features/charging/api/charging-api';
+import type { ChargePointType } from '@/features/charging/api/charging-api';
+import type { ChargePointSummary } from '@/features/charging/charge-point-summary';
 
 export type RegimeFilter = 'ALL' | ChargePointType;
 export type PowerFilter = 'ANY' | 'AC_7' | 'AC_22';
@@ -24,13 +25,13 @@ export const regimeFilters: { id: RegimeFilter; label: string }[] = [
 
 const FAST_AC_MIN_KW = 11;
 
-export function matchesPower(chargePoint: ChargePoint, power: PowerFilter) {
+export function matchesPower(chargePoint: ChargePointSummary, power: PowerFilter) {
   if (power === 'ANY') return true;
   const isFast = chargePoint.maxPowerKw >= FAST_AC_MIN_KW;
   return power === 'AC_22' ? isFast : !isFast;
 }
 
-export function matchesFilters(chargePoint: ChargePoint, filters: ChargePointFilters) {
+export function matchesFilters(chargePoint: ChargePointSummary, filters: ChargePointFilters) {
   if (filters.availableOnly && chargePoint.status !== 'AVAILABLE') return false;
   if (filters.regime !== 'ALL' && chargePoint.type !== filters.regime) return false;
   return matchesPower(chargePoint, filters.power);
@@ -48,14 +49,14 @@ export function normalizeSearchText(value: string) {
     .trim();
 }
 
-export function matchesSearch(chargePoint: ChargePoint, query: string) {
+export function matchesSearch(chargePoint: ChargePointSummary, query: string) {
   const terms = normalizeSearchText(query).split(/\s+/).filter(Boolean);
   if (terms.length === 0) return true;
-  const haystack = normalizeSearchText(`${chargePoint.name} ${chargePoint.code} ${chargePoint.organizationName}`);
+  const haystack = normalizeSearchText(`${chargePoint.name} ${chargePoint.code} ${chargePoint.operatorName}`);
   return terms.every((term) => haystack.includes(term));
 }
 
-export function filterChargePoints(chargePoints: ChargePoint[], filters: ChargePointFilters, query: string) {
+export function filterChargePoints(chargePoints: ChargePointSummary[], filters: ChargePointFilters, query: string) {
   return chargePoints.filter(
     (chargePoint) => matchesFilters(chargePoint, filters) && matchesSearch(chargePoint, query),
   );

@@ -49,6 +49,7 @@ import {
   formatPricePerKwh,
   splitChargePointName,
 } from '@/features/charging/charging-format';
+import { DemoPriceTag } from '@/features/charging/components/demo-price-tag';
 import { DemandBadge } from '@/features/charging/components/demand-badge';
 import { JoinQueueSheet } from '@/features/charging/components/join-queue-sheet';
 import { StartChargingSheet } from '@/features/charging/components/start-charging-sheet';
@@ -437,6 +438,7 @@ function ChargePointDetails({ chargePoint, queueState, now, locationSource }: Ch
         {pricing ? <InfoChip icon={Zap} label={formatPricePerKwh(pricing.pricePerKwhCents)} /> : null}
         <InfoChip icon={Plug} label={formatPower(chargePoint.maxPowerKw)} />
         {distanceMeters === null ? null : <InfoChip icon={MapPin} label={formatDistance(distanceMeters)} />}
+        {chargePoint.attribution ? <DemoPriceTag style={styles.demoTag} /> : null}
       </Animated.View>
       {pricing ? (
         <Animated.View entering={rise(2)}>
@@ -503,6 +505,11 @@ function ChargePointDetails({ chargePoint, queueState, now, locationSource }: Ch
           </Card>
         </Animated.View>
       ) : null}
+      {chargePoint.attribution ? (
+        <Text testID="charge-point-attribution" style={styles.attribution}>
+          {chargePoint.attribution}
+        </Text>
+      ) : null}
     </>
   );
 }
@@ -543,6 +550,16 @@ function RegimeInfo({ type, pricing }: { type: ChargePoint['type']; pricing: Cha
 }
 
 const styles = StyleSheet.create({
+  demoTag: {
+    alignSelf: 'center',
+  },
+  attribution: {
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: fonts.medium,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
   root: {
     flex: 1,
   },

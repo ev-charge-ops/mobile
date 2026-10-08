@@ -140,6 +140,31 @@ describe('<ChargePointScreen />', () => {
     expect(screen.getByText('Pico · ×1,50')).toBeOnTheScreen();
   });
 
+  it('flags the demo price and credits Open Charge Map on imported points', async () => {
+    api.getChargePoint.mockResolvedValue(
+      buildCommercialChargePoint({
+        attribution: 'Dados © Open Charge Map, CC BY 4.0',
+        charger: { id: 'ch-9', vendor: 'ABB', serialNumber: 'X', connector: 'OTHER' },
+      }),
+    );
+
+    await renderWithProviders(<ChargePointScreen chargePointId="cp-3" />);
+
+    expect(await screen.findByTestId('demo-price-tag')).toHaveTextContent('Preço de demonstração');
+    expect(screen.getByTestId('charge-point-attribution')).toHaveTextContent('Dados © Open Charge Map, CC BY 4.0');
+    expect(screen.getByText(/^Outro · /)).toBeOnTheScreen();
+  });
+
+  it('keeps seed points free of the Open Charge Map credit', async () => {
+    api.getChargePoint.mockResolvedValue(buildCommercialChargePoint());
+
+    await renderWithProviders(<ChargePointScreen chargePointId="cp-3" />);
+
+    expect(await screen.findByText('Rede comercial · cobrança no cartão')).toBeOnTheScreen();
+    expect(screen.queryByTestId('demo-price-tag')).not.toBeOnTheScreen();
+    expect(screen.queryByTestId('charge-point-attribution')).not.toBeOnTheScreen();
+  });
+
   it('warns when the tariff is not configured', async () => {
     api.getChargePoint.mockResolvedValue(buildChargePoint({ pricing: null }));
 

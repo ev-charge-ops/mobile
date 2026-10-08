@@ -1,4 +1,4 @@
-import type { ChargePointMapItem } from '@/features/charging/api/charging-api';
+import type { ChargePoint, ChargePointMapItem } from '@/features/charging/api/charging-api';
 
 export function buildMapItem(overrides: Partial<ChargePointMapItem> = {}): ChargePointMapItem {
   return {
@@ -17,5 +17,26 @@ export function buildMapItem(overrides: Partial<ChargePointMapItem> = {}): Charg
     photoUrl: null,
     source: 'OCM',
     ...overrides,
+  };
+}
+
+export function toMapItem(chargePoint: ChargePoint): ChargePointMapItem {
+  return {
+    id: chargePoint.id,
+    code: chargePoint.code,
+    name: chargePoint.name,
+    type: chargePoint.type,
+    status: chargePoint.status,
+    latitude: chargePoint.latitude,
+    longitude: chargePoint.longitude,
+    maxPowerKw: chargePoint.maxPowerKw,
+    connector: chargePoint.charger?.connector ?? null,
+    operatorName: chargePoint.organizationName,
+    basePricePerKwhCents: chargePoint.pricing
+      ? (chargePoint.pricing.baseRateCents ?? chargePoint.pricing.utilityRateCents)
+      : null,
+    pricePerKwhCents: chargePoint.pricing?.pricePerKwhCents ?? null,
+    photoUrl: chargePoint.photoUrl,
+    source: chargePoint.attribution ? 'OCM' : 'SEED',
   };
 }

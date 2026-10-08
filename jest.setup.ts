@@ -45,7 +45,11 @@ jest.mock('react-native-maps', () => {
     }
 
     render() {
-      return createElement(View, { testID: 'map-view' }, this.props.children as never);
+      return createElement(
+        View,
+        { testID: 'map-view', onRegionChangeComplete: this.props.onRegionChangeComplete } as never,
+        this.props.children as never,
+      );
     }
   }
 
