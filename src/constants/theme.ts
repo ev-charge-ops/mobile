@@ -225,7 +225,7 @@ export const spacing = {
   gutter: 20,
   cardPadding: 20,
   cardGap: 12,
-  tabBarHeight: 64,
+  tabBarHeight: 60,
   appBarHeight: 56,
   hitTarget: 44,
 } as const;
