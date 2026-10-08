@@ -135,7 +135,7 @@ function PowerSpark({ session, averageKw }: { session: ChargingSessionDetail; av
         onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
         accessible
         accessibilityRole="image"
-        accessibilityLabel={`Potência entre ${formatTime(first.at)} e ${formatTime(last.at)}`}
+        accessibilityLabel={`Potência entre ${formatTime(toSimulatedTime(session, first.at))} e ${formatTime(toSimulatedTime(session, last.at))}`}
         style={styles.sparkCanvas}
       >
         {spark ? (
@@ -154,9 +154,9 @@ function PowerSpark({ session, averageKw }: { session: ChargingSessionDetail; av
         ) : null}
       </View>
       <View style={styles.sparkLabels}>
-        <Text style={styles.cellLabel}>{formatTime(first.at)}</Text>
+        <Text style={styles.cellLabel}>{formatTime(toSimulatedTime(session, first.at))}</Text>
         <Text style={styles.cellLabel}>{`média ${formatPowerValue(averageKw)} kW`}</Text>
-        <Text style={styles.cellLabel}>{formatTime(last.at)}</Text>
+        <Text style={styles.cellLabel}>{formatTime(toSimulatedTime(session, last.at))}</Text>
       </View>
     </View>
   );
@@ -176,11 +176,18 @@ export function formatShortDuration(totalSeconds: number) {
   return `${hours}h${String(minutes % 60).padStart(2, '0')}`;
 }
 
+export function toSimulatedTime(session: ChargingSessionDetail, iso: string) {
+  const start = Date.parse(session.startedAt);
+  const elapsed = Math.max(0, Date.parse(iso) - start) * Math.max(1, session.simulationSpeed);
+  return new Date(start + elapsed).toISOString();
+}
+
 export function getReceiptTiming(session: ChargingSessionDetail) {
-  const endedAt = session.endedAt ?? session.chargingEndedAt ?? session.startedAt;
-  const chargingSeconds = getChargingSeconds(session, Date.parse(endedAt));
+  const realEnd = session.endedAt ?? session.chargingEndedAt ?? session.startedAt;
+  const chargingSeconds = getChargingSeconds(session, Date.parse(realEnd));
   const averageKw = chargingSeconds > 0 ? session.energyKwh / (chargingSeconds / 3600) : 0;
-  const totalSeconds = Math.max(0, (Date.parse(endedAt) - Date.parse(session.startedAt)) / 1000);
+  const endedAt = toSimulatedTime(session, realEnd);
+  const totalSeconds = (Date.parse(endedAt) - Date.parse(session.startedAt)) / 1000;
   return { endedAt, averageKw, totalSeconds };
 }
 
