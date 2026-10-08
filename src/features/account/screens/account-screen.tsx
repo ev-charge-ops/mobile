@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ListRow } from '@/components/ui/list-row';
 import { StatusPill } from '@/components/ui/status-pill';
+import { useTabBarHeight } from '@/components/ui/tab-bar';
 import { colors, fonts, spacing } from '@/constants/theme';
 import { getInitials } from '@/features/account/account-initials';
 import { OrganizationsCard } from '@/features/account/components/organizations-card';
@@ -30,11 +31,12 @@ export type AccountScreenProps = {
 
 export function AccountScreen({ user, onSignOut, isSigningOut = false, banner }: AccountScreenProps) {
   const isManager = user.role === 'MANAGER';
+  const tabBarHeight = useTabBarHeight();
 
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
-      <AppBar title="Conta" onBack={() => router.back()} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <AppBar variant="large" title="Conta" />
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + spacing.xxl }]}>
         <Card style={styles.profile}>
           <View style={styles.avatar}>
             <Text style={styles.initials}>{getInitials(user.name)}</Text>
