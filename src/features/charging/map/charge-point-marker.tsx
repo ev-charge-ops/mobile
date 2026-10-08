@@ -1,19 +1,18 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { Zap } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Marker } from 'react-native-maps';
 
 import { Icon } from '@/components/ui/icon';
-import { colors, fonts, palette, radii } from '@/constants/theme';
+import { fonts, nightColors, palette, radii } from '@/constants/theme';
 import type { ChargePoint } from '@/features/charging/api/charging-api';
 import { formatCents } from '@/features/charging/charging-format';
 
 const markerColors: Record<ChargePoint['status'], string> = {
-  AVAILABLE: colors.statusCharging,
-  CHARGING: colors.statusIdle,
-  IDLE: colors.statusIdle,
-  OFFLINE: colors.statusOffline,
+  AVAILABLE: nightColors.energy,
+  CHARGING: nightColors.warning,
+  IDLE: nightColors.warning,
+  OFFLINE: nightColors.statusOfflineDot,
 };
 
 const SNAPSHOT_DURATION = 500;
@@ -52,22 +51,17 @@ export function ChargePointMarker({ chargePoint, isSelected, onPress }: ChargePo
     >
       <View style={[styles.wrap, isSelected && styles.wrapSelected]}>
         {isSelected ? (
-          <LinearGradient
-            colors={[palette.red400, palette.red600]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.bubble, styles.bubbleSelected]}
-          >
-            <Icon icon={Zap} size={13} color={colors.textOnAccent} strokeWidth={2.6} />
+          <View style={[styles.bubble, styles.bubbleSelected]}>
+            <Icon icon={Zap} size={13} color={nightColors.textOnInverse} strokeWidth={2.6} />
             <Text style={[styles.price, styles.priceSelected]}>{price}</Text>
-          </LinearGradient>
+          </View>
         ) : (
           <View style={styles.bubble}>
             <Icon icon={Zap} size={13} color={color} strokeWidth={2.6} />
             <Text style={styles.price}>{price}</Text>
           </View>
         )}
-        <View style={[styles.tip, { backgroundColor: isSelected ? colors.accent : color }]} />
+        <View style={[styles.tip, { backgroundColor: isSelected ? nightColors.surfaceInverse : color }]} />
       </View>
     </Marker>
   );
@@ -134,9 +128,9 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceCard,
-    shadowColor: '#000',
+    borderColor: nightColors.borderSubtle,
+    backgroundColor: nightColors.surfaceCard,
+    shadowColor: palette.black,
     shadowOpacity: 0.5,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
@@ -144,7 +138,7 @@ const styles = StyleSheet.create({
   },
   bubbleSelected: {
     borderWidth: 0,
-    shadowColor: colors.accent,
+    backgroundColor: nightColors.surfaceInverse,
     shadowOpacity: 0.4,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -152,17 +146,17 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 12,
     fontFamily: fonts.extrabold,
-    color: colors.textTitle,
+    color: nightColors.textTitle,
     fontVariant: ['tabular-nums'],
   },
   priceSelected: {
-    color: colors.textOnAccent,
+    color: nightColors.textOnInverse,
   },
   tip: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    shadowColor: '#000',
+    shadowColor: palette.black,
     shadowOpacity: 0.45,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
@@ -175,12 +169,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: radii.pill,
-    backgroundColor: colors.statusInfo,
+    backgroundColor: nightColors.info,
   },
   userLabelText: {
     fontSize: 11,
     fontFamily: fonts.extrabold,
-    color: colors.textTitle,
+    color: palette.white,
   },
   userHalo: {
     width: 40,
@@ -188,14 +182,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.statusInfoBg,
+    backgroundColor: nightColors.infoTint,
   },
   userDot: {
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.statusInfo,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.4)',
+    backgroundColor: nightColors.info,
+    borderWidth: 3,
+    borderColor: palette.white,
   },
 });
