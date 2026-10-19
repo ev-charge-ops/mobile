@@ -110,14 +110,22 @@ describe('<ChargePointScreen />', () => {
     expect(screen.queryByTestId('charge-point-photo-fallback')).not.toBeOnTheScreen();
   });
 
-  it('opens the directions to the point in the maps app', async () => {
+  it('lets the driver choose the maps app for the directions', async () => {
     const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
     api.getChargePoint.mockResolvedValue(buildChargePoint());
 
     await renderWithProviders(<ChargePointScreen chargePointId="cp-1" />);
     await fireEvent.press(await screen.findByRole('button', { name: 'Como chegar' }));
 
-    expect(openURL).toHaveBeenCalledWith(expect.stringContaining('-23.56905,-46.63145'));
+    expect(openURL).not.toHaveBeenCalled();
+    expect(screen.getByText('Apple Maps')).toBeOnTheScreen();
+    expect(screen.getByText('Waze')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByText('Google Maps'));
+
+    expect(openURL).toHaveBeenCalledWith(
+      'https://www.google.com/maps/dir/?api=1&destination=-23.56905,-46.63145&travelmode=driving',
+    );
   });
 
   it('goes back to the map from the back button', async () => {

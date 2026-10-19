@@ -53,7 +53,7 @@ import { DemoPriceTag } from '@/features/charging/components/demo-price-tag';
 import { DemandBadge } from '@/features/charging/components/demand-badge';
 import { JoinQueueSheet } from '@/features/charging/components/join-queue-sheet';
 import { StartChargingSheet } from '@/features/charging/components/start-charging-sheet';
-import { openDirections } from '@/features/charging/directions';
+import { DirectionsSheet } from '@/features/charging/components/directions-sheet';
 import { useMapCenter } from '@/features/charging/map/use-map-center';
 import { formatClock } from '@/features/charging/session-timing';
 import { useNightStatusBar } from '@/features/charging/use-night-status-bar';
@@ -117,6 +117,7 @@ export function ChargePointScreen({ chargePointId, locationSource }: ChargePoint
   const { data: chargePoint, isPending, isError, error, refetch, isRefetching } = useChargePoint(chargePointId);
   const [isConfirming, setConfirming] = useState(false);
   const [isJoiningQueue, setJoiningQueue] = useState(false);
+  const [isChoosingDirections, setChoosingDirections] = useState(false);
   const hasReservationClock = Boolean(chargePoint?.reservedUntil || chargePoint?.myQueueEntry?.reservedUntil);
   const now = useNow(1000, hasReservationClock);
   const queueState = chargePoint ? getQueueState(chargePoint, now) : null;
@@ -191,6 +192,7 @@ export function ChargePointScreen({ chargePointId, locationSource }: ChargePoint
                 now={now}
                 onStart={() => setConfirming(true)}
                 onJoinQueue={() => setJoiningQueue(true)}
+                onDirections={() => setChoosingDirections(true)}
               />
             </Animated.View>
           </>
@@ -219,6 +221,13 @@ export function ChargePointScreen({ chargePointId, locationSource }: ChargePoint
         )}
       </Animated.View>
       {chargePoint ? (
+        <DirectionsSheet
+          destination={chargePoint}
+          visible={isChoosingDirections}
+          onClose={() => setChoosingDirections(false)}
+        />
+      ) : null}
+      {chargePoint ? (
         <JoinQueueSheet chargePoint={chargePoint} visible={isJoiningQueue} onClose={() => setJoiningQueue(false)} />
       ) : null}
       {chargePoint?.pricing ? (
@@ -239,22 +248,15 @@ type StartFooterProps = {
   now: number;
   onStart: () => void;
   onJoinQueue: () => void;
+  onDirections: () => void;
 };
 
-function DirectionsButton({ chargePoint }: { chargePoint: ChargePoint }) {
-  const toast = useToast();
-
-  const open = () => {
-    openDirections(chargePoint).catch(() =>
-      toast.show('Não foi possível abrir o app de mapas.', { tone: 'error' }),
-    );
-  };
-
+function DirectionsButton({ onPress }: { onPress: () => void }) {
   return (
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel="Como chegar"
-      onPress={open}
+      onPress={onPress}
       haptic="selection"
       scaleTo={0.92}
       style={styles.directions}
@@ -264,19 +266,19 @@ function DirectionsButton({ chargePoint }: { chargePoint: ChargePoint }) {
   );
 }
 
-function FooterRow({ chargePoint, children, note }: { chargePoint: ChargePoint; children: ReactNode; note: string }) {
+function FooterRow({ children, note, onDirections }: { children: ReactNode; note: string; onDirections: () => void }) {
   return (
     <View style={styles.footerStack}>
       <View style={styles.footerRow}>
         <View style={styles.flex}>{children}</View>
-        <DirectionsButton chargePoint={chargePoint} />
+        <DirectionsButton onPress={onDirections} />
       </View>
       <Text style={styles.footnote}>{note}</Text>
     </View>
   );
 }
 
-function StartFooter({ chargePoint, queueState, now, onStart, onJoinQueue }: StartFooterProps) {
+function StartFooter({ chargePoint, queueState, now, onStart, onJoinQueue, onDirections }: StartFooterProps) {
   const needsCardPayment = chargePoint.type === 'COMMERCIAL';
   const paymentNote = needsCardPayment
     ? 'Pré-autorização no cartão · só o consumido é cobrado ao encerrar'
@@ -285,7 +287,7 @@ function StartFooter({ chargePoint, queueState, now, onStart, onJoinQueue }: Sta
   if (queueState?.kind === 'can-join') {
     return (
       <FooterRow
-        chargePoint={chargePoint}
+        onDirections={onDirections}
         note={
           queueState.queueLength > 0
             ? `${formatQueueLength(queueState.queueLength)} agora · reserva de 10 min quando liberar`
@@ -298,13 +300,13 @@ function StartFooter({ chargePoint, queueState, now, onStart, onJoinQueue }: Sta
   }
 
   if (queueState?.kind === 'waiting') {
-    return <LeaveQueueFooter chargePoint={chargePoint} position={queueState.position} />;
+    return <LeaveQueueFooter chargePoint={chargePoint} position={queueState.position} onDirections={onDirections} />;
   }
 
   if (queueState?.kind === 'reserved-for-other') {
     return (
       <FooterRow
-        chargePoint={chargePoint}
+        onDirections={onDirections}
         note={`Livre para o próximo da fila por mais ${formatClock(
           getRemainingSeconds(queueState.reservedUntil, now),
         )}`}
@@ -318,7 +320,7 @@ function StartFooter({ chargePoint, queueState, now, onStart, onJoinQueue }: Sta
   const label = chargePoint.pricing ? unavailableLabels[chargePoint.status] : 'Tarifa não configurada';
 
   return (
-    <FooterRow chargePoint={chargePoint} note={paymentNote}>
+    <FooterRow onDirections={onDirections} note={paymentNote}>
       <Button
         label={label}
         trailingIcon={Zap}
@@ -333,7 +335,15 @@ function StartFooter({ chargePoint, queueState, now, onStart, onJoinQueue }: Sta
   );
 }
 
-function LeaveQueueFooter({ chargePoint, position }: { chargePoint: ChargePoint; position: number }) {
+function LeaveQueueFooter({
+  chargePoint,
+  position,
+  onDirections,
+}: {
+  chargePoint: ChargePoint;
+  position: number;
+  onDirections: () => void;
+}) {
   const toast = useToast();
   const leaveQueue = useLeaveQueue(chargePoint.id);
 
@@ -346,7 +356,7 @@ function LeaveQueueFooter({ chargePoint, position }: { chargePoint: ChargePoint;
 
   return (
     <FooterRow
-      chargePoint={chargePoint}
+      onDirections={onDirections}
       note={`Você é o ${formatPosition(position)} da fila · avisamos quando for sua vez`}
     >
       <Button
